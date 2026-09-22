@@ -51,18 +51,5 @@
         }
       ]
     }
-  ],
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<sub>.*)\\.vercel\\.app"
-        }
-      ],
-      "destination": "https://devpit.zubyr.dev/$1",
-      "permanent": true
-    }
   ]
 }
