@@ -1,0 +1,30 @@
+ DEVPIT  vdev  -  Free Up Disk Space
+                                                                                 node ...   git ...
+----------------------------------------------------------------------------------------------------
+Pick what to look through. Nothing is deleted without a preview.
+
+  > Project Junk
+    (node_modules, dist, target, build output in your projects folder)
+
+    Full Scan
+    (Project junk plus package caches, Windows temp and editor caches)
+
+    Choose folder…
+    (Scan a folder other than your default one)
+
+    Resume interrupted deletes
+    (Finish anything a stopped clean left behind)
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------
+^v move  -  enter select  -  esc back  -  ? help

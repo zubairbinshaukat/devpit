@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<!-- Background effect: data-effect="rays" (light rays) or "blackhole" -->
+<html lang="en" data-effect="rays">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- SEO -->
+  <title>Devpit — Dev Machine Cleanup CLI for Windows</title>
+  <meta name="description" content="Devpit is a free, open-source CLI by Zubair bin Shaukat (zubyr) that cleans node_modules, caches and Docker junk, frees stuck ports like 3000 and updates every dev tool on Windows.">
+  <meta name="keywords" content="devpit, devpit cli, devpit by zubair, devpit zubair, devpit by zubyr, clean node_modules windows, free disk space developer, delete node_modules, npm cache clean, docker cleanup windows, port 3000 already in use, kill port windows, scoop cleanup, winget update all, developer tools windows, terminal app windows">
+  <link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
+  <meta name="author" content="Zubair bin Shaukat">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#030305">
+  <link rel="canonical" href="https://devpit.zubyr.dev/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Devpit">
+  <meta property="og:title" content="Devpit — Dev machine cleanup CLI for Windows">
+  <meta property="og:description" content="Clear node_modules, caches and Docker junk safely, free stuck ports and update every dev tool. Free and open source for Windows.">
+  <meta property="og:url" content="https://devpit.zubyr.dev/">
+  <meta property="og:image" content="https://devpit.zubyr.dev/og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Devpit terminal app freeing 8.7 GB of developer junk">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@zubairbinshaukt">
+  <meta name="twitter:creator" content="@zubairbinshaukt">
+  <meta name="twitter:title" content="Devpit — Dev machine cleanup CLI for Windows">
+  <meta name="twitter:description" content="Free, open-source terminal app that clears dev junk safely, fixes stuck ports and updates your tools.">
+  <meta name="twitter:image" content="https://devpit.zubyr.dev/og-image.png">
+
+  <!-- Icons (PNG / ICO, generated from the Devpit logo) -->
+  <link rel="icon" href="favicon.ico" sizes="48x48">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+
+  <!-- Fonts: Geist (UI + headlines), Instrument Serif (italic accents), JetBrains Mono (terminal) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap"></noscript>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Person",
+        "@id": "https://zubyr.dev/#person",
+        "name": "Zubair bin Shaukat",
+        "alternateName": ["Zubair Bin Shaukat", "zubyr", "ZUBYR"],
+        "url": "https://zubyr.dev",
+        "image": "https://devpit.zubyr.dev/author-avatar.webp",
+        "jobTitle": "Software Engineer",
+        "address": { "@type": "PostalAddress", "addressLocality": "Lahore", "addressCountry": "PK" },
+        "sameAs": [
+          "https://github.com/zubairbinshaukat",
+          "https://www.linkedin.com/in/zubairbinshaukat",
+          "https://x.com/zubairbinshaukt",
+          "https://www.instagram.com/zubairbinshaukat"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://devpit.zubyr.dev/#website",
+        "url": "https://devpit.zubyr.dev/",
+        "name": "Devpit",
+        "alternateName": ["Devpit CLI", "Devpit by Zubair bin Shaukat", "Devpit by zubyr"],
+        "publisher": { "@id": "https://zubyr.dev/#person" },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://devpit.zubyr.dev/#app",
+        "name": "Devpit",
+        "alternateName": "Devpit CLI",
+        "url": "https://devpit.zubyr.dev/",
+        "description": "Free, open-source terminal app (CLI) for Windows that frees disk space from developer junk, fixes stuck ports and updates developer tools from one menu.",
+        "applicationCategory": "DeveloperApplication",
+        "applicationSubCategory": "Developer tools",
+        "operatingSystem": "Windows 10, Windows 11",
+        "author": { "@id": "https://zubyr.dev/#person" },
+        "creator": { "@id": "https://zubyr.dev/#person" },
+        "codeRepository": "https://github.com/zubairbinshaukat/devpit",
+        "programmingLanguage": "Go",
+        "downloadUrl": "https://github.com/zubairbinshaukat/devpit/releases/latest",
+        "installUrl": "https://devpit.zubyr.dev/install",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "screenshot": "https://devpit.zubyr.dev/og-image.png",
+        "image": "https://devpit.zubyr.dev/logo.png",
+        "featureList": [
+          "Clean node_modules, dist, .next, build, venv and target folders",
+          "Clear npm, yarn, pnpm, pip, NuGet, Gradle, Cargo and Go caches",
+          "Remove Docker build cache, unused images and stopped containers",
+          "Remove old Scoop app versions",
+          "Free busy ports such as 3000, 5173 and 8080",
+          "Update apps through winget, Scoop, Chocolatey and npm at once",
+          "Set up Git identity and SSH keys"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://devpit.zubyr.dev/#faq",
+        "mainEntity": [
+          { "@type": "Question", "name": "What is Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is a free, open-source command-line app (CLI) for Windows that frees disk space from developer junk such as node_modules and caches, fixes stuck ports, and updates developer tools from one terminal menu." } },
+          { "@type": "Question", "name": "Who made Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is built by Zubair bin Shaukat (zubyr), a software engineer from Lahore, Pakistan. His portfolio is at zubyr.dev and the source is on GitHub under the MIT license." } },
+          { "@type": "Question", "name": "Is it safe to delete node_modules?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. node_modules is rebuilt by running npm install (or pnpm or yarn install). Devpit labels it Safe, shows the size first and never deletes anything until you confirm." } },
+          { "@type": "Question", "name": "How do I fix 'port 3000 is already in use' on Windows?", "acceptedAnswer": { "@type": "Answer", "text": "Open Devpit, choose Fix Stuck Ports & Apps and type 3000. Devpit shows which app is holding the port and stops it after you confirm." } },
+          { "@type": "Question", "name": "Is Devpit free and safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Devpit is free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short and readable." } },
+          { "@type": "Question", "name": "Does Devpit collect my data?", "acceptedAnswer": { "@type": "Answer", "text": "Not unless you opt in. Usage stats are off by default and only send totals such as space freed. File names, paths and usernames are never sent. Setting DEVPIT_NO_TELEMETRY=1 always disables it." } },
+          { "@type": "Question", "name": "Which operating systems does Devpit support?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 and 11 on x64 and ARM64 today. Linux and macOS are planned." } }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <!-- Background: WebGL light rays (drawn by main.js in a worker) + CSS rays underneath -->
+  <canvas id="space" class="space" aria-hidden="true"></canvas>
+  <div class="space-fallback" aria-hidden="true"></div>
+  <div class="junk-layer" id="junk-layer" aria-hidden="true"></div>
+
+  <!-- ===================== NAV ===================== -->
+  <header class="nav" id="top">
+    <div class="nav__pill">
+      <a class="brand" href="#top">
+        <img class="brand__mark" src="logo-mark.png" alt="" width="31" height="22">
+        <span class="brand__name">Devpit</span>
+      </a>
+      <nav class="nav__links" aria-label="Main">
+        <a href="#demo">Demo</a>
+        <a href="#features">Features</a>
+        <a href="#safety">Safety</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="star" href="https://github.com/zubairbinshaukat/devpit" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        <span data-stat="stars">Star</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ===================== HERO ===================== -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero__copy">
+        <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>Free &amp; open source <span class="eyebrow__sep" aria-hidden="true"></span> Windows 10 &amp; 11</p>
+        <h1 class="hero__title" id="hero-title">Where dev junk <em>disappears.</em></h1>
+        <p class="hero__lede">Devpit is a free, open-source CLI for Windows that finds <code>node_modules</code>, caches and Docker leftovers, shows you what's safe, and clears gigabytes in one keystroke.</p>
+
+        <div class="install" data-install>
+          <span class="install__ps" aria-hidden="true">PS&gt;</span>
+          <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
+          <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
+            <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <p class="install__alt">or grab the <a href="https://github.com/zubairbinshaukat/devpit/releases/latest" rel="noopener">.exe from GitHub Releases</a> <span aria-hidden="true">·</span> then type <code>devpit</code></p>
+      </div>
+
+      <!-- The black hole is drawn centered on this element -->
+      <div class="hole-anchor" id="hole-top" aria-hidden="true"></div>
+
+      <!-- ===================== TERMINAL DEMO ===================== -->
+      <div class="wrap stage" id="demo">
+        <h2 class="visually-hidden">See Devpit run</h2>
+        <figure class="term" aria-label="Animated Devpit terminal demo">
+          <div class="term__bar">
+            <div class="term__tabs" role="tablist" aria-label="Demo scenarios">
+              <button role="tab" class="tab is-active" aria-selected="true" data-scene="0">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="12.5" width="18" height="7.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 12.5 8 4.5h8l2.5 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                <span>Free space</span>
+              </button>
+              <button role="tab" class="tab" aria-selected="false" data-scene="1">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2.5v5M15 2.5v5M6 7.5h12v3a6 6 0 0 1-12 0zM12 16.5v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Port 3000</span>
+              </button>
+              <button role="tab" class="tab" aria-selected="false" data-scene="2">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 3.5v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20.5v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Update all</span>
+              </button>
+              <button role="tab" class="tab" aria-selected="false" data-scene="3">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7l5 5-5 5M12 17h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Install</span>
+              </button>
+            </div>
+            <div class="term__win" aria-hidden="true"><i></i><i></i><i></i></div>
+          </div>
+          <div class="term__body" id="term" aria-live="off"></div>
+          <div class="term__keys" id="term-keys" aria-hidden="true"></div>
+          <div class="term__press" id="term-press" aria-hidden="true"></div>
+        </figure>
+
+        <!-- Plain-language subtitles, synced to the terminal -->
+        <div class="subs">
+          <div class="subs__dots" id="subs-dots" aria-hidden="true"></div>
+          <p class="subs__text" id="subs-text" aria-live="polite"></p>
+          <div class="subs__side">
+            <span class="subs__metric" id="subs-metric"></span>
+            <button class="subs__pause" type="button" id="demo-pause" aria-pressed="false" aria-label="Pause demo">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path id="pause-path" d="M8.5 5.5v13M15.5 5.5v13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Text transcript for crawlers and screen readers -->
+        <div class="visually-hidden">
+          <p>Demo 1: Typing devpit opens the main menu. Full Scan checks projects, package caches, Docker and Scoop, then lists node_modules (1.84 GB), .next (610 MB), npm cache (3.1 GB), Docker build cache (2.4 GB) and old Scoop versions (750 MB), each labeled Safe, Review or Careful. After confirming, Devpit frees 8.7 GB in 42 seconds.</p>
+          <p>Demo 2: npm run dev fails with EADDRINUSE on port 3000. In Fix Stuck Ports &amp; Apps, typing 3000 shows node.exe holds the port; after confirming, the port is free and the dev server starts.</p>
+          <p>Demo 3: Update Everything checks Scoop, winget and npm, lists five updates, and installs the four ticked ones.</p>
+          <p>Demo 4: irm https://devpit.zubyr.dev/install | iex downloads Devpit, verifies its SHA256 checksum and adds it to PATH.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== COUNTER (hidden until /api/stats reports real totals over 100 GB) ===================== -->
+    <section class="count" id="stats" aria-labelledby="count-title" hidden>
+      <div class="wrap count__inner">
+        <h2 class="count__label" id="count-title">Freed by Devpit users so far</h2>
+        <p class="count__num"><span data-stat="totalGB">0</span><span class="count__unit">GB</span></p>
+        <p class="count__row">
+          <span><b data-stat="weekGB">0 GB</b> this week</span>
+          <span><b data-stat="users">0</b> people</span>
+          <span><b data-stat="biggest">0 GB</b> biggest single cleanup</span>
+        </p>
+        <p class="count__note">Opt-in, anonymous totals. No file names, no paths.</p>
+      </div>
+    </section>
+
+    <!-- ===================== FEATURES ===================== -->
+    <section class="chores" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <h2 class="h2" id="features-title">One menu. <em>Every chore.</em></h2>
+        <ul class="chores__list">
+          <li class="chore">
+            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="12.5" width="18" height="7.5" rx="2"/><path d="M5.5 12.5 8 4.5h8l2.5 8M7 16.3h.01M10.5 16.3h.01"/></svg></span>
+            <h3 class="chore__name">Free up disk space</h3>
+            <p class="chore__what">Clears <code>node_modules</code>, build folders, package caches, Docker leftovers and old app versions. You see sizes first.</p>
+            <span class="chore__tag">~14 GB can be freed</span>
+          </li>
+          <li class="chore">
+            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2.5v5M15 2.5v5M6 7.5h12v3a6 6 0 0 1-12 0zM12 16.5v5"/></svg></span>
+            <h3 class="chore__name">Fix stuck ports</h3>
+            <p class="chore__what">Port 3000 already in use? See which app is holding it and stop it in two keystrokes.</p>
+            <span class="chore__tag">Port 3000 busy? Kill it</span>
+          </li>
+          <li class="chore">
+            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 3.5v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20.5v-4h-4"/></svg></span>
+            <h3 class="chore__name">Update everything</h3>
+            <p class="chore__what">Updates your tools through winget, Scoop, Chocolatey and npm in one go. Untick anything you want to keep.</p>
+            <span class="chore__tag">5 updates waiting</span>
+          </li>
+          <li class="chore">
+            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M13.5 9.5l2 2"/></svg></span>
+            <h3 class="chore__name">Set up a new machine</h3>
+            <p class="chore__what">Install dev apps, set your Git name and SSH key, check your network. The first-day chores, done.</p>
+            <span class="chore__tag">23 apps via Scoop</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===================== SAFETY ===================== -->
+    <section class="safe" id="safety" aria-labelledby="safety-title">
+      <div class="wrap safe__inner">
+        <h2 class="h2" id="safety-title">Nothing disappears <em>until you say so.</em></h2>
+        <p class="lede">Every item gets a flag before you choose, and the default answer is always No.</p>
+        <ul class="flags">
+          <li class="flag flag--safe"><span class="flag__dot"></span><b>Safe</b><span>Rebuilds on its own. Pre-ticked.</span></li>
+          <li class="flag flag--review"><span class="flag__dot"></span><b>Review</b><span>Safe, but the next build is slower.</span></li>
+          <li class="flag flag--careful"><span class="flag__dot"></span><b>Careful</b><span>May hold data. Asks twice.</span></li>
+        </ul>
+        <div class="confirm" aria-hidden="true">
+          <span class="t-a">?</span> Delete 14 folders <span class="t-c">(2.1 GB)</span>? You can reinstall with <span class="t-w">npm install</span>. <span class="t-w">[y/N]</span><span class="cursor"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FAQ ===================== -->
+    <section class="faq" id="faq" aria-labelledby="faq-title">
+      <div class="wrap faq__inner">
+        <h2 class="h2" id="faq-title">Questions</h2>
+        <div class="faq__list">
+          <details open>
+            <summary>What is Devpit?</summary>
+            <p>Devpit (also searched as <em>Devpit CLI</em>) is a free, open-source command-line app for Windows. One terminal menu frees disk space from developer junk, fixes stuck ports and updates your tools.</p>
+          </details>
+          <details>
+            <summary>Who made Devpit?</summary>
+            <p>Devpit is built by <a href="https://zubyr.dev" rel="me">Zubair bin Shaukat</a> (zubyr), a software engineer from Lahore, Pakistan. The source is on <a href="https://github.com/zubairbinshaukat/devpit" rel="noopener">GitHub</a> under the MIT license.</p>
+          </details>
+          <details>
+            <summary>Is it safe to delete node_modules?</summary>
+            <p>Yes. It comes back when you run <code>npm install</code> (or pnpm / yarn). Devpit marks it Safe, shows the size first, and deletes nothing until you confirm.</p>
+          </details>
+          <details>
+            <summary>How do I fix "port 3000 is already in use" on Windows?</summary>
+            <p>Open Devpit, choose <b>Fix Stuck Ports &amp; Apps</b> and type <code>3000</code>. It shows which app holds the port and stops it after you confirm.</p>
+          </details>
+          <details>
+            <summary>Is Devpit free and safe to install?</summary>
+            <p>Free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short enough to read in a minute.</p>
+          </details>
+          <details>
+            <summary>Does Devpit collect my data?</summary>
+            <p>Not unless you opt in. Stats are off by default and only send totals. Set <code>DEVPIT_NO_TELEMETRY=1</code> and nothing is ever sent.</p>
+          </details>
+          <details>
+            <summary>Does it work on Mac or Linux?</summary>
+            <p>Windows 10 and 11 (x64 and ARM64) today. Linux and macOS are planned.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FINAL CTA ===================== -->
+    <section class="end" aria-labelledby="end-title">
+      <div class="hole-anchor hole-anchor--end" id="hole-end" aria-hidden="true"></div>
+      <div class="wrap end__inner">
+        <h2 class="end__title" id="end-title">Get your gigabytes <em>back.</em></h2>
+        <div class="install">
+          <span class="install__ps" aria-hidden="true">PS&gt;</span>
+          <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
+          <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
+            <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="end__links">
+          <a class="btn btn--light" href="https://github.com/zubairbinshaukat/devpit/releases/latest" rel="noopener">Download for Windows</a>
+          <a class="btn btn--glass" href="https://github.com/zubairbinshaukat/devpit" rel="noopener">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== MAKER ===================== -->
+  <section class="maker" id="author" aria-labelledby="maker-title">
+    <div class="wrap maker__inner">
+      <img class="maker__photo" src="author-avatar.webp" alt="Zubair bin Shaukat, the developer of Devpit" width="168" height="168" loading="lazy" decoding="async">
+      <h2 class="maker__title" id="maker-title">A project by <em>Zubair bin Shaukat</em></h2>
+      <p class="maker__bio">Software engineer from Lahore, Pakistan, building developer tools, automation and web apps. Devpit is the cleanup he wanted for his own Windows machine, so he built it and gave it away.</p>
+      <div class="maker__links">
+        <a class="btn btn--light" href="https://zubyr.dev" rel="me">Portfolio</a>
+        <a class="btn btn--glass" href="https://github.com/zubairbinshaukat" rel="me noopener">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          GitHub
+        </a>
+        <a class="btn btn--glass" href="https://www.linkedin.com/in/zubairbinshaukat" rel="me noopener">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.94 5a2 2 0 1 1-4-.01 2 2 0 0 1 4 .01ZM7 8.48H3V21h4V8.48Zm6.32 0H9.34V21h3.94v-6.57c0-3.66 4.77-4 4.77 0V21H22v-7.93c0-6.17-7.06-5.94-8.72-2.91l.04-1.68Z"/></svg>
+          LinkedIn
+        </a>
+        <a class="btn btn--glass" href="https://x.com/zubairbinshaukt" rel="me noopener" aria-label="Zubair bin Shaukat on X">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 2H22l-7.2 8.2L23.3 22h-6.6l-5.2-6.8L5.6 22H2.5l7.7-8.8L2 2h6.8l4.7 6.2L18.9 2Zm-1.2 18h1.8L7.4 3.9H5.5L17.7 20Z"/></svg>
+          X
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="foot__card">
+        <span class="foot__mark" aria-hidden="true">Devpit</span>
+        <div class="foot__top">
+          <a class="brand foot__brand" href="#top">
+            <img class="brand__mark" src="logo-mark.png" alt="" width="31" height="22" loading="lazy">
+            <span class="brand__name">Devpit</span>
+          </a>
+          <nav class="foot__links" aria-label="Footer">
+            <a href="#demo">Demo</a>
+            <a href="#features">Features</a>
+            <a href="#faq">FAQ</a>
+            <a href="https://github.com/zubairbinshaukat/devpit" rel="noopener">GitHub</a>
+            <a href="https://github.com/zubairbinshaukat/devpit/releases" rel="noopener">Releases</a>
+            <a href="https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md" rel="noopener">Privacy</a>
+            <a href="https://zubyr.dev" rel="me">zubyr.dev</a>
+            <a href="https://www.zubyr.dev/projects/batwa" rel="noopener" title="Batwa, an offline-first budget app by the same developer">Batwa</a>
+          </nav>
+          <a class="foot__by" href="https://zubyr.dev" rel="me">
+            <span class="foot__by-dot" aria-hidden="true"></span>
+            <span>Built in Lahore by</span>
+            <b>Zubair bin Shaukat</b>
+          </a>
+        </div>
+        <div class="foot__bottom">
+          <span>© 2026 Zubair bin Shaukat</span>
+          <span>MIT License</span>
+          <span>Open source, free forever</span>
+          <span>No account, no tracking</span>
+          <span class="foot__tag"><em>devpit</em> = a pit stop for your dev machine</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

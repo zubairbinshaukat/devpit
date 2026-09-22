@@ -1,0 +1,35 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+    groups:
+      charm:
+        patterns:
+          - "charm.land/*"
+          - "github.com/charmbracelet/*"
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - dependencies
+      - ci

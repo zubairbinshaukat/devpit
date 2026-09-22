@@ -1,0 +1,6 @@
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://devpit.zubyr.dev/sitemap.xml

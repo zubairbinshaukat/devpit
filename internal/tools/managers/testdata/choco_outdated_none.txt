@@ -1,0 +1,6 @@
+Chocolatey v2.2.2
+Outdated Packages
+ Output is package name | current version | available version | pinned?
+
+
+Chocolatey has determined 0 package(s) are outdated.

@@ -1,0 +1,14 @@
+{
+  "npm": {
+    "current": "10.2.0",
+    "wanted": "10.2.4",
+    "latest": "10.2.4",
+    "location": "C:\\Program Files\\nodejs\\node_modules\\npm"
+  },
+  "pnpm": {
+    "current": "8.10.0",
+    "wanted": "8.15.1",
+    "latest": "8.15.1",
+    "location": "C:\\Program Files\\nodejs\\node_modules\\pnpm"
+  }
+}

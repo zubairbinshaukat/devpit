@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: GoReleaser
+    runs-on: ubuntu-latest
+    permissions:
+      # Publish the release and its assets.
+      contents: write
+      # Mint the build provenance attestation.
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          check-latest: true
+
+      - name: Verify the module
+        run: |
+          go mod verify
+          go build ./...
+
+      - name: Test before releasing
+        run: go test -count=1 ./...
+
+      - uses: goreleaser/goreleaser-action@v6
+        id: goreleaser
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Token with write access to the scoop bucket repository. Until that
+          # repository exists, GoReleaser skips the bucket step (skip_upload:
+          # auto) rather than failing the release.
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/checksums.txt

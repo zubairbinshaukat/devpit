@@ -1,0 +1,7 @@
+Installed apps:
+
+Name         Version      Source  Updated             Info
+----         -------      ------  -------             ----
+7zip         23.01        main    2024-01-01 12:00:00
+git          2.43.0       main    2024-01-05 09:30:00
+nodejs-lts   20.11.0      main    2024-01-10 08:15:00

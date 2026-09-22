@@ -1,0 +1,6 @@
+Name            Id              Version     Available   Source
+--------------------------------------------------------------
+Git             Git.Git         2.42.0      2.43.0      winget
+Microsoft Edge  Microsoft.Edge  120.0.0.0   121.0.0.0   winget
+
+2 upgrades available.

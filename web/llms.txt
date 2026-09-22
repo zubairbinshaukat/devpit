@@ -1,0 +1,49 @@
+# Devpit
+
+> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and sets up Git and SSH.
+
+Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit and the website is https://devpit.zubyr.dev.
+
+## Install
+
+- PowerShell one-liner: `irm https://devpit.zubyr.dev/install | iex` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH)
+- Or download the executable from https://github.com/zubairbinshaukat/devpit/releases/latest
+- Then run `devpit`
+
+## What it does
+
+- Free Up Disk Space: scans a projects folder or the whole machine, lists junk with sizes and a risk label (Safe, Review, Careful), and deletes only what you tick
+- Fix Stuck Ports & Apps: shows which process holds a port (for example "port 3000 is already in use"), stops it after confirmation, and can stop the whole process tree for npm, pnpm, yarn and node
+- Install Developer Apps: installs from a catalog through Scoop, winget or Chocolatey
+- Update Everything: runs winget, Scoop, npm and Chocolatey updates in one pass, each step can be unticked
+- Network Tools: local and public IP, ping, DNS flush
+- Git & SSH Setup: git identity, SSH key generation (never overwrites an existing key without a typed confirmation), copy public key
+- Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
+
+## Safety rules (enforced in code and tests)
+
+- Nothing is deleted without a preview and an explicit confirmation; the default answer is always No
+- Careful items require typing DELETE
+- Projects touched in the last 7 days and unverified folders are never pre-ticked
+- A folder is only junk when its marker file sits beside it (package.json for node_modules, Cargo.toml for target, and so on) and the marker is re-verified right before deleting
+- Junctions, symlinks and other reparse points are never followed
+- Drive roots, the Windows directory, network paths and the user's never-touch list are refused
+- Safe items are renamed to a tombstone before removal so an interrupted delete can be finished later; Review and Careful items go to the Recycle Bin
+- Docker volumes are never touched
+- Nothing leaves the machine unless usage stats are turned on; DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
+
+## Author
+
+Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
+
+- Portfolio: https://zubyr.dev
+- GitHub: https://github.com/zubairbinshaukat
+- LinkedIn: https://www.linkedin.com/in/zubairbinshaukat
+- X: https://x.com/zubairbinshaukt
+
+## Links
+
+- [Website](https://devpit.zubyr.dev): landing page with an animated demo and FAQ
+- [Source code](https://github.com/zubairbinshaukat/devpit): Go source, issues and releases
+- [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md): every rule and the test that pins it
+- [Privacy](https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md): exactly what opt-in usage stats would send

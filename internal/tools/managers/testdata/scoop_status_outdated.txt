@@ -1,0 +1,6 @@
+Scoop is up to date.
+
+Name        Installed Version  Latest Version  Missing Dependencies  Info
+----        -----------------  --------------  ---------------------  ----
+git         2.42.0             2.43.0
+nodejs-lts  20.10.0            20.11.0

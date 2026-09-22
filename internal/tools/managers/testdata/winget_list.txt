@@ -1,0 +1,6 @@
+Name                Id                      Version     Source
+--------------------------------------------------------------
+7-Zip               7zip.7zip               23.01       winget
+Git                 Git.Git                 2.43.0      winget
+Microsoft Edge      Microsoft.Edge          120.0.0.0   winget
+Visual Studio Code  Microsoft.VSCode        1.85.1      winget

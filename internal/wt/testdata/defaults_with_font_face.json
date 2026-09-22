@@ -1,0 +1,11 @@
+{
+    "profiles": {
+        "defaults": {
+            "font": {
+                "face": "Consolas",
+                "size": 11
+            }
+        },
+        "list": []
+    }
+}

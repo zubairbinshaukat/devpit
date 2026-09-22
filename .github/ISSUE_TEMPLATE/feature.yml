@@ -1,0 +1,70 @@
+name: Feature request
+description: Suggest something Devpit should do
+title: "feat: "
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Devpit is early and the roadmap is public: see `plans/plan.md` section
+        14 for what is already planned and which milestone it belongs to. If
+        your idea is already on it, a thumbs-up on the tracking issue helps
+        more than a new one.
+
+        Two things Devpit will not become: a Windows debloater or system
+        optimizer, and a replacement for package managers.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is annoying today? Describe the situation, not the solution.
+      placeholder: |
+        Every time I come back to an old project I have to remember which
+        folders are safe to delete, and ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What you would like Devpit to do
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of Devpit
+      options:
+        - Free Up Disk Space
+        - Fix Stuck Ports & Apps
+        - Install Developer Apps
+        - Update Everything
+        - Network Tools
+        - Git & SSH Setup
+        - Settings
+        - Icons, theme or layout
+        - Command line, without the app
+        - Installation or updates
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+      description: The command, script or tool you reach for now.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and the roadmap
+          required: true
+        - label: This is not a system optimizer or debloater feature
+          required: true

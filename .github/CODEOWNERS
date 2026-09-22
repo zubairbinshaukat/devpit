@@ -1,0 +1,14 @@
+# Every change is reviewed by the maintainer.
+*       @zubairbinshaukat
+
+# The parts where a mistake deletes someone's work.
+/internal/scan/         @zubairbinshaukat
+/internal/clean/        @zubairbinshaukat
+/internal/winapi/       @zubairbinshaukat
+/internal/elevate/      @zubairbinshaukat
+/docs/safety.md         @zubairbinshaukat
+
+# Release and supply chain.
+/.github/workflows/     @zubairbinshaukat
+/.goreleaser.yml        @zubairbinshaukat
+/scripts/               @zubairbinshaukat

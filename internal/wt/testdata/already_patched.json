@@ -1,0 +1,14 @@
+{
+    "profiles": {
+        "defaults": {
+            "font": { "face": "Cascadia Mono, Symbols Nerd Font Mono" }
+        },
+        "list": [
+            {
+                "guid": "{aaaa}",
+                "name": "Ubuntu",
+                "font": { "face": "Ubuntu Mono, Symbols Nerd Font Mono" }
+            }
+        ]
+    }
+}

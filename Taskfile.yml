@@ -1,0 +1,132 @@
+# https://taskfile.dev
+#
+#   task            list the tasks
+#   task check      everything CI runs, in the order CI runs it
+#   task build      build devpit.exe
+#   task run        build and run
+version: "3"
+
+vars:
+  BINARY: devpit.exe
+  # go run rather than a bare `gofumpt`, so the task works without anything
+  # installed. Install it (see CONTRIBUTING.md) and it resolves from the
+  # module cache instantly.
+  GOFUMPT: go run mvdan.cc/gofumpt@v0.9.1
+  PKG: github.com/zubairbinshaukat/devpit
+  LDFLAGS: >-
+    -s -w
+    -X {{.PKG}}/internal/version.Version={{.VERSION}}
+    -X {{.PKG}}/internal/version.Commit={{.COMMIT}}
+    -X {{.PKG}}/internal/version.Date={{.DATE}}
+
+env:
+  CGO_ENABLED: "0"
+
+tasks:
+  default:
+    desc: List the available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the binary with version information baked in
+    vars:
+      VERSION:
+        sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+      COMMIT:
+        sh: git rev-parse --short HEAD 2>/dev/null || echo none
+      DATE:
+        sh: git log -1 --format=%cI 2>/dev/null || echo unknown
+    cmds:
+      - go build -trimpath -ldflags "{{.LDFLAGS}}" -o {{.BINARY}} .
+
+  run:
+    desc: Build and run Devpit
+    deps: [build]
+    cmds:
+      - ./{{.BINARY}}
+
+  test:
+    desc: Run every test
+    cmds:
+      - go test ./...
+
+  test:race:
+    desc: Run every test with the race detector
+    cmds:
+      - go test -race ./...
+
+  cover:
+    desc: Run the tests and open the coverage report
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out
+
+  golden:
+    desc: Regenerate the golden files, then read the diff before committing
+    cmds:
+      - go test ./internal/app -run Golden -update
+
+  fmt:
+    desc: Format everything with gofumpt
+    cmds:
+      - "{{.GOFUMPT}} -l -w main.go cmd internal"
+
+  fmt:check:
+    desc: Fail if anything is unformatted
+    # Task runs commands through its own POSIX shell on every platform, so
+    # this works the same on Windows.
+    cmds:
+      - cmd: |
+          unformatted="$({{.GOFUMPT}} -l main.go cmd internal)"
+          if [ -n "$unformatted" ]; then
+            echo "not gofumpt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  vet:
+    desc: Vet on Windows and on Linux, so the platform stubs stay honest
+    cmds:
+      - go vet ./...
+      - cmd: go vet ./...
+        env:
+          GOOS: linux
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  vuln:
+    desc: Check the dependency tree for known vulnerabilities
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  tidy:
+    desc: Tidy and verify the module
+    cmds:
+      - go mod tidy
+      - go mod verify
+
+  check:
+    desc: Everything CI runs
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: lint
+      - task: test
+
+  snapshot:
+    desc: Build a local GoReleaser snapshot without publishing
+    cmds:
+      - go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean
+
+  clean:
+    desc: Remove build output
+    cmds:
+      - cmd: rm -rf dist {{.BINARY}} coverage.out
+        platforms: [linux, darwin]
+      - cmd: powershell -NoProfile -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue dist, {{.BINARY}}, coverage.out"
+        platforms: [windows]

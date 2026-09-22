@@ -1,0 +1,29 @@
+# Normalise everything to LF in the repository by default.
+* text=auto eol=lf
+
+*.go       text eol=lf diff=golang
+*.md       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.toml     text eol=lf
+*.json     text eol=lf
+go.mod     text eol=lf
+go.sum     text eol=lf
+
+# PowerShell is happier with CRLF on Windows.
+*.ps1      text eol=crlf
+*.psm1     text eol=crlf
+
+# Golden files are byte-exact renders; never let Git rewrite them.
+testdata/golden/** -text
+
+# Binary fixtures and assets.
+*.png      binary
+*.gif      binary
+*.zip      binary
+*.ttf      binary
+*.gob      binary
+
+# Keep generated and vendored files out of diffs and language stats.
+go.sum     linguist-generated=true
+CHANGELOG.md linguist-generated=true

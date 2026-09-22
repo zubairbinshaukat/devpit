@@ -1,0 +1,110 @@
+# golangci-lint v2 configuration.
+#
+# The set is deliberately modest: linters that catch real defects, plus the
+# ones that pin Devpit's own house rules (no init, no faint SGR by accident,
+# errors actually checked). Nothing whose job is to argue about style, because
+# gofumpt already settles that.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gochecknoinits
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - revive
+    - unconvert
+    - usestdlibvars
+    - wastedassign
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+
+    govet:
+      enable-all: true
+      disable:
+        # Reordering small structs for packing hurts readability more than it
+        # helps a program this size.
+        - fieldalignment
+
+    gosec:
+      excludes:
+        # G104 duplicates errcheck.
+        - G104
+
+    misspell:
+      # No locale is set on purpose. Go identifiers are American (Normalize,
+      # Color) while this project's prose is British, and pinning either
+      # locale turns the other into a wall of false positives. Without one,
+      # misspell still catches genuine typos.
+      ignore-rules:
+        - color
+        - colors
+        - center
+
+    revive:
+      rules:
+        - name: package-comments
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+        - name: indent-error-flow
+        - name: errorf
+        - name: error-strings
+        - name: error-return
+        - name: context-as-argument
+        - name: blank-imports
+        - name: var-declaration
+        - name: unreachable-code
+        - name: redefines-builtin-id
+
+    staticcheck:
+      checks:
+        - all
+        # ST1000 duplicates revive's package-comments.
+        - -ST1000
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Tests may be blunter than production code.
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - noctx
+      # Cobra command files are wiring; their long constructor functions are
+      # the clearest form they have.
+      - path: cmd/devpit/
+        linters:
+          - dupl
+
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      module-path: github.com/zubairbinshaukat/devpit
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

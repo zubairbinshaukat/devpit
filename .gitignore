@@ -1,0 +1,38 @@
+plans/
+
+# Build output. Anchored to the repo root so cmd/devpit/ is not swept up.
+/devpit
+/devpit.exe
+*.exe
+*.dll
+*.so
+*.dylib
+/dist/
+
+# Test and coverage output
+*.test
+*.out
+coverage.*
+/tmp/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Local-only tooling
+.task/
+
+# Local agent instructions
+CLAUDE.md

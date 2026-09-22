@@ -1,0 +1,24 @@
+ DEVPIT  vdev  ·  Git & SSH Setup
+                                                                 node …   git …
+────────────────────────────────────────────────────────────────────────────────
+Get a fresh machine ready to push code.
+
+  ▸ Show git identity
+    (See the name and email git will commit as)
+
+    Set git identity
+    (Set your global git name and email)
+
+    Generate SSH key
+    (Create an ed25519 key and copy the public half)
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ move  ·  enter select  ·  ? help

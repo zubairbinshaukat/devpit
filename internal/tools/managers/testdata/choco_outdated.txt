@@ -1,0 +1,8 @@
+Chocolatey v2.2.2
+Outdated Packages
+ Output is package name | current version | available version | pinned?
+
+git|2.42.0|2.43.0|false
+nodejs-lts|20.10.0|20.11.0|false
+
+Chocolatey has determined 2 package(s) are outdated.

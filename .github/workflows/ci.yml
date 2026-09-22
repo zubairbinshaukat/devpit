@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26"
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is the target platform. Ubuntu proves the platform stubs
+        # keep the pure-logic packages portable.
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Vet the Windows files from Linux
+        if: runner.os == 'Linux'
+        run: GOOS=windows go vet ./...
+
+      - name: Test
+        run: go test -count=1 ./...
+
+      - name: Test with the race detector
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Check the module is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --timeout=5m
+
+      # The Windows-only files are excluded from the Linux lint run above, so
+      # lint them explicitly with the Windows build tags too.
+      - name: Lint the Windows build
+        uses: golangci/golangci-lint-action@v9
+        env:
+          GOOS: windows
+        with:
+          version: v2.13.2
+          args: --timeout=5m
+
+  vulncheck:
+    name: govulncheck (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

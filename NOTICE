@@ -1,0 +1,38 @@
+Devpit
+Copyright (c) 2026 Zubair Bin Shaukat
+
+This product includes software developed by third parties, listed below.
+Devpit itself is distributed under the MIT License; see LICENSE.
+
+--------------------------------------------------------------------------------
+Icon tables
+--------------------------------------------------------------------------------
+
+internal/ui/icons/extensions.go maps file names and extensions to Nerd Font
+glyphs. The table is Devpit's own, but its idea and structure are inspired by
+lazygit's pkg/gui/presentation/file_icons.go.
+
+    lazygit
+    https://github.com/jesseduffield/lazygit
+    Copyright (c) 2018 Jesse Duffield
+    MIT License
+
+The glyph codepoints themselves come from the Nerd Fonts project's nf-fa,
+nf-dev, nf-seti and nf-oct ranges.
+
+    Nerd Fonts
+    https://github.com/ryanoasis/nerd-fonts
+    Copyright (c) 2014 Ryan L McIntyre
+    MIT License
+
+Devpit does not bundle any font file. The optional icon font installer
+downloads Symbols Nerd Font Mono from an official Nerd Fonts release and
+verifies its checksum before installing it for the current user only.
+
+--------------------------------------------------------------------------------
+Go dependencies
+--------------------------------------------------------------------------------
+
+Devpit links against the Go modules listed in go.mod, each under its own
+licence. The full set, with licences, is reproduced in the SBOM attached to
+every GitHub release.

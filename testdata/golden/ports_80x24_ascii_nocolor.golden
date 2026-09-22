@@ -1,0 +1,24 @@
+ DEVPIT  vdev  -  Ports
+                                                             node ...   git ...
+--------------------------------------------------------------------------------
+Free a busy port or stop a stuck process.
+
+  > Kill a port
+    (Type a port number and free whatever is listening on it)
+
+    Busy dev ports
+    (Check every configured dev port at once)
+
+    Node processes
+    (List and stop node, npm, pnpm or yarn)
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+esc back  -  ^v move  -  enter select  -  ? help

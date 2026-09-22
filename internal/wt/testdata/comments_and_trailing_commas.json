@@ -1,0 +1,19 @@
+{
+    // Windows Terminal settings
+    "$schema": "https://aka.ms/terminal-profiles-schema",
+    "defaultProfile": "{00000000-0000-0000-0000-000000000000}",
+    "profiles": {
+        "defaults": {
+            // default font settings
+            "font": {
+                "face": "Cascadia Mono", // trailing comment
+            },
+        },
+        "list": [
+            {
+                "guid": "{00000000-0000-0000-0000-000000000000}",
+                "name": "PowerShell",
+            },
+        ],
+    },
+}

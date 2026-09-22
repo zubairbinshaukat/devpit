@@ -1,0 +1,118 @@
+# GoReleaser v2. https://goreleaser.com
+#
+#   task snapshot                       build locally without publishing
+#   git tag v0.1.0 && git push --tags   let CI do the real thing
+#
+# Windows only for now; Linux and macOS are a later milestone.
+version: 2
+
+project_name: devpit
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: devpit
+    main: .
+    binary: devpit
+    env:
+      # No cgo anywhere: every Windows call goes through golang.org/x/sys.
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/zubairbinshaukat/devpit/internal/version.Version={{ .Version }}
+      - -X github.com/zubairbinshaukat/devpit/internal/version.Commit={{ .FullCommit }}
+      - -X github.com/zubairbinshaukat/devpit/internal/version.Date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+# Deliberately no UPX. Packed executables trip antivirus heuristics, and a
+# false positive costs far more than the few megabytes it saves.
+
+archives:
+  - id: devpit
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - SECURITY.md
+      - PRIVACY.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "merge conflict"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Other
+      order: 99
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+  footer: |
+    ## Verifying this release
+
+    ```powershell
+    Get-FileHash .\devpit_{{ .Version }}_windows_amd64.zip -Algorithm SHA256
+    gh attestation verify .\devpit_{{ .Version }}_windows_amd64.zip --repo zubairbinshaukat/devpit
+    ```
+
+    Devpit is not Authenticode-signed yet, so SmartScreen may warn about an
+    unknown publisher. See SECURITY.md.
+
+scoops:
+  - repository:
+      # Placeholder: create this bucket repository and give the release
+      # workflow a token with write access to it before the first tagged
+      # release, or remove this section.
+      owner: zubairbinshaukat
+      name: devpit-bucket
+      branch: main
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    directory: bucket
+    homepage: https://github.com/zubairbinshaukat/devpit
+    description: A pit stop for your dev machine - free disk space, fix stuck ports, update your tools
+    license: MIT
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "chore(scoop): update {{ .ProjectName }} to {{ .Tag }}"
+    skip_upload: auto

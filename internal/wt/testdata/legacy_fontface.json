@@ -1,0 +1,14 @@
+{
+    "profiles": {
+        "defaults": {
+            "fontFace": "Consolas"
+        },
+        "list": [
+            {
+                "guid": "{aaaa}",
+                "name": "Ubuntu",
+                "fontFace": "Ubuntu Mono"
+            }
+        ]
+    }
+}

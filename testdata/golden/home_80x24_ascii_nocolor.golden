@@ -1,0 +1,24 @@
+ DEVPIT  vdev
+                                                             node ...   git ...
+--------------------------------------------------------------------------------
+                              D E V P I T
+                      Pit crew ready. Pick a job.
+
++----------------------------------------------------------------------+
+|   > Free Up Disk Space                                               |
+|     (Scan and clean dev junk, caches and temp files)                 |
+|     Fix Stuck Ports & Apps                   Port 3000 busy? Kill it |
+|     (Free busy ports and stop stuck processes)                       |
+|     Install Developer Apps                                           |
+|     (Pick and install dev apps)                                      |
+|     Update Everything                                                |
+|     (Update apps and tools through every detected package manager)   |
+|     Network Tools                                                    |
+|     (IP, connectivity and DNS helpers)                               |
+|     Git & SSH Setup                                                  |
+|     (Identity and SSH key setup)                                     |
+|     Devpit Settings                                                  |
+|     (Preferences, theme, privacy, tool rescan)                       |
++----------------------------------------------------------------------+
+--------------------------------------------------------------------------------
+^v move  -  enter select  -  q quit  -  ? help

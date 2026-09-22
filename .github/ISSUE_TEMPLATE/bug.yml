@@ -1,0 +1,110 @@
+name: Bug report
+description: Something did not work, or Devpit did something it should not have
+title: "bug: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting.
+
+        **If Devpit deleted something it should not have, do not file this
+        publicly.** Use a [private security advisory](https://github.com/zubairbinshaukat/devpit/security/advisories/new)
+        instead, so a fix can go out before the details do.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, and what Devpit did instead of what you expected.
+      placeholder: |
+        I chose Free Up Disk Space, scanned D:\work, and ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Devpit version
+      description: The output of `devpit version`.
+      placeholder: devpit 0.1.0 (abc1234, 2026-09-22)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: terminal
+    attributes:
+      label: Terminal
+      options:
+        - Windows Terminal
+        - PowerShell console (conhost)
+        - Command Prompt (conhost)
+        - VS Code integrated terminal
+        - ConEmu or Cmder
+        - SSH into Windows
+        - WSL running devpit.exe
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Run `winver`, or `[System.Environment]::OSVersion.Version`.
+      placeholder: Windows 11 Pro 24H2 (26100.1742), x64
+    validations:
+      required: true
+
+  - type: dropdown
+    id: icons
+    attributes:
+      label: Icon tier
+      description: Settings shows the current one.
+      options:
+        - auto
+        - nerd
+        - unicode
+        - ascii
+        - do not know
+    validations:
+      required: false
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Screenshot or output
+      description: |
+        A screenshot helps most for rendering problems. For anything else,
+        paste the text. Please remove anything private from paths first.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues
+          required: true
+        - label: I am on the latest release, or I said above which version I am on
+          required: true

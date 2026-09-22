@@ -1,0 +1,241 @@
+# Devpit install catalog.
+#
+# Each [[app]] entry lists the identifiers used by the three managers Devpit
+# drives (Scoop, winget, Chocolatey). A blank id means "not verified"; Devpit
+# never guesses an id it isn't sure of, since installing the wrong package is
+# worse than not offering it. `detect` lists the executable name(s) checked
+# to decide whether the app already appears to be installed.
+
+[[app]]
+name = "Node.js LTS"
+category = "Runtimes"
+scoop = "nodejs-lts"
+winget = "OpenJS.NodeJS.LTS"
+choco = "nodejs-lts"
+detect = ["node.exe"]
+description = "JavaScript runtime, current LTS release."
+
+[[app]]
+name = "Python"
+category = "Runtimes"
+scoop = "python"
+winget = "Python.Python.3.12"
+choco = "python"
+detect = ["python.exe"]
+description = "Python interpreter and pip."
+
+[[app]]
+name = "Go"
+category = "Runtimes"
+scoop = "go"
+winget = "GoLang.Go"
+choco = "golang"
+detect = ["go.exe"]
+description = "Go compiler and toolchain."
+
+[[app]]
+name = "Rust (via rustup)"
+category = "Runtimes"
+scoop = "rustup"
+winget = "Rustlang.Rustup"
+choco = "rustup.install"
+detect = ["rustup.exe", "cargo.exe"]
+description = "Rust toolchain installer; manages stable/nightly and components."
+
+[[app]]
+name = ".NET SDK"
+category = "Runtimes"
+scoop = "dotnet-sdk"
+winget = "Microsoft.DotNet.SDK.8"
+choco = "dotnet-sdk"
+detect = ["dotnet.exe"]
+description = ".NET 8 SDK for building and running .NET apps."
+
+[[app]]
+name = "Eclipse Temurin JDK"
+category = "Runtimes"
+scoop = "temurin-lts-jdk"
+winget = "EclipseAdoptium.Temurin.21.JDK"
+choco = "temurin"
+detect = ["java.exe"]
+description = "Eclipse Temurin OpenJDK, current LTS release."
+
+[[app]]
+name = "Visual Studio Code"
+category = "Editors"
+scoop = "vscode"
+winget = "Microsoft.VisualStudioCode"
+choco = "vscode"
+detect = ["Code.exe"]
+description = "Microsoft's code editor."
+
+[[app]]
+name = "Notepad++"
+category = "Editors"
+scoop = "notepadplusplus"
+winget = "Notepad++.Notepad++"
+choco = "notepadplusplus"
+detect = ["notepad++.exe"]
+description = "Lightweight text editor for Windows."
+
+[[app]]
+name = "Windows Terminal"
+category = "Terminals & Shell"
+scoop = "windows-terminal"
+winget = "Microsoft.WindowsTerminal"
+choco = "microsoft-windows-terminal"
+detect = ["wt.exe"]
+description = "Modern terminal host with tabs and panes."
+
+[[app]]
+name = "PowerShell 7"
+category = "Terminals & Shell"
+scoop = "pwsh"
+winget = "Microsoft.PowerShell"
+choco = "powershell-core"
+detect = ["pwsh.exe"]
+description = "Cross-platform PowerShell, alongside Windows PowerShell 5.1."
+
+[[app]]
+name = "oh-my-posh"
+category = "Terminals & Shell"
+scoop = "oh-my-posh"
+winget = "JanDeDobbeleer.OhMyPosh"
+choco = "oh-my-posh"
+detect = ["oh-my-posh.exe"]
+description = "Prompt theme engine for any shell."
+
+[[app]]
+name = "starship"
+category = "Terminals & Shell"
+scoop = "starship"
+winget = "Starship.Starship"
+choco = "starship"
+detect = ["starship.exe"]
+description = "Fast, minimal, customizable shell prompt."
+
+[[app]]
+name = "Git"
+category = "VCS"
+scoop = "git"
+winget = "Git.Git"
+choco = "git"
+detect = ["git.exe"]
+description = "Git for Windows."
+
+[[app]]
+name = "GitHub CLI"
+category = "VCS"
+scoop = "gh"
+winget = "GitHub.cli"
+choco = "gh"
+detect = ["gh.exe"]
+description = "Command-line tool for GitHub, PRs and issues from the terminal."
+
+[[app]]
+name = "Docker Desktop"
+category = "Containers"
+scoop = ""
+winget = "Docker.DockerDesktop"
+choco = "docker-desktop"
+detect = ["docker.exe"]
+description = "Docker Desktop, including the Docker Engine and Compose."
+
+[[app]]
+name = "pnpm"
+category = "Package Managers"
+scoop = "pnpm"
+winget = "pnpm.pnpm"
+choco = "pnpm"
+detect = ["pnpm.exe", "pnpm.cmd"]
+description = "Fast, disk-space-efficient Node.js package manager."
+
+[[app]]
+name = "Yarn"
+category = "Package Managers"
+scoop = "yarn"
+winget = "Yarn.Yarn"
+choco = "yarn"
+detect = ["yarn.exe", "yarn.cmd"]
+description = "Alternative Node.js package manager."
+
+[[app]]
+name = "Bun"
+category = "Package Managers"
+scoop = "bun"
+winget = "Oven-sh.Bun"
+choco = ""
+detect = ["bun.exe"]
+description = "JavaScript runtime, bundler, and package manager."
+
+[[app]]
+name = "ripgrep"
+category = "CLI Tools"
+scoop = "ripgrep"
+winget = "BurntSushi.ripgrep.MSVC"
+choco = "ripgrep"
+detect = ["rg.exe"]
+description = "Recursive line-oriented search, extremely fast."
+
+[[app]]
+name = "fd"
+category = "CLI Tools"
+scoop = "fd"
+winget = "sharkdp.fd"
+choco = "fd"
+detect = ["fd.exe"]
+description = "Simple, fast alternative to find."
+
+[[app]]
+name = "fzf"
+category = "CLI Tools"
+scoop = "fzf"
+winget = "junegunn.fzf"
+choco = "fzf"
+detect = ["fzf.exe"]
+description = "General-purpose command-line fuzzy finder."
+
+[[app]]
+name = "jq"
+category = "CLI Tools"
+scoop = "jq"
+winget = "jqlang.jq"
+choco = "jq"
+detect = ["jq.exe"]
+description = "Command-line JSON processor."
+
+[[app]]
+name = "bat"
+category = "CLI Tools"
+scoop = "bat"
+winget = "sharkdp.bat"
+choco = "bat"
+detect = ["bat.exe"]
+description = "cat clone with syntax highlighting and git integration."
+
+[[app]]
+name = "7-Zip"
+category = "CLI Tools"
+scoop = "7zip"
+winget = "7zip.7zip"
+choco = "7zip"
+detect = ["7z.exe"]
+description = "File archiver with a high compression ratio."
+
+[[app]]
+name = "lazygit"
+category = "CLI Tools"
+scoop = "lazygit"
+winget = "JesseDuffield.lazygit"
+choco = "lazygit"
+detect = ["lazygit.exe"]
+description = "Terminal UI for git commands."
+
+[[app]]
+name = "Cascadia Code"
+category = "Fonts"
+scoop = "cascadia-code"
+winget = "Microsoft.CascadiaCode"
+choco = ""
+detect = []
+description = "Monospace font used by Windows Terminal, with ligatures."

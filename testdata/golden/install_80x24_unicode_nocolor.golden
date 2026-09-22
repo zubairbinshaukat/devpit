@@ -1,0 +1,24 @@
+ DEVPIT  vdev  ·  Install Developer Apps
+                                                                 node …   git …
+────────────────────────────────────────────────────────────────────────────────
+Manager: scoop
+
+Runtimes
+  ▸ [ ] Node.js LTS
+    [ ] Python
+    [ ] Go
+    [ ] Rust (via rustup)
+    [ ] .NET SDK
+    [ ] Eclipse Temurin JDK
+Editors
+    [ ] Visual Studio Code
+    [ ] Notepad++
+Terminals & Shell
+    [ ] Windows Terminal
+    [ ] PowerShell 7
+    [ ] oh-my-posh
+    [ ] starship
+VCS
+    [ ] Git
+────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ move  ·  space toggle  ·  enter install  ·  ? help

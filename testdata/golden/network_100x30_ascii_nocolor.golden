@@ -1,0 +1,30 @@
+ DEVPIT  vdev  -  Network Tools
+                                                                                 node ...   git ...
+----------------------------------------------------------------------------------------------------
+IP, connectivity and DNS helpers.
+
+  > My IP addresses
+    (Local interfaces and your public IP)
+
+    Ping a host
+    (Check connectivity, default 1.1.1.1)
+
+    Flush DNS cache
+    (Clear the resolver cache)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------
+esc back  -  ^v move  -  enter select  -  ? help

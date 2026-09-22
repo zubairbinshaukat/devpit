@@ -1,0 +1,30 @@
+ DEVPIT  vdev  ·  Welcome
+                                                                                     node …   git …
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Welcome to Devpit
+
+Devpit is a pit stop for your dev machine: free disk space, fix stuck ports, and keep your tools up
+to date, from one menu.
+
+  ● Nothing is deleted without a preview and an explicit confirmation.
+  ● The default answer on every confirmation is No.
+  ● Nothing leaves this machine unless you turn usage stats on.
+
+Do all of these render?   ✓ ● ▸  
+
+  ▸ Glyphs render correctly: No
+    (Yes turns on the Nerd Font icon tier. No keeps the plain unicode one.)
+
+    Theme: auto
+    (auto follows your terminal background)
+
+    Usage stats: No
+    (Help show how much space Devpit saves? Only totals are sent — no file names or paths.)
+
+    Start using Devpit
+    (Saves these answers. You can change all of them in Settings.)
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+↑↓ move  ·  enter/space change  ·  y/n yes/no  ·  ? help

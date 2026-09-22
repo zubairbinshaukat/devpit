@@ -1,0 +1,5 @@
+Chocolatey v2.2.2
+git 2.43.0
+nodejs-lts 20.11.0
+7zip 23.1.0
+3 packages installed.
