@@ -104,7 +104,7 @@ scoops:
       # workflow a token with write access to it before the first tagged
       # release, or remove this section.
       owner: zubairbinshaukat
-      name: devpit-bucket
+      name: scoop-bucket
       branch: main
       token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
     directory: bucket

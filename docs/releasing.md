@@ -7,12 +7,27 @@ publishes the GitHub release with a changelog, and attests build provenance.
 
 ## Before the first release (once)
 
-1. **Scoop bucket.** `.goreleaser.yml` pushes a manifest to
-   `zubairbinshaukat/devpit-bucket`. Create that repository with a `bucket/`
-   directory, make a fine-grained token with write access to it, and add it
-   to this repository's Actions secrets as `SCOOP_BUCKET_TOKEN`. GoReleaser
-   fails the whole release if the secret is missing, so either do this or
-   delete the `scoops:` section first.
+1. **Scoop bucket.** A bucket is just a git repository with one JSON manifest
+   per app under `bucket/`, so one bucket serves every project you ship.
+   GoReleaser writes `bucket/devpit.json` into `zubairbinshaukat/scoop-bucket`
+   on each stable release. Set it up once:
+   1. Create a public repository named `scoop-bucket` with a README.
+   2. Add an empty `bucket/.gitkeep` so the directory exists.
+   3. GitHub: Settings, Developer settings, Personal access tokens,
+      Fine-grained tokens. Generate one scoped to only `scoop-bucket` with
+      Repository permissions, Contents: Read and write. Set an expiry and
+      note it; the release fails when it lapses.
+   4. In the `devpit` repository: Settings, Secrets and variables, Actions,
+      New repository secret, name `SCOOP_BUCKET_TOKEN`.
+
+   GoReleaser fails the whole release if the secret is missing, so do this
+   before the first tag or delete the `scoops:` section. Users install with:
+
+   ```powershell
+   scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket
+   scoop install devpit
+   ```
+
 2. **Dry run.** `task snapshot` builds everything locally into `dist/`
    without publishing. Run the built `dist/devpit_windows_amd64_v1/devpit.exe`
    and check `devpit version` shows a version, commit and date.
@@ -64,4 +79,41 @@ publishes the GitHub release with a changelog, and attests build provenance.
 
 - Authenticode signing. SmartScreen warns on first run until then; see
   `SECURITY.md`.
-- winget. Planned via `winget-releaser` after a few stable releases.
+- winget. See below; the first submission is manual.
+
+## winget
+
+winget has one central catalogue, `microsoft/winget-pkgs`, and every version
+is a pull request there that Microsoft moderates (a few days the first time,
+usually hours after that). Devpit ships as a zip with a portable exe inside,
+which winget supports directly. The package id is `zubairbinshaukat.devpit`.
+
+**First version, by hand.** Wait until a stable release exists on GitHub,
+then from a machine with the `wingetcreate` tool:
+
+```powershell
+winget install Microsoft.WingetCreate
+wingetcreate new https://github.com/zubairbinshaukat/devpit/releases/download/v0.1.0/devpit_0.1.0_windows_amd64.zip https://github.com/zubairbinshaukat/devpit/releases/download/v0.1.0/devpit_0.1.0_windows_arm64.zip
+```
+
+The wizard asks for the id (`zubairbinshaukat.devpit`), name, publisher,
+licence (MIT), description, and for each zip the installer type: choose
+`zip`, nested installer type `portable`, nested file `devpit.exe`, command
+alias `devpit`. It writes three YAML manifests, validates them, and can open
+the pull request for you when you say yes at the end (it needs a GitHub
+token with public repo access, which it prompts for). Answer any bot comments
+on the pull request; once merged, `winget install zubairbinshaukat.devpit`
+works.
+
+**Every later version, automated.** Once the first version is in the
+catalogue, add `vedantmgoyal/winget-releaser` as a job in
+`.github/workflows/release.yml` that runs after GoReleaser. It reads the
+release assets, bumps the manifests and opens the pull request. It needs a
+classic token with `public_repo` scope stored as a secret, and a fork of
+`microsoft/winget-pkgs` under your account. Until then, repeat the manual
+step with `wingetcreate update zubairbinshaukat.devpit --version X.Y.Z
+--urls <amd64 zip> <arm64 zip> --submit`.
+
+**Rules that trip people up.** Pre-releases are not accepted. The zip URLs
+must be release assets, not the `latest` redirect. The SHA256 of each zip is
+computed by the tool, so never re-upload an asset after submitting.

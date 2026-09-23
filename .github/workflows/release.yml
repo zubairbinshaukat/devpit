@@ -35,6 +35,11 @@ jobs:
       - name: Test before releasing
         run: go test -count=1 ./...
 
+      # GoReleaser shells out to syft for the SBOMs, and the runner does not
+      # ship it.
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
+
       - uses: goreleaser/goreleaser-action@v6
         id: goreleaser
         with:
