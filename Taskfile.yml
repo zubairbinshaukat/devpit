@@ -95,9 +95,12 @@ tasks:
           GOOS: linux
 
   lint:
-    desc: Run golangci-lint
+    desc: Lint on Windows and on Linux, so the platform stubs stay honest
     cmds:
       - golangci-lint run
+      - cmd: golangci-lint run
+        env:
+          GOOS: linux
 
   vuln:
     desc: Check the dependency tree for known vulnerabilities

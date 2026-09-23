@@ -119,6 +119,8 @@ func deepPath(t *testing.T, root string) (string, bool) {
 // reporting whether it worked. Go has no portable way to create one, and
 // mklink is the documented way to do it on Windows without elevation, so the
 // tests shell out here and nowhere else.
+//
+//nolint:unused // used only by the Windows-only tests in this package
 func makeJunction(t *testing.T, link, target string) bool {
 	t.Helper()
 	if runtime.GOOS != "windows" {

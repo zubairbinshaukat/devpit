@@ -13,8 +13,8 @@ import (
 // fileID identifies a file's data rather than one of its names. Two hard
 // links to the same bytes share a fileID, so the sizer can count them once.
 type fileID struct {
-	volume uint64
-	index  uint64
+	volume uint64 //nolint:unused // populated only by the Windows fileIdentity
+	index  uint64 //nolint:unused // populated only by the Windows fileIdentity
 }
 
 // linkSet remembers which file identities a scan has already counted. It is

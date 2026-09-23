@@ -18,7 +18,7 @@ func isCloudAttr(fs.FileInfo) bool { return false }
 func fileIdentity(string) (fileID, uint32, bool) { return fileID{}, 0, false }
 
 // longPath is a no-op outside Windows.
-func longPath(path string) string { return path }
+func longPath(path string) string { return path } //nolint:unused // called only by the Windows build
 
 // isRemoteDrive always reports false outside Windows; there are no mapped
 // drive letters to check.

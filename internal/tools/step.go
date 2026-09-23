@@ -21,6 +21,8 @@ const lastLinesKept = 20
 
 // errNotStarted is returned by a [processTracker]'s track when cmd.Process
 // is nil, i.e. cmd.Start has not been called yet.
+//
+//nolint:unused // returned only by the Windows processTracker
 var errNotStarted = errors.New("tools: process not started")
 
 // waitDelay bounds how long cmd.Wait waits for the stdout/stderr pipes to
