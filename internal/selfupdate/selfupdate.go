@@ -241,7 +241,10 @@ func parse(v string) ([3]int, bool) {
 // running executable lives: Scoop and winget keep their apps in folders of
 // their own, and anything else came from the install script.
 func Hint(exePath string) string {
-	p := strings.ToLower(filepath.ToSlash(exePath))
+	// Backslashes are replaced by hand rather than with filepath.ToSlash,
+	// which only knows about them on Windows: the pure-logic tests run on
+	// the Linux CI runner with Windows paths.
+	p := strings.ToLower(strings.ReplaceAll(exePath, `\`, "/"))
 	switch {
 	case strings.Contains(p, "/scoop/apps/"):
 		return "scoop update devpit"
