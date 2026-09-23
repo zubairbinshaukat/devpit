@@ -134,6 +134,7 @@ light, aqua, blue, rose and mono. See [docs/icons.md](docs/icons.md).
 
 ```powershell
 task check        # build + vet + lint + test
+task hooks        # run `task check` automatically before every push
 go run .          # run from source
 ```
 

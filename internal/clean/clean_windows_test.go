@@ -818,12 +818,14 @@ func sameProcessName(a, b string) bool {
 // denied access to the source") rather than performing the move. That is a
 // property of the session, not of the code under test, so the tests that need
 // a real Recycle Bin say so and step aside when there is not one.
+//
+// The probe is a whole makeTree directory, not a single file, because that is
+// what the callers recycle. A GitHub runner happily recycles a lone file and
+// then answers 0x78 for a directory tree with a read-only file inside, so a
+// file probe passed there while the test it guarded failed.
 func requireRecycleBin(t *testing.T) {
 	t.Helper()
-	probe := filepath.Join(t.TempDir(), "recycle-bin-probe")
-	if err := os.WriteFile(probe, []byte("probe"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	probe := makeTree(t, t.TempDir(), "recycle-bin-probe")
 	if err := moveToTrash(probe); err != nil {
 		t.Skipf("the Recycle Bin is not reachable from this session: %v", err)
 	}

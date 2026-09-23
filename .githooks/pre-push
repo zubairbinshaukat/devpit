@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs everything CI runs before anything leaves this machine. Install it once
+# with `task hooks` (git config core.hooksPath .githooks). Skip it in an
+# emergency with `git push --no-verify`.
+set -e
+
+# Scoop's shims are where go, task, golangci-lint and gofumpt live on a
+# Windows machine, and a hook does not always inherit the shell's PATH.
+if [ -d "$USERPROFILE/scoop/shims" ]; then
+  PATH="$USERPROFILE/scoop/shims:$PATH"
+fi
+
+if ! command -v task >/dev/null 2>&1; then
+  echo "pre-push: task is not on PATH, running the checks by hand" >&2
+  go build ./... && go vet ./... && go test -count=1 ./...
+  exit $?
+fi
+
+exec task check

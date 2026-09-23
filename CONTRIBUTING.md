@@ -29,8 +29,13 @@ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 go install mvdan.cc/gofumpt@latest
 ```
 
-Then `task check` runs the same things CI does: format check, vet on Windows
-and Linux, lint, and tests.
+Then `task check` runs the same things CI does: build, format check, vet on
+Windows and Linux, lint, and tests.
+
+Run `task hooks` once to install the pre-push hook in `.githooks/`. From then
+on `git push` runs `task check` first and refuses to push if anything fails,
+so a red CI run never starts from this machine. `git push --no-verify` skips
+it in an emergency.
 
 ## House rules
 

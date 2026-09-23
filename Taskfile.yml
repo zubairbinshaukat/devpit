@@ -48,9 +48,9 @@ tasks:
       - ./{{.BINARY}}
 
   test:
-    desc: Run every test
+    desc: Run every test, uncached, exactly as CI does
     cmds:
-      - go test ./...
+      - go test -count=1 ./...
 
   test:race:
     desc: Run every test with the race detector
@@ -116,10 +116,16 @@ tasks:
   check:
     desc: Everything CI runs
     cmds:
+      - go build ./...
       - task: fmt:check
       - task: vet
       - task: lint
       - task: test
+
+  hooks:
+    desc: Point git at .githooks so `task check` runs before every push
+    cmds:
+      - git config core.hooksPath .githooks
 
   snapshot:
     desc: Build a local GoReleaser snapshot without publishing
