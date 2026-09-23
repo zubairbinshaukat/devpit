@@ -1005,6 +1005,46 @@ self.onmessage = (e) => {
   })();
 
   /* =========================================================
+     3b. INSTALL METHOD TABS (PowerShell / Scoop)
+     Every group on the page follows the same choice, and the choice is
+     remembered per browser as a convenience only.
+     ========================================================= */
+  (() => {
+    const groups = $$("[data-install-group]");
+    if (!groups.length) return;
+    const KEY = "devpit.install";
+    const select = (method, focus) => {
+      groups.forEach((g) => {
+        g.querySelectorAll("[data-method]").forEach((tab) => {
+          const on = tab.dataset.method === method;
+          tab.classList.toggle("is-active", on);
+          tab.setAttribute("aria-selected", on ? "true" : "false");
+          tab.tabIndex = on ? 0 : -1;
+          if (on && focus && g.contains(document.activeElement)) tab.focus();
+        });
+        g.querySelectorAll("[data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== method; });
+      });
+      try { localStorage.setItem(KEY, method); } catch (_) {}
+    };
+    groups.forEach((g) => {
+      g.querySelectorAll("[data-method]").forEach((tab) => {
+        tab.addEventListener("click", () => select(tab.dataset.method, false));
+        tab.addEventListener("keydown", (e) => {
+          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+          const tabs = [...g.querySelectorAll("[data-method]")];
+          const i = tabs.indexOf(tab);
+          const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+          e.preventDefault();
+          select(next.dataset.method, true);
+        });
+      });
+    });
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (_) {}
+    if (saved === "scoop") select("scoop", false);
+  })();
+
+  /* =========================================================
      4. COPY BUTTONS
      ========================================================= */
   $$("[data-copy]").forEach((btn) => {

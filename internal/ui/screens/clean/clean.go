@@ -25,6 +25,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/scan/rules"
+	"github.com/zubairbinshaukat/devpit/internal/telemetry"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
@@ -117,7 +119,13 @@ type Model struct {
 
 	// Delete bookkeeping. pending is the confirmed selection and is the only
 	// thing beginDelete will act on.
-	pending    []scan.Item
+	pending []scan.Item
+	// ruleNames maps a confirmed item's lower-cased path to the rule that
+	// matched it. It is captured when the delete starts, because the usage
+	// stats report is built after pending has been cleared, and it holds
+	// rule names rather than items so nothing else can be reported by
+	// accident.
+	ruleNames  map[string]string
 	deleteFeed <-chan cleanengine.Progress
 	report     cleanengine.Report
 	locked     []cleanengine.Result
@@ -200,6 +208,12 @@ func (m Model) WithEngines(e Engines) Model {
 	}
 	if e.Verify != nil {
 		m.engines.Verify = e.Verify
+	}
+	if e.Report != nil {
+		m.engines.Report = e.Report
+	}
+	if e.Getenv != nil {
+		m.engines.Getenv = e.Getenv
 	}
 	return m
 }
@@ -710,6 +724,7 @@ func (m Model) beginDelete(answer confirm.AnsweredMsg, ctx uictx.Context) (uictx
 	}
 
 	items := m.toCleanItems(m.pending)
+	m.ruleNames = ruleNames(m.pending)
 
 	cctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
@@ -769,7 +784,7 @@ func (m Model) onDeleteDone(rep cleanengine.Report, ctx uictx.Context) (uictx.Sc
 	m.state = stateSummary
 	m.pending = nil
 	m = m.resize(ctx)
-	return m, m.persist(ctx, rep.Freed)
+	return m, tea.Batch(m.persist(ctx, rep.Freed), m.reportCmd(ctx, rep))
 }
 
 // startRetry runs the locked items again, which is the R key on the summary.
@@ -902,6 +917,50 @@ func (m Model) persist(ctx uictx.Context, freed uint64) tea.Cmd {
 		}
 	}
 	return uictx.SaveConfig(cfg)
+}
+
+// reportCmd sends one usage-stats report for a finished cleanup, in the
+// background, or returns nil when there is nothing to send or the user never
+// asked for stats.
+//
+// Only the main delete reports; a retry does not, so an item cannot be
+// counted twice. The command runs on its own goroutine like every tea.Cmd,
+// bounds itself with the client's timeout, swallows whatever comes back and
+// returns no message, so a dead server can neither delay the summary nor put
+// an error on screen. That is PRIVACY.md's "never blocks, never shows an
+// error", in code.
+func (m Model) reportCmd(ctx uictx.Context, rep cleanengine.Report) tea.Cmd {
+	send := m.engines.Report
+	if send == nil {
+		return nil
+	}
+	getenv := m.engines.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if !telemetry.Enabled(ctx.Config, getenv) {
+		return nil
+	}
+
+	cfg := ctx.Config
+	rules := m.ruleNames
+	return func() tea.Msg {
+		cctx, cancel := context.WithTimeout(context.Background(), telemetry.DefaultTimeout)
+		defer cancel()
+		_ = send(cctx, cfg, rep, rules)
+		return nil
+	}
+}
+
+// ruleNames maps each item's lower-cased path to the rule that matched it.
+// Lower-cased because Windows paths are compared that way, and rule names
+// only because that is all a report may ever carry.
+func ruleNames(items []scan.Item) map[string]string {
+	out := make(map[string]string, len(items))
+	for _, it := range items {
+		out[strings.ToLower(it.Path)] = it.Rule
+	}
+	return out
 }
 
 // stop cancels whatever is running. A delete finishes the item in flight

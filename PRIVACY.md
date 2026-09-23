@@ -62,7 +62,9 @@ nothing is retried or queued to disk. A failed report never shows an error and
 never delays a cleanup.
 
 The receiving server rejects impossible values, so the public totals cannot be
-inflated by a forged report.
+inflated by a forged report. It keeps a hashed form of your IP address for at
+most one hour, only to limit how many reports one connection can send, and
+that hash is never stored beyond the hour or used for anything else.
 
 ## What the totals are for
 

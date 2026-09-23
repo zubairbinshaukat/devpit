@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -343,5 +344,55 @@ func TestEveryThemePresetSurvivesNormalize(t *testing.T) {
 	c.Normalize()
 	if c.Theme != config.ThemeAuto {
 		t.Errorf("an unknown theme should fall back to auto, got %q", c.Theme)
+	}
+}
+
+// TestNewInstallIDIsAUniqueUUIDv4 pins the one identifier a usage-stats
+// report carries: a random v4 UUID, different every time it is minted.
+func TestNewInstallIDIsAUniqueUUIDv4(t *testing.T) {
+	t.Parallel()
+	v4 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+
+	seen := make(map[string]bool, 64)
+	for i := 0; i < 64; i++ {
+		id := config.NewInstallID()
+		if !v4.MatchString(id) {
+			t.Fatalf("NewInstallID = %q, want a v4 UUID", id)
+		}
+		if seen[id] {
+			t.Fatalf("NewInstallID repeated %q", id)
+		}
+		seen[id] = true
+	}
+}
+
+// TestNormalizeMintsAnInstallIDOnceAndKeepsIt proves the ID is generated on
+// this machine, persisted on the next save, and never regenerated after that.
+func TestNormalizeMintsAnInstallIDOnceAndKeepsIt(t *testing.T) {
+	withTempDirs(t)
+
+	c := config.Default()
+	if c.InstallID != "" {
+		t.Fatal("Default should not mint an install ID; Normalize does")
+	}
+	c.Normalize()
+	first := c.InstallID
+	if first == "" {
+		t.Fatal("Normalize did not mint an install ID")
+	}
+	c.Normalize()
+	if c.InstallID != first {
+		t.Errorf("Normalize replaced the install ID: %q then %q", first, c.InstallID)
+	}
+
+	if err := config.Save(c); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	res, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if res.Config.InstallID != first {
+		t.Errorf("the install ID did not round-trip: %q, want %q", res.Config.InstallID, first)
 	}
 }

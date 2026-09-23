@@ -86,7 +86,7 @@ publishes the GitHub release with a changelog, and attests build provenance.
 winget has one central catalogue, `microsoft/winget-pkgs`, and every version
 is a pull request there that Microsoft moderates (a few days the first time,
 usually hours after that). Devpit ships as a zip with a portable exe inside,
-which winget supports directly. The package id is `zubairbinshaukat.devpit`.
+which winget supports directly. The package id is `Zubyr.Devpit`.
 
 **First version, by hand.** Wait until a stable release exists on GitHub,
 then from a machine with the `wingetcreate` tool:
@@ -96,22 +96,30 @@ winget install Microsoft.WingetCreate
 wingetcreate new https://github.com/zubairbinshaukat/devpit/releases/download/v0.1.0/devpit_0.1.0_windows_amd64.zip https://github.com/zubairbinshaukat/devpit/releases/download/v0.1.0/devpit_0.1.0_windows_arm64.zip
 ```
 
-The wizard asks for the id (`zubairbinshaukat.devpit`), name, publisher,
+The wizard asks for the id (`ZubairBinShaukat.Devpit`), name, publisher,
 licence (MIT), description, and for each zip the installer type: choose
 `zip`, nested installer type `portable`, nested file `devpit.exe`, command
 alias `devpit`. It writes three YAML manifests, validates them, and can open
 the pull request for you when you say yes at the end (it needs a GitHub
 token with public repo access, which it prompts for). Answer any bot comments
-on the pull request; once merged, `winget install zubairbinshaukat.devpit`
+on the pull request; once merged, `winget install ZubairBinShaukat.Devpit`
 works.
 
-**Every later version, automated.** Once the first version is in the
-catalogue, add `vedantmgoyal/winget-releaser` as a job in
-`.github/workflows/release.yml` that runs after GoReleaser. It reads the
-release assets, bumps the manifests and opens the pull request. It needs a
-classic token with `public_repo` scope stored as a secret, and a fork of
-`microsoft/winget-pkgs` under your account. Until then, repeat the manual
-step with `wingetcreate update zubairbinshaukat.devpit --version X.Y.Z
+**Every later version, automated.** The `winget` job in
+`.github/workflows/release.yml` runs after GoReleaser on every stable tag. It
+bumps the manifests in your fork of `microsoft/winget-pkgs` and opens the
+pull request; the bot usually auto-approves updates to an existing package
+within a day. It needs, once:
+
+1. A fork of `microsoft/winget-pkgs` under `zubairbinshaukat` (wingetcreate
+   made it during the first submission).
+2. A classic personal access token with the `public_repo` scope (and
+   `workflow`, so the action can keep the fork in sync), stored in this
+   repository's Actions secrets as `WINGET_TOKEN`. Note its expiry.
+
+The job fails harmlessly until the first manual submission is merged. If it
+fails later, the GitHub release and Scoop are already done, so just run the
+manual update instead: `wingetcreate update Zubyr.Devpit --version X.Y.Z
 --urls <amd64 zip> <arm64 zip> --submit`.
 
 **Rules that trip people up.** Pre-releases are not accepted. The zip URLs

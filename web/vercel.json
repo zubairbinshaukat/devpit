@@ -31,6 +31,15 @@
       ]
     },
     {
+      "source": "/api/report",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

@@ -12,6 +12,7 @@
 package config
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
@@ -97,6 +98,13 @@ type Config struct {
 
 	// TelemetryOptIn is false unless the user explicitly turns stats on.
 	TelemetryOptIn bool `toml:"telemetry_opt_in"`
+	// InstallID is a random UUID minted on this machine by Normalize. It is
+	// the only thing a usage-stats report carries that is stable between
+	// runs, and it identifies nothing else: it is not derived from the
+	// machine, the user, the disk or the network, so it cannot be tied back
+	// to a person even by the machine that generated it. Deleting the config
+	// file mints a new one.
+	InstallID string `toml:"install_id"`
 
 	// ActiveDays is how recently a project must have been touched to count as
 	// active. Active projects are never pre-ticked.
@@ -326,6 +334,22 @@ func (c *Config) Normalize() {
 	if c.NeverTouch == nil {
 		c.NeverTouch = []string{}
 	}
+	if c.InstallID == "" {
+		c.InstallID = NewInstallID()
+	}
+}
+
+// NewInstallID returns a random UUID v4, or "" if the system's random source
+// is unavailable — in which case the caller simply has no install ID, which
+// is a report the server drops rather than a reason to fail a save.
+func NewInstallID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return ""
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10xx
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // AddRecentFolder pushes path to the front of the recent list, dropping any

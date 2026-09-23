@@ -32,6 +32,8 @@ internal/wt/           Windows Terminal settings.json patch/restore
 internal/network/      ping, DNS flush, local/public IP
 internal/gitssh/       SSH keygen, git config, clipboard (OSC 52)
 internal/elevate/      the elevated worker: protocol, client, server, whitelist
+internal/telemetry/    the opt-in usage-stats client: one POST after a
+                      cleanup, counts and rule names only
 ```
 
 `internal/` because none of it is meant to be imported by anyone else. No

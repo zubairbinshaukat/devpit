@@ -120,6 +120,7 @@
           { "@type": "Question", "name": "Who made Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is built by Zubair bin Shaukat (zubyr), a software engineer from Lahore, Pakistan. His portfolio is at zubyr.dev and the source is on GitHub under the MIT license." } },
           { "@type": "Question", "name": "Is it safe to delete node_modules?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. node_modules is rebuilt by running npm install (or pnpm or yarn install). Devpit labels it Safe, shows the size first and never deletes anything until you confirm." } },
           { "@type": "Question", "name": "How do I fix 'port 3000 is already in use' on Windows?", "acceptedAnswer": { "@type": "Answer", "text": "Open Devpit, choose Fix Stuck Ports & Apps and type 3000. Devpit shows which app is holding the port and stops it after you confirm." } },
+          { "@type": "Question", "name": "How do I install Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "In PowerShell, run irm devpit.zubyr.dev/install | iex to download the latest release with checksum verification, or add the zubyr Scoop bucket (scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket) and run scoop install devpit." } },
           { "@type": "Question", "name": "Is Devpit free and safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Devpit is free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short and readable." } },
           { "@type": "Question", "name": "Does Devpit collect my data?", "acceptedAnswer": { "@type": "Answer", "text": "Not unless you opt in. Usage stats are off by default and only send totals such as space freed. File names, paths and usernames are never sent. Setting DEVPIT_NO_TELEMETRY=1 always disables it." } },
           { "@type": "Question", "name": "Which operating systems does Devpit support?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 and 11 on x64 and ARM64 today. Linux and macOS are planned." } }
@@ -166,13 +167,29 @@
         <h1 class="hero__title" id="hero-title">Where dev junk <em>disappears.</em></h1>
         <p class="hero__lede">Devpit is a free, open-source CLI for Windows that finds <code>node_modules</code>, caches and Docker leftovers, shows you what's safe, and clears gigabytes in one keystroke.</p>
 
-        <div class="install" data-install>
-          <span class="install__ps" aria-hidden="true">PS&gt;</span>
-          <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
-          <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
-            <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div class="install-group" data-install-group>
+          <div class="install__tabs" role="tablist" aria-label="Install method">
+            <button class="install__tab is-active" type="button" role="tab" id="tab-ps-1" aria-selected="true" aria-controls="panel-ps-1" data-method="ps">PowerShell</button>
+            <button class="install__tab" type="button" role="tab" id="tab-scoop-1" aria-selected="false" aria-controls="panel-scoop-1" data-method="scoop" tabindex="-1">Scoop</button>
+          </div>
+          <div class="install" id="panel-ps-1" role="tabpanel" aria-labelledby="tab-ps-1" data-panel="ps">
+            <span class="install__ps" aria-hidden="true">PS&gt;</span>
+            <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
+            <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
+              <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+            </button>
+          </div>
+          <div class="install install--multi" id="panel-scoop-1" role="tabpanel" aria-labelledby="tab-scoop-1" data-panel="scoop" hidden>
+            <div class="install__lines">
+              <div class="install__line"><span class="install__ps" aria-hidden="true">PS&gt;</span><code class="install__cmd">scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket</code></div>
+              <div class="install__line"><span class="install__ps" aria-hidden="true">PS&gt;</span><code class="install__cmd">scoop install devpit</code></div>
+            </div>
+            <button class="copy" type="button" data-copy="scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket&#10;scoop install devpit" aria-label="Copy Scoop install commands">
+              <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
         </div>
         <p class="install__alt">or grab the <a href="https://github.com/zubairbinshaukat/devpit/releases/latest" rel="noopener">.exe from GitHub Releases</a> <span aria-hidden="true">·</span> then type <code>devpit</code></p>
       </div>
@@ -317,6 +334,10 @@
             <p>Open Devpit, choose <b>Fix Stuck Ports &amp; Apps</b> and type <code>3000</code>. It shows which app holds the port and stops it after you confirm.</p>
           </details>
           <details>
+            <summary>How do I install Devpit?</summary>
+            <p>Two ways, both in PowerShell. The one-liner <code>irm devpit.zubyr.dev/install | iex</code> downloads the latest release, checks its SHA256 and adds it to your PATH. Scoop users add the <code>zubyr</code> bucket and run <code>scoop install devpit</code>, and <code>scoop update</code> keeps it current.</p>
+          </details>
+          <details>
             <summary>Is Devpit free and safe to install?</summary>
             <p>Free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short enough to read in a minute.</p>
           </details>
@@ -337,13 +358,29 @@
       <div class="hole-anchor hole-anchor--end" id="hole-end" aria-hidden="true"></div>
       <div class="wrap end__inner">
         <h2 class="end__title" id="end-title">Get your gigabytes <em>back.</em></h2>
-        <div class="install">
-          <span class="install__ps" aria-hidden="true">PS&gt;</span>
-          <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
-          <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
-            <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div class="install-group" data-install-group>
+          <div class="install__tabs" role="tablist" aria-label="Install method">
+            <button class="install__tab is-active" type="button" role="tab" id="tab-ps-2" aria-selected="true" aria-controls="panel-ps-2" data-method="ps">PowerShell</button>
+            <button class="install__tab" type="button" role="tab" id="tab-scoop-2" aria-selected="false" aria-controls="panel-scoop-2" data-method="scoop" tabindex="-1">Scoop</button>
+          </div>
+          <div class="install" id="panel-ps-2" role="tabpanel" aria-labelledby="tab-ps-2" data-panel="ps">
+            <span class="install__ps" aria-hidden="true">PS&gt;</span>
+            <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
+            <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
+              <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+            </button>
+          </div>
+          <div class="install install--multi" id="panel-scoop-2" role="tabpanel" aria-labelledby="tab-scoop-2" data-panel="scoop" hidden>
+            <div class="install__lines">
+              <div class="install__line"><span class="install__ps" aria-hidden="true">PS&gt;</span><code class="install__cmd">scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket</code></div>
+              <div class="install__line"><span class="install__ps" aria-hidden="true">PS&gt;</span><code class="install__cmd">scoop install devpit</code></div>
+            </div>
+            <button class="copy" type="button" data-copy="scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket&#10;scoop install devpit" aria-label="Copy Scoop install commands">
+              <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
         </div>
         <div class="end__links">
           <a class="btn btn--light" href="https://github.com/zubairbinshaukat/devpit/releases/latest" rel="noopener">Download for Windows</a>

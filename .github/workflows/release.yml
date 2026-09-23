@@ -60,3 +60,25 @@ jobs:
           subject-path: |
             dist/*.zip
             dist/checksums.txt
+
+  winget:
+    name: winget
+    needs: release
+    # Stable versions only: winget-pkgs does not accept pre-releases.
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      # Bumps the Zubyr.Devpit manifests in a fork of microsoft/winget-pkgs
+      # and opens the pull request. The version is the tag without its "v".
+      # Needs WINGET_TOKEN, a classic token with the public_repo scope (plus
+      # workflow, so the fork stays in sync), and the fork under the same
+      # account. Until the package's first manual submission is merged this
+      # job fails, and the GitHub release above is unaffected. The action has
+      # no versioned releases, so it is used from main. See docs/releasing.md.
+      - uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: Zubyr.Devpit
+          installers-regex: '\.zip$'
+          max-versions-to-keep: 5
+          fork-user: zubairbinshaukat
+          token: ${{ secrets.WINGET_TOKEN }}

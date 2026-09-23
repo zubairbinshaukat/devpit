@@ -7,6 +7,8 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 ## Install
 
 - PowerShell one-liner: `irm https://devpit.zubyr.dev/install | iex` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH)
+- Scoop: `scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket` then `scoop install devpit`
+- Manual: download the zip for x64 or ARM64 from https://github.com/zubairbinshaukat/devpit/releases/latest
 - Or download the executable from https://github.com/zubairbinshaukat/devpit/releases/latest
 - Then run `devpit`
 

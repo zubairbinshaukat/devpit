@@ -2,6 +2,7 @@ package clean
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
+	"github.com/zubairbinshaukat/devpit/internal/telemetry"
+	"github.com/zubairbinshaukat/devpit/internal/version"
 )
 
 // batchEvery is how often the scan stream and the delete progress channel are
@@ -39,6 +42,16 @@ type CacheLoader func(root string) (*scan.Cache, error)
 // CacheSaver stores a finished scan.
 type CacheSaver func(c *scan.Cache) error
 
+// ReportFunc sends one opt-in usage-stats report for a finished cleanup.
+// rules maps an item's lower-cased path to the scan rule that matched it, and
+// only the rule names ever leave the machine. It is injected like every other
+// outside-world call so a test can watch what the screen would send without a
+// network, and so nothing in the screen has to know what a report looks like.
+//
+// The returned error exists for tests. The screen discards it: a failed
+// report is never the user's problem.
+type ReportFunc func(ctx context.Context, cfg config.Config, rep cleanengine.Report, rules map[string]string) error
+
 // Engines is every outside-world entry point the screen uses. The zero value
 // is not usable; [DefaultEngines] returns the real ones and tests pass fakes.
 type Engines struct {
@@ -58,6 +71,12 @@ type Engines struct {
 	// carried on every clean.Item the screen builds, which is how safety
 	// rule 10 reaches the delete engine.
 	Verify func(scan.Item) error
+	// Report sends the opt-in usage-stats report. It is only ever called
+	// when [telemetry.Enabled] says so.
+	Report ReportFunc
+	// Getenv reads the environment, so a test can decide what the two
+	// telemetry kill switches say without touching the process environment.
+	Getenv func(string) string
 }
 
 // DefaultEngines returns the real engines.
@@ -70,7 +89,23 @@ func DefaultEngines() Engines {
 		LoadCache: loadCache,
 		SaveCache: saveCache,
 		Verify:    scan.Verify,
+		Report:    sendReport,
+		Getenv:    os.Getenv,
 	}
+}
+
+// sendReport posts one usage-stats report. Whether it may run at all is the
+// screen's decision, taken before this is ever called.
+func sendReport(ctx context.Context, cfg config.Config, rep cleanengine.Report, rules map[string]string) error {
+	client := telemetry.New(telemetry.Options{
+		Version:   version.Short(),
+		InstallID: cfg.InstallID,
+	})
+	out, ok := client.Build(rep, rules)
+	if !ok {
+		return nil
+	}
+	return client.Send(ctx, out)
 }
 
 // loadCache reads the cached scan for root from Devpit's cache directory.
