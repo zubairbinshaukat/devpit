@@ -95,3 +95,34 @@ func ownExecutable() string {
 	}
 	return abs
 }
+
+// resolvedPath returns p with symlinks and Windows 8.3 short names expanded,
+// or p unchanged when the path cannot be resolved — it may not exist, and a
+// refusal check must still work on a path that is already gone.
+//
+// This matters because one directory has more than one spelling.
+// C:\Users\RUNNER~1\AppData\Local\Temp and
+// C:\Users\runneradmin\AppData\Local\Temp are the same directory, and a
+// never-touch check that compared only the spelling it was handed would let
+// the other one through.
+func resolvedPath(p string) string {
+	r, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return p
+	}
+	abs, err := normalize(r)
+	if err != nil {
+		return p
+	}
+	return abs
+}
+
+// pathSpellings returns the distinct spellings of one cleaned absolute path
+// that a containment check has to consider: the path as given, and its
+// resolved form when that differs.
+func pathSpellings(p string) []string {
+	if r := resolvedPath(p); !samePath(r, p) {
+		return []string{p, r}
+	}
+	return []string{p}
+}

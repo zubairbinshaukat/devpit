@@ -176,9 +176,21 @@ func (r Rule) ExpandLocations() []string {
 		if !ok {
 			continue
 		}
-		out = append(out, filepath.Clean(expanded))
+		out = append(out, filepath.Clean(fromWindowsSeparators(expanded)))
 	}
 	return out
+}
+
+// fromWindowsSeparators rewrites the backslashes that every location in the
+// rule set is written with into the separator this machine uses. It is a no-op
+// on Windows, the only platform Devpit runs on, and it is what lets the
+// location rules be exercised by the Linux test job rather than silently
+// probing a path that can never exist there.
+func fromWindowsSeparators(p string) string {
+	if os.PathSeparator == '\\' {
+		return p
+	}
+	return strings.ReplaceAll(p, `\`, string(os.PathSeparator))
 }
 
 // resolveLocations expands a location rule's placeholders and then its globs

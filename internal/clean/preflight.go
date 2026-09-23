@@ -16,6 +16,9 @@ import (
 // Preflight never modifies anything. Run calls it for every item, including in
 // a dry run, and callers may call it on its own to grey out a row.
 func Preflight(it Item, opts Options) error {
+	if err := checkRawEnvironment(it.Path); err != nil {
+		return err
+	}
 	p, err := normalize(it.Path)
 	if err != nil {
 		return err
@@ -77,6 +80,11 @@ func preflightTombstone(tomb, original string, opts Options) error {
 		return err
 	}
 
+	for _, raw := range []string{tomb, original} {
+		if err := checkRawEnvironment(raw); err != nil {
+			return err
+		}
+	}
 	for _, p := range []string{t, o} {
 		if err := checkEnvironment(p); err != nil {
 			return err
@@ -89,6 +97,19 @@ func preflightTombstone(tomb, original string, opts Options) error {
 		return err
 	}
 	return checkReparse(t)
+}
+
+// checkRawEnvironment is the half of rule 11 that has to run on the path as it
+// was handed to us, before normalize makes it absolute. A UNC path is a
+// backslash-prefixed string, and on a non-Windows machine filepath.Abs turns
+// `\\server\share` into a relative name under the working directory, which no
+// longer looks like a UNC path at all. Refusing the network before the path is
+// rewritten keeps the rule platform-independent.
+func checkRawEnvironment(raw string) error {
+	if isUNC(raw) {
+		return fmt.Errorf("%w: %s", ErrNetworkPath, raw)
+	}
+	return nil
 }
 
 // checkEnvironment is rule 11: drive and share roots, the Windows directory,
@@ -108,20 +129,34 @@ func checkEnvironment(p string) error {
 
 // checkNeverTouch is rules 6 and 7: the user's never-touch list, and Devpit's
 // own executable, which is on that list whether the user put it there or not.
+//
+// Every comparison is made against each spelling of the path — as given and
+// resolved — because a short name or a symlink is a second name for the same
+// directory, and a list that guards one has to guard the other.
 func checkNeverTouch(p string, opts Options) error {
+	candidates := pathSpellings(p)
 	for _, entry := range opts.NeverTouch {
 		guarded, normErr := normalize(entry)
 		if normErr != nil {
 			continue
 		}
-		// Both directions: a path inside a protected directory is refused, and
-		// so is a path that would take a protected directory down with it.
-		if within(p, guarded) || within(guarded, p) {
-			return fmt.Errorf("%w: %s", ErrNeverTouch, guarded)
+		for _, g := range pathSpellings(guarded) {
+			for _, c := range candidates {
+				// Both directions: a path inside a protected directory is
+				// refused, and so is a path that would take a protected
+				// directory down with it.
+				if within(c, g) || within(g, c) {
+					return fmt.Errorf("%w: %s", ErrNeverTouch, guarded)
+				}
+			}
 		}
 	}
-	if exe := ownExecutable(); exe != "" && within(exe, p) {
-		return fmt.Errorf("%w: %s", ErrOwnExecutable, exe)
+	if exe := ownExecutable(); exe != "" {
+		for _, c := range candidates {
+			if within(exe, c) {
+				return fmt.Errorf("%w: %s", ErrOwnExecutable, exe)
+			}
+		}
 	}
 	return nil
 }

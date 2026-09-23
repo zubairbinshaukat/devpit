@@ -509,13 +509,19 @@ func prepareRoots(opts Options) ([]string, error) {
 		if strings.TrimSpace(raw) == "" {
 			continue
 		}
+		// The UNC test runs on the raw root as well as the cleaned one.
+		// filepath.Abs rewrites a `\\server\share` string into a relative
+		// name under the working directory on any machine whose separator is
+		// not a backslash, and a network root must be refused either way.
+		rawIsNetwork := pathIsUNC(raw)
+
 		abs, err := filepath.Abs(raw)
 		if err != nil {
 			return nil, fmt.Errorf("scan: resolving %s: %w", raw, err)
 		}
 		abs = filepath.Clean(abs)
 
-		if !opts.AllowNetwork && (pathIsUNC(abs) || isRemoteDrive(abs)) {
+		if !opts.AllowNetwork && (rawIsNetwork || pathIsUNC(abs) || isRemoteDrive(abs)) {
 			return nil, fmt.Errorf("scan: %s: %w", raw, ErrNetworkRoot)
 		}
 		info, err := os.Stat(abs)

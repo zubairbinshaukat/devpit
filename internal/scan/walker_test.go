@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -455,7 +456,13 @@ func TestReadOnlyFilesAreCounted(t *testing.T) {
 func TestDuplicateRootsAreWalkedOnce(t *testing.T) {
 	root := buildTree(t)
 	opts := projectOptions(root)
-	opts.Roots = []string{root, root, strings.ToUpper(root)}
+	opts.Roots = []string{root, root}
+	// The third spelling only names the same directory where the filesystem
+	// is case-insensitive. On Linux it is a path that does not exist, which
+	// would test the "missing root" error rather than de-duplication.
+	if runtime.GOOS == "windows" {
+		opts.Roots = append(opts.Roots, strings.ToUpper(root))
+	}
 
 	items, _, err := runScan(t, opts)
 	if err != nil {

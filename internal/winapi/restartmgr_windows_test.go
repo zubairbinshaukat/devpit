@@ -72,7 +72,7 @@ func TestLockHoldersNamesTheProcessHoldingAFile(t *testing.T) {
 	}
 	self := filepath.Base(os.Args[0])
 	for _, holder := range holders {
-		if strings.EqualFold(holder.Name, self) {
+		if sameProcessName(holder.Name, self) {
 			if holder.PID != uint32(os.Getpid()) {
 				t.Errorf("PID = %d, want this process %d", holder.PID, os.Getpid())
 			}
@@ -104,4 +104,15 @@ func TestLockHoldersIgnoresAnEmptyList(t *testing.T) {
 	if err != nil || holders != nil {
 		t.Fatalf("LockHolders(nil) = %+v, %v", holders, err)
 	}
+}
+
+// sameProcessName compares two process names ignoring case and a trailing
+// ".exe". The Restart Manager fills RM_PROCESS_INFO's strAppName with the
+// application's friendly name, which carries the extension on some machines
+// and not on others — a GitHub Actions runner reports "winapi.test" for the
+// binary a developer machine reports as "winapi.test.exe". Either spelling
+// names the same process, and the API documents no guarantee either way.
+func sameProcessName(a, b string) bool {
+	trim := func(s string) string { return strings.TrimSuffix(strings.ToLower(s), ".exe") }
+	return trim(a) == trim(b)
 }

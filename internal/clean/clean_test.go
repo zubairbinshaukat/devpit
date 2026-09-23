@@ -392,3 +392,34 @@ func TestOptionsWorkersDefaultsToTwelve(t *testing.T) {
 		t.Fatalf("workers() = %d, want 3", got)
 	}
 }
+
+// Rules 6 and 7 hold against a second spelling of the same directory. A
+// symlink — and, on Windows, an 8.3 short name — is another name for a
+// protected folder, and the refusal has to follow the folder rather than the
+// string it was named by.
+func TestPreflightRefusesASecondSpellingOfAProtectedPath(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	guarded := filepath.Join(base, "guarded")
+	target := filepath.Join(guarded, "node_modules")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(guarded, link); err != nil {
+		t.Skipf("this machine will not create a symlink: %v", err)
+	}
+
+	// The item is named through the link, the never-touch list through the
+	// real directory. They are the same folder.
+	err := Preflight(Item{Path: filepath.Join(link, "node_modules")}, Options{NeverTouch: []string{guarded}})
+	if !errors.Is(err, ErrNeverTouch) {
+		t.Errorf("err = %v, want ErrNeverTouch", err)
+	}
+
+	// And the other way round: the list names the link, the item the real path.
+	err = Preflight(Item{Path: target}, Options{NeverTouch: []string{link}})
+	if !errors.Is(err, ErrNeverTouch) {
+		t.Errorf("err = %v, want ErrNeverTouch when the list names the link", err)
+	}
+}
