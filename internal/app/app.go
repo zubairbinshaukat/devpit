@@ -23,6 +23,7 @@ import (
 
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/selfupdate"
 	"github.com/zubairbinshaukat/devpit/internal/tools"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/footer"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
@@ -81,6 +82,18 @@ type Options struct {
 	// Production leaves it nil, which means a real lazy detection off the
 	// render path; tests pass a stub so no test execs a real binary.
 	ToolVersions func(context.Context) header.ToolVersionsMsg
+	// CheckUpdate looks for a newer release. Production leaves it nil, which
+	// means selfupdate.Check against GitHub with the on-disk cache; tests
+	// pass a stub so no test opens a socket. It only ever runs when
+	// selfupdate.Enabled says it may.
+	CheckUpdate func(context.Context) (selfupdate.Result, error)
+	// Version is the running version for the update check, normally
+	// version.Short(). Tests set it to see the notice; a dev build never
+	// checks.
+	Version string
+	// ExePath is where this executable lives, for the upgrade hint.
+	// Production leaves it empty, which means os.Executable.
+	ExePath string
 }
 
 // configSaver writes the configuration. It is a field so tests can capture
@@ -97,6 +110,7 @@ type Model struct {
 	save   configSaver
 
 	cfg      config.Config
+	update   uictx.UpdateInfo
 	dark     bool
 	stopping bool
 	stopBy   time.Time
@@ -116,10 +130,12 @@ func New(opts Options) Model {
 	// Dark is the assumption until the terminal answers
 	// tea.RequestBackgroundColor; most developer terminals are dark, so the
 	// first frame is usually already correct.
+	hdr := header.New()
+	hdr.Tabs = home.Tabs()
 	m := Model{
 		opts:    opts,
 		keys:    DefaultGlobalKeyMap(),
-		header:  header.New(),
+		header:  hdr,
 		footer:  footer.New(),
 		save:    config.Save,
 		cfg:     cfg,
@@ -169,12 +185,100 @@ func (m Model) Init() tea.Cmd {
 	if c := m.sweepCmd(); c != nil {
 		cmds = append(cmds, c)
 	}
+	if c := m.updateCmd(); c != nil {
+		cmds = append(cmds, c)
+	}
 	if s, ok := m.router.Top(); ok {
 		if c := s.Init(); c != nil {
 			cmds = append(cmds, c)
 		}
 	}
 	return tea.Batch(cmds...)
+}
+
+// updateFoundMsg says the background check found a newer release.
+type updateFoundMsg struct {
+	info uictx.UpdateInfo
+}
+
+// updateCmd looks for a newer Devpit, on its own goroutine after the first
+// frame, and only when the setting, the environment and the build allow it.
+// It returns nil when there is nothing to do, and the command itself returns
+// nil unless a newer version exists: an up-to-date Devpit never says a word
+// about it, and a failed check says even less.
+func (m Model) updateCmd() tea.Cmd {
+	if !m.cfg.FirstRunDone || !selfupdate.Enabled(m.cfg, m.opts.Version, nil) {
+		return nil
+	}
+	check := m.opts.CheckUpdate
+	if check == nil {
+		check = func(ctx context.Context) (selfupdate.Result, error) {
+			dir, _ := config.CacheDir()
+			return selfupdate.Check(ctx, selfupdate.Options{Current: m.opts.Version, CacheDir: dir})
+		}
+	}
+	current := m.opts.Version
+	exe := m.opts.ExePath
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), selfupdate.Timeout)
+		defer cancel()
+		res, err := check(ctx)
+		if err != nil || !selfupdate.Newer(current, res.Latest) {
+			return nil
+		}
+		if exe == "" {
+			exe, _ = os.Executable()
+		}
+		return updateFoundMsg{info: uictx.UpdateInfo{
+			Version: res.Latest,
+			URL:     res.URL,
+			Hint:    selfupdate.Hint(exe),
+		}}
+	}
+}
+
+// switchSection opens a section from the tab bar: back to home, then into
+// the section through the same path the menu takes. It refuses while a
+// screen is busy, because tearing a delete out from under the user is not
+// what a tab click means.
+func (m Model) switchSection(id string) (tea.Model, tea.Cmd) {
+	if m.topBusy() || !m.cfg.FirstRunDone {
+		return m, nil
+	}
+	if s, ok := m.router.At(1); ok && home.SectionFor(s) == id && m.router.Len() == 1+1 {
+		return m, nil
+	}
+	root := home.New(m.iconSet).WithFactories(m.opts.ScreenFactory)
+	m.router.Reset(root)
+	m.footer = m.footer.SetStatus("", "")
+	return m, root.Open(id)
+}
+
+// activeSection is the section whose screen sits just above home, or "".
+func (m Model) activeSection() string {
+	s, ok := m.router.At(1)
+	if !ok {
+		return ""
+	}
+	return home.SectionFor(s)
+}
+
+// screenClaims reports whether the visible screen lists a binding for the
+// same keys in its help, which is how a screen says "this key is mine".
+func (m Model) screenClaims(b key.Binding) bool {
+	s, ok := m.router.Top()
+	if !ok {
+		return false
+	}
+	if claimsKeys(s.ShortHelp(), b) {
+		return true
+	}
+	for _, group := range s.FullHelp() {
+		if claimsKeys(group, b) {
+			return true
+		}
+	}
+	return false
 }
 
 // toolVersionsCmd fills the header's node and git pills. Detection is a
@@ -287,6 +391,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return next, cmd
 		}
 
+	case tea.MouseClickMsg:
+		// A click on the tab row is the root model's; everything else goes
+		// to the screen, which knows where its own rows are.
+		if msg.Button == tea.MouseLeft && msg.Y == header.TabRow && !m.showHelp {
+			if t, ok := m.header.TabAt(msg.X); ok {
+				return m.switchSection(t.ID)
+			}
+			return m, nil
+		}
+		if msg.Y < m.header.Height() || m.showHelp {
+			return m, nil
+		}
+
+	case updateFoundMsg:
+		m.update = msg.info
+		hdr, _ := m.header.Update(header.UpdateMsg{Version: msg.info.Version})
+		m.header = hdr
+		m.footer = m.footer.SetStatus("success", "Devpit v"+msg.info.Version+" is out: "+msg.info.Hint)
+		return m, nil
+
 	case uictx.PushScreenMsg:
 		m.router.Push(msg.Screen)
 		if msg.Screen != nil {
@@ -374,6 +498,25 @@ func (m Model) globalKey(msg tea.KeyPressMsg) (bool, tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Quit) && m.router.Len() == 1:
 		m.quitting = true
 		return true, m, tea.Quit
+
+	case key.Matches(msg, m.keys.NextTab) || key.Matches(msg, m.keys.PrevTab):
+		// A form that switches fields with Tab keeps it; a busy screen keeps
+		// everything. Otherwise the tab bar moves one section along.
+		if m.topBusy() || m.screenClaims(m.keys.NextTab) || m.screenClaims(m.keys.PrevTab) {
+			return false, m, nil
+		}
+		step := 1
+		if key.Matches(msg, m.keys.PrevTab) {
+			step = -1
+		}
+		hdr := m.header
+		hdr.Active = m.activeSection()
+		t, ok := hdr.Next(step)
+		if !ok {
+			return true, m, nil
+		}
+		next, cmd := m.switchSection(t.ID)
+		return true, next, cmd
 	}
 	return false, m, nil
 }
@@ -483,6 +626,8 @@ func (m Model) context() uictx.Context {
 		Width:      m.width,
 		Height:     m.height,
 		BodyHeight: body,
+		BodyTop:    m.header.Height(),
+		Update:     m.update,
 	}
 }
 
@@ -491,6 +636,9 @@ func (m Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
 	v.WindowTitle = WindowTitle
+	// Clicks and the wheel work everywhere the keyboard does: tabs, menus
+	// and lists. Cell motion is the mode terminals support most widely.
+	v.MouseMode = tea.MouseModeCellMotion
 	v.ProgressBar = m.terminalProgress()
 	return v
 }
@@ -513,6 +661,7 @@ func (m Model) render() string {
 
 	hdr := m.header
 	hdr.Title = screen.Title()
+	hdr.Active = m.activeSection()
 
 	var body string
 	var bindings []key.Binding

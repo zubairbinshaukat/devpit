@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/zubairbinshaukat/devpit/internal/about"
 	"github.com/zubairbinshaukat/devpit/internal/app"
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
@@ -315,7 +316,7 @@ func TestEverySectionOpensItsRealScreen(t *testing.T) {
 			}
 
 			m = drive(m, press("esc"))
-			if !strings.Contains(view(m), "Pit crew ready") {
+			if !strings.Contains(view(m), about.Byline) {
 				t.Errorf("Esc from %s did not return to the main menu", sec.name)
 			}
 		})
@@ -340,7 +341,7 @@ func TestEscIsForwardedToABusyScreen(t *testing.T) {
 	// Once the screen is idle again, Esc goes back to meaning "back".
 	screen.busy = false
 	m = drive(m, press("esc"))
-	if !strings.Contains(view(m), "Pit crew ready") {
+	if !strings.Contains(view(m), about.Byline) {
 		t.Error("Esc on an idle screen should pop back to the main menu")
 	}
 }

@@ -35,6 +35,15 @@ func (r *Router) Top() (uictx.Screen, bool) {
 	return r.stack[len(r.stack)-1], true
 }
 
+// At returns the screen at depth i, counting from the root at 0, and whether
+// there is one. The header uses depth 1 to work out which section is open.
+func (r *Router) At(i int) (uictx.Screen, bool) {
+	if i < 0 || i >= len(r.stack) {
+		return nil, false
+	}
+	return r.stack[i], true
+}
+
 // Push adds a screen. A nil screen is ignored so a mis-wired command cannot
 // blank the UI.
 func (r *Router) Push(s uictx.Screen) {

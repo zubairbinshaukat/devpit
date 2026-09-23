@@ -1,5 +1,5 @@
- DEVPIT  vdev  ·  Settings
-                                                                 node …   git …
+ DEVPIT  vdev  ·  Settings                                       node …   git …
+  Clean   Ports   Apps   Update   Network   Git   Settings
 ────────────────────────────────────────────────────────────────────────────────
 Changes save as soon as you make them.
 
@@ -17,8 +17,8 @@ Changes save as soon as you make them.
     Icon check: install the icon font first
   ▸ Rescan my tools
     (Clears the scan cache so the next scan reads the disk fresh)
-
-
+    Update check: on
+    About Devpit
 
 ────────────────────────────────────────────────────────────────────────────────
 ↑↓ move  ·  enter/space change  ·  esc back  ·  ? help

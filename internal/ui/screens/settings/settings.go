@@ -43,7 +43,13 @@ const (
 	rowFont       = "font"
 	rowProbe      = "probe"
 	rowRescan     = "rescan"
+	rowUpdates    = "updates"
+	rowAbout      = "about"
 )
+
+// menuTop is the body row the settings menu starts on: after the lead-in
+// sentence and the blank line under it. Clicks are translated with it.
+const menuTop = 2
 
 // iconTiers, themes and managers are the cycle orders for the in-place enum
 // settings. managers starts with "", which Preferred (internal/tools/
@@ -116,24 +122,52 @@ func (m Model) FullHelp() [][]key.Binding {
 func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	m.menu = m.menu.SetItems(rows(ctx.Config))
 
-	if km, ok := msg.(tea.KeyPressMsg); ok && key.Matches(km, m.toggle) {
-		it, ok := m.menu.Selected()
-		if !ok || it.Disabled {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		if key.Matches(msg, m.toggle) {
+			return m.activate(ctx)
+		}
+	case tea.MouseClickMsg:
+		// A click lands on a row and acts on it, the same as moving there
+		// and pressing Enter. The menu answers with a SelectedMsg, which is
+		// folded straight back in rather than sent round the program loop,
+		// so the click and its effect are one Update.
+		if msg.Button != tea.MouseLeft {
 			return m, nil
 		}
-		if scr, ok := m.subScreen(it.ID, ctx.Config); ok {
-			return m, uictx.Push(scr)
-		}
-		cfg, changed := apply(ctx.Config, it.ID)
-		if !changed {
+		next, cmd := m.menu.Click(ctx, ctx.BodyRow(msg.Y)-menuTop)
+		m.menu = next
+		if cmd == nil {
 			return m, nil
 		}
-		return m, tea.Batch(uictx.SaveConfig(cfg), uictx.Status("success", "Saved"))
+		if _, ok := cmd().(menu.SelectedMsg); ok {
+			return m.activate(ctx)
+		}
+		return m, nil
+	case menu.SelectedMsg:
+		return m.activate(ctx)
 	}
 
 	next, cmd := m.menu.Update(msg)
 	m.menu = next
 	return m, cmd
+}
+
+// activate acts on the highlighted row: pushes its sub-screen, or cycles
+// its value and saves.
+func (m Model) activate(ctx uictx.Context) (uictx.Screen, tea.Cmd) {
+	it, ok := m.menu.Selected()
+	if !ok || it.Disabled {
+		return m, nil
+	}
+	if scr, ok := m.subScreen(it.ID, ctx.Config); ok {
+		return m, uictx.Push(scr)
+	}
+	cfg, changed := apply(ctx.Config, it.ID)
+	if !changed {
+		return m, nil
+	}
+	return m, tea.Batch(uictx.SaveConfig(cfg), uictx.Status("success", "Saved"))
 }
 
 // View implements uictx.Screen.
@@ -177,6 +211,8 @@ func (m Model) subScreen(id string, cfg config.Config) (uictx.Screen, bool) {
 		return newProbeScreen(), true
 	case rowRescan:
 		return newRescanScreen(m.clearCacheFn), true
+	case rowAbout:
+		return newAboutScreen(), true
 	default:
 		return nil, false
 	}
@@ -199,6 +235,8 @@ func rows(cfg config.Config) []menu.Item {
 		{ID: rowFont, Title: "Icon font: " + fontLabel(cfg), Desc: "Installs Symbols Nerd Font Mono and patches Windows Terminal"},
 		{ID: rowProbe, Title: "Icon check: " + probeLabel(cfg), Desc: "Checks whether Nerd Font glyphs render here before using them"},
 		{ID: rowRescan, Title: "Rescan my tools", Desc: "Clears the scan cache so the next scan reads the disk fresh"},
+		{ID: rowUpdates, Title: "Update check: " + onOff(!cfg.SkipUpdateCheck), Desc: "Asks GitHub once a day whether a newer Devpit is out. Sends nothing else"},
+		{ID: rowAbout, Title: "About Devpit", Desc: "Version, author, links and how to upgrade"},
 	}
 }
 
@@ -215,6 +253,8 @@ func apply(cfg config.Config, id string) (config.Config, bool) {
 		cfg.TelemetryOptIn = !cfg.TelemetryOptIn
 	case rowManager:
 		cfg.PreferredManager = cycle(managers, cfg.PreferredManager)
+	case rowUpdates:
+		cfg.SkipUpdateCheck = !cfg.SkipUpdateCheck
 	default:
 		return cfg, false
 	}

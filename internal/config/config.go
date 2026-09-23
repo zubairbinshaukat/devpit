@@ -98,6 +98,10 @@ type Config struct {
 
 	// TelemetryOptIn is false unless the user explicitly turns stats on.
 	TelemetryOptIn bool `toml:"telemetry_opt_in"`
+	// SkipUpdateCheck turns off the once-a-day look at GitHub's releases
+	// API for a newer Devpit. It is phrased as a skip so that a config file
+	// written before the field existed keeps checking, which is the default.
+	SkipUpdateCheck bool `toml:"skip_update_check"`
 	// InstallID is a random UUID minted on this machine by Normalize. It is
 	// the only thing a usage-stats report carries that is stable between
 	// runs, and it identifies nothing else: it is not derived from the

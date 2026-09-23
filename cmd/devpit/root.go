@@ -93,6 +93,7 @@ func runTUI(ctx context.Context, flags *rootFlags) error {
 		Config:     res.Config,
 		Warning:    res.Warning,
 		ForceASCII: flags.ascii,
+		Version:    version.Short(),
 	})
 
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithFPS(30))

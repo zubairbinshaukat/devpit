@@ -1,8 +1,7 @@
- DEVPIT  vdev
-                                                                 node …   git …
+ DEVPIT  vdev                                                    node …   git …
+  Clean   Ports   Apps   Update   Network   Git   Settings
 ────────────────────────────────────────────────────────────────────────────────
-                              D E V P I T
-                      Pit crew ready. Pick a job.
+                   D E V P I T by Zubair Bin Shaukat
 
 ╭──────────────────────────────────────────────────────────────────────╮
 │   ▸ Free Up Disk Space                                               │
@@ -20,5 +19,6 @@
 │     Devpit Settings                                                  │
 │     (Preferences, theme, privacy, tool rescan)                       │
 ╰──────────────────────────────────────────────────────────────────────╯
+
 ────────────────────────────────────────────────────────────────────────────────
 ↑↓ move  ·  enter select  ·  q quit  ·  ? help

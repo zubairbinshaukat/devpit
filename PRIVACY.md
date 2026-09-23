@@ -77,7 +77,13 @@ and nothing per-user is stored beyond the aggregate counters.
 Separate from usage stats. Devpit can check GitHub's public releases API at
 most once every 24 hours to see if a newer version exists. That request sends
 nothing but the HTTP request itself, and its result is cached locally. If you
-are offline it is skipped silently.
+are offline it is skipped silently. When a newer release exists you see a
+small "update" pill in the header and the upgrade command under
+**Settings → About Devpit**; nothing is ever downloaded or replaced for you.
+
+Turn the check off in **Settings → Update check**, or set
+`DEVPIT_NO_UPDATE_CHECK=1`, which wins over the setting. A build made from
+source never checks.
 
 ## Changes to this policy
 

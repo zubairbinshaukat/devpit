@@ -12,10 +12,12 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/logo"
 )
 
-// maxLines and maxCols are the wordmark budget from plan.md section 2.
+// maxLines and maxCols are the wordmark budget. Six rows keeps the menu on
+// screen at the 24-row minimum; 48 columns leaves the shadow-style letters
+// room inside the 72-column home card with a margin either side.
 const (
 	maxLines = 6
-	maxCols  = 40
+	maxCols  = 48
 )
 
 // TestLogoFitsTheBudget pins the size of both wordmarks.

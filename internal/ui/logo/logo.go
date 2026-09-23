@@ -2,11 +2,12 @@
 // screen draws above its menu.
 //
 // There are two versions of it, both embedded into the binary. The default is
-// drawn with the full block U+2588, which every modern console font has; the
-// ascii one is drawn with "#" for terminals that have nothing above U+007F.
-// Both are five rows of thirty-five cells, inside the "six lines, forty
-// columns" budget the plan sets, and every rune in both is exactly one
-// terminal cell wide so no row can shift against the others.
+// the shadowed block style drawn with U+2588 and the box-drawing set, which
+// every modern console font has: six rows of forty-five cells. The ascii one
+// is drawn with "#" for terminals that have nothing above U+007F: five rows
+// of thirty-five. Every rune in both is exactly one terminal cell wide so no
+// row can shift against the others, and assets/logo.txt is kept identical to
+// the default so the installer and the app draw the same mark.
 package logo
 
 import (

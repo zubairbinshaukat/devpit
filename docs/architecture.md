@@ -34,6 +34,10 @@ internal/gitssh/       SSH keygen, git config, clipboard (OSC 52)
 internal/elevate/      the elevated worker: protocol, client, server, whitelist
 internal/telemetry/    the opt-in usage-stats client: one POST after a
                       cleanup, counts and rule names only
+internal/selfupdate/   once-a-day look at GitHub's latest release, cached on
+                      disk; names the upgrade command for this install
+internal/about/        author, links and licence, read by every place that
+                      prints them so the byline cannot drift
 ```
 
 `internal/` because none of it is meant to be imported by anyone else. No

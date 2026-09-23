@@ -1,10 +1,12 @@
-// Package header draws the bar at the top of every screen: the app-name badge
-// and version on the first row, the machine's vital signs as small labelled
-// pills on the second, and a rule under both.
+// Package header draws the bar at the top of every screen: the app-name badge,
+// version and breadcrumb on the first row with the machine's vital signs as
+// small labelled pills at its right edge, the section tabs on the second row,
+// and a rule under both.
 //
 // Nothing here runs at startup. The version is a link-time constant; the
-// toolchain versions and the disk figure arrive later as messages produced by
-// commands, so the first frame is drawn without a single syscall.
+// toolchain versions, the disk figure and the update notice arrive later as
+// messages produced by commands, so the first frame is drawn without a single
+// syscall.
 package header
 
 import (
@@ -30,9 +32,15 @@ const (
 	PendingASCII = "..."
 )
 
-// Rows is how many lines the header occupies: the badge row, the pill row and
+// Rows is how many lines the header occupies: the badge row, the tab row and
 // the rule under them.
 const Rows = 3
+
+// TabRow is the terminal row the tabs are drawn on, for hit-testing clicks.
+const TabRow = 1
+
+// tabPad is the blank column before the first tab and between tabs.
+const tabPad = 1
 
 // DiskMsg carries the result of the free-space probe.
 type DiskMsg struct {
@@ -51,15 +59,35 @@ type ToolVersionsMsg struct {
 	Git string
 }
 
+// UpdateMsg says a newer Devpit is published. The header answers with a pill
+// that stays for the rest of the session.
+type UpdateMsg struct {
+	// Version is the newer version, without a leading "v".
+	Version string
+}
+
+// Tab is one entry of the section bar.
+type Tab struct {
+	// ID identifies the section, matching the home screen's identifiers.
+	ID string
+	// Label is the short name drawn on the bar.
+	Label string
+}
+
 // Model is the header component.
 type Model struct {
 	// Title is the current screen name, shown after the app name.
 	Title string
+	// Tabs are the sections drawn on the second row, in order.
+	Tabs []Tab
+	// Active is the ID of the open section, or "" on the home screen.
+	Active string
 
-	node string
-	git  string
-	disk winapi.DiskSpace
-	have bool
+	node   string
+	git    string
+	disk   winapi.DiskSpace
+	have   bool
+	update string
 }
 
 // New returns a header with every detected value still pending.
@@ -91,12 +119,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.Git != "" {
 			m.git = msg.Git
 		}
+	case UpdateMsg:
+		m.update = strings.TrimPrefix(strings.TrimSpace(msg.Version), "v")
 	}
 	return m, nil
 }
 
 // Height is the number of rows the header occupies, including its rule.
 func (m Model) Height() int { return Rows }
+
+// UpdateAvailable is the newer version the header was told about, or "".
+func (m Model) UpdateAvailable() string { return m.update }
 
 // View renders the header to exactly ctx.Width columns.
 func (m Model) View(ctx uictx.Context) string {
@@ -116,17 +149,94 @@ func (m Model) View(ctx uictx.Context) string {
 		name.WriteString(th.Subtitle.Render(m.Title))
 	}
 
-	badgeRow := fit(ctx.Width, name.String(), "", ascii)
-	pillRow := fit(ctx.Width, "", m.pills(th, ascii), ascii)
+	badgeRow := fit(ctx.Width, name.String(), m.pills(th, ascii), ascii)
+	tabRow := fit(ctx.Width, m.tabs(th), th.Muted.Render(tabHint(ascii)), ascii)
 	rule := th.Rule.Render(strings.Repeat(ruleRune(ascii), max(0, ctx.Width)))
 
-	return badgeRow + "\n" + pillRow + "\n" + rule
+	return badgeRow + "\n" + tabRow + "\n" + rule
 }
 
-// pills draws the machine's vital signs: the toolchain versions Devpit found
-// and the free space it is there to win back.
+// tabs draws the section bar. The open section wears the badge style so it
+// reads as pressed; the rest are muted so the bar never competes with the
+// screen under it.
+func (m Model) tabs(th *theme.Theme) string {
+	if len(m.Tabs) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, t := range m.Tabs {
+		if i > 0 {
+			b.WriteString(strings.Repeat(" ", tabPad))
+		}
+		label := " " + t.Label + " "
+		if t.ID == m.Active {
+			b.WriteString(th.Badge.Render(label))
+		} else {
+			b.WriteString(th.Muted.Render(label))
+		}
+	}
+	return strings.Repeat(" ", tabPad) + b.String()
+}
+
+// TabAt returns the tab drawn under column x of the tab row, and whether
+// there is one. It walks the same widths tabs draws, so a click lands on the
+// label the user saw.
+func (m Model) TabAt(x int) (Tab, bool) {
+	col := tabPad
+	for i, t := range m.Tabs {
+		if i > 0 {
+			col += tabPad
+		}
+		w := ansi.StringWidth(t.Label) + 2
+		if x >= col && x < col+w {
+			return t, true
+		}
+		col += w
+	}
+	return Tab{}, false
+}
+
+// Next returns the tab after (step=1) or before (step=-1) the active one,
+// wrapping around, and false when there are no tabs. With no active section
+// it starts from the first or last tab.
+func (m Model) Next(step int) (Tab, bool) {
+	n := len(m.Tabs)
+	if n == 0 {
+		return Tab{}, false
+	}
+	cur := -1
+	for i, t := range m.Tabs {
+		if t.ID == m.Active {
+			cur = i
+			break
+		}
+	}
+	if cur < 0 {
+		if step < 0 {
+			return m.Tabs[n-1], true
+		}
+		return m.Tabs[0], true
+	}
+	return m.Tabs[((cur+step)%n+n)%n], true
+}
+
+// tabHint is the muted reminder at the right of the tab row.
+func tabHint(ascii bool) string {
+	if ascii {
+		return "tab / shift+tab - 1-7"
+	}
+	return "tab / shift+tab · 1-7"
+}
+
+// pills draws the machine's vital signs: the toolchain versions Devpit found,
+// the free space it is there to win back, and the update notice once one
+// has arrived.
 func (m Model) pills(th *theme.Theme, ascii bool) string {
 	var b strings.Builder
+	if m.update != "" {
+		b.WriteString(pill(th, "update", "v"+m.update, th.PillGood))
+		b.WriteByte(' ')
+	}
 	b.WriteString(pill(th, "node", value(m.node, ascii), th.PillValue))
 	b.WriteByte(' ')
 	b.WriteString(pill(th, "git", value(m.git, ascii), th.PillValue))
@@ -178,7 +288,7 @@ func ellipsis(ascii bool) string {
 }
 
 // fit places left and right on one row of the given width, padding between
-// them and truncating the right side first when there is not enough room.
+// them and dropping the right side first when there is not enough room.
 func fit(width int, left, right string, ascii bool) string {
 	lw := lipgloss.Width(left)
 	rw := lipgloss.Width(right)

@@ -1,10 +1,15 @@
- DEVPIT  vdev
-                                                             node ...   git ...
+ DEVPIT  vdev                                                node ...   git ...
+  Clean   Ports   Apps   Update   Network   Git   Settings
 --------------------------------------------------------------------------------
-                              D E V P I T
-                      Pit crew ready. Pick a job.
+                  ####  ##### #   # ####  ##### #####
+                  #   # #     #   # #   #   #     #
+                  #   # ####  #   # ####    #     #
+                  #   # #      # #  #       #     #
+                  ####  #####   #   #     #####   #
+                         by Zubair Bin Shaukat
 
 +----------------------------------------------------------------------+
+|                                                                      |
 |   > Free Up Disk Space                                               |
 |     (Scan and clean dev junk, caches and temp files)                 |
 |     Fix Stuck Ports & Apps                   Port 3000 busy? Kill it |
@@ -13,12 +18,7 @@
 |     (Pick and install dev apps)                                      |
 |     Update Everything                                                |
 |     (Update apps and tools through every detected package manager)   |
-|     Network Tools                                                    |
-|     (IP, connectivity and DNS helpers)                               |
-|     Git & SSH Setup                                                  |
-|     (Identity and SSH key setup)                                     |
-|     Devpit Settings                                                  |
-|     (Preferences, theme, privacy, tool rescan)                       |
+|   v 3 more                                                           |
 +----------------------------------------------------------------------+
 --------------------------------------------------------------------------------
 ^v move  -  enter select  -  q quit  -  ? help

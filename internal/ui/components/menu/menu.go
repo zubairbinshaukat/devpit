@@ -196,8 +196,23 @@ func (m Model) Selected() (Item, bool) {
 	return m.items[m.cursor], true
 }
 
-// Update handles navigation and selection.
+// Update handles navigation and selection. The mouse wheel moves the cursor
+// the way the arrow keys do; clicks are handled by [Model.Click], because
+// only the screen knows where on the terminal its menu was drawn.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if wm, ok := msg.(tea.MouseWheelMsg); ok {
+		switch wm.Button {
+		case tea.MouseWheelUp:
+			if i := m.nextEnabled(m.cursor, -1); i >= 0 {
+				m.cursor = i
+			}
+		case tea.MouseWheelDown:
+			if i := m.nextEnabled(m.cursor, 1); i >= 0 {
+				m.cursor = i
+			}
+		}
+		return m, nil
+	}
 	km, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
@@ -220,6 +235,53 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, func() tea.Msg { return SelectedMsg{ID: it.ID, Index: idx} }
 	}
 	return m, nil
+}
+
+// RowAt maps a row of the rendered menu (0 is its first line) to the index
+// of the item drawn there. It walks the same window and gaps View draws, so
+// the two cannot disagree. ok is false on a blank line, a "more" marker or
+// past the end.
+func (m Model) RowAt(ctx uictx.Context, row int) (index int, ok bool) {
+	if row < 0 {
+		return 0, false
+	}
+	height := m.viewHeight(ctx)
+	gap := m.gap(height)
+	start, end, above, below := m.window(height, gap)
+	line := 0
+	if above > 0 || below > 0 {
+		if row == 0 {
+			return 0, false
+		}
+		line = 1
+	}
+	for i := start; i < end; i++ {
+		rows := m.items[i].rows(m.showsDesc(i))
+		if row >= line && row < line+rows {
+			return i, true
+		}
+		line += rows
+		if gap > 0 && i < end-1 {
+			line++
+		}
+	}
+	return 0, false
+}
+
+// Click moves the cursor to the item on the given row of the rendered menu
+// and selects it, the same as pressing Enter there. A click on a disabled
+// item or on empty space only moves the cursor, or nothing at all.
+func (m Model) Click(ctx uictx.Context, row int) (Model, tea.Cmd) {
+	i, ok := m.RowAt(ctx, row)
+	if !ok {
+		return m, nil
+	}
+	m.cursor = i
+	it := m.items[i]
+	if it.Disabled {
+		return m, nil
+	}
+	return m, func() tea.Msg { return SelectedMsg{ID: it.ID, Index: i} }
 }
 
 // View renders the menu, windowed so the cursor is always on screen.

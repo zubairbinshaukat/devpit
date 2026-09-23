@@ -126,6 +126,13 @@ devpit --ascii         force the plain ASCII icon tier
 The other subcommands (`clean`, `ports`, `update`, `font`, `settings`) are
 reserved and tell you which milestone fills them in.
 
+Inside the app the header carries a tab for every section. `Tab` and
+`Shift+Tab` move along it, `1`–`7` jump straight to a section from the main
+menu, and the mouse works too: click a tab or a menu row, scroll a list with
+the wheel. Press `?` on any screen for its shortcuts. When a newer release is
+out, the header shows an `update` pill and **Settings → About Devpit** tells
+you the one command that upgrades your install.
+
 ### Icons and themes
 
 Devpit has three icon tiers and picks one automatically. Windows Terminal ships

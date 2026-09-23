@@ -15,6 +15,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/zubairbinshaukat/devpit/internal/about"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/logo"
@@ -38,6 +40,55 @@ const (
 	SectionGitSSH   = "gitssh"
 	SectionSettings = "settings"
 )
+
+// Tabs returns the seven sections as the header draws them: the same order
+// as the menu, with a short label that fits a tab.
+func Tabs() []header.Tab {
+	return []header.Tab{
+		{ID: SectionClean, Label: "Clean"},
+		{ID: SectionPorts, Label: "Ports"},
+		{ID: SectionInstall, Label: "Apps"},
+		{ID: SectionUpdate, Label: "Update"},
+		{ID: SectionNetwork, Label: "Network"},
+		{ID: SectionGitSSH, Label: "Git"},
+		{ID: SectionSettings, Label: "Settings"},
+	}
+}
+
+// TabByDigit maps a typed "1".."7" to its tab, and reports false for any
+// other key text.
+func TabByDigit(text string) (header.Tab, bool) {
+	tabs := Tabs()
+	if len(text) != 1 || text[0] < '1' || int(text[0]-'0') > len(tabs) {
+		return header.Tab{}, false
+	}
+	return tabs[text[0]-'1'], true
+}
+
+// SectionFor reports which section a screen belongs to, or "" for a screen
+// that is not one of the seven (home itself, first run, a sub-screen). The
+// header uses it to light the right tab, so it looks at the screen's type
+// rather than trusting a title that a screen may change as it works.
+func SectionFor(s uictx.Screen) string {
+	switch s.(type) {
+	case clean.Model:
+		return SectionClean
+	case ports.Model:
+		return SectionPorts
+	case install.Model:
+		return SectionInstall
+	case update.Model:
+		return SectionUpdate
+	case network.Model:
+		return SectionNetwork
+	case gitssh.Model:
+		return SectionGitSSH
+	case settings.Model:
+		return SectionSettings
+	default:
+		return ""
+	}
+}
 
 // Items returns the seven menu entries, in PRD order, with the icons of the
 // given tier. Tool glyphs are empty outside the nerd tier and the menu draws
@@ -136,9 +187,25 @@ func (m Model) FullHelp() [][]key.Binding {
 }
 
 // Update implements uictx.Screen.
-func (m Model) Update(msg tea.Msg, _ uictx.Context) (uictx.Screen, tea.Cmd) {
-	if sel, ok := msg.(menu.SelectedMsg); ok {
-		return m, m.open(sel.ID)
+func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
+	switch msg := msg.(type) {
+	case menu.SelectedMsg:
+		return m, m.Open(msg.ID)
+	case tea.KeyPressMsg:
+		// 1-7 opens a section directly. Home has no text input, so a digit
+		// can never be something the user meant to type.
+		if t, ok := TabByDigit(msg.Text); ok {
+			return m, m.Open(t.ID)
+		}
+	case tea.MouseClickMsg:
+		if msg.Button != tea.MouseLeft {
+			return m, nil
+		}
+		row := ctx.BodyRow(msg.Y) - m.menuTop(ctx)
+		mm := m.sizedMenu(ctx)
+		next, cmd := mm.Click(ctx, row)
+		m.menu = next
+		return m, cmd
 	}
 	next, cmd := m.menu.Update(msg)
 	m.menu = next
@@ -153,12 +220,11 @@ const (
 	cardMax     = 72
 	centreFrom  = 100
 	minMenuRows = 10
-	taglineText = "Pit crew ready. Pick a job."
 )
 
 // View implements uictx.Screen.
 //
-// The screen is a masthead over a card: the wordmark, a one-line tagline, and
+// The screen is a masthead over a card: the wordmark with its byline, and
 // the menu inside a border. The wordmark is the first thing to go when the
 // terminal is short — below roughly 25 rows it shrinks to a single spaced-out
 // line, so the menu keeps every row it needs.
@@ -167,12 +233,7 @@ func (m Model) View(ctx uictx.Context) string {
 	cardW := cardWidth(ctx.Width)
 
 	head := m.head(ctx, cardW)
-	rows := ctx.BodyHeight - lipgloss.Height(head) - 1 - 2 // blank line, card border
-	if ctx.BodyHeight <= 0 {
-		rows = 0
-	}
-
-	mm := m.menu.SetWidth(cardW - 4).SetHeight(max(0, rows))
+	mm := m.sizedMenu(ctx)
 	card := ctx.Theme.CardFor(ascii).Width(cardW).Render(mm.View(ctx))
 
 	block := lipgloss.JoinVertical(lipgloss.Left, head, "", card)
@@ -182,30 +243,47 @@ func (m Model) View(ctx uictx.Context) string {
 	return block
 }
 
-// head is the masthead above the card: the wordmark and the tagline, both
-// centred over the card's width.
+// sizedMenu is the menu with the width and height View draws it at, so the
+// click path and the render path measure the same rows.
+func (m Model) sizedMenu(ctx uictx.Context) menu.Model {
+	cardW := cardWidth(ctx.Width)
+	rows := ctx.BodyHeight - m.headHeight(ctx, cardW) - 1 - 2 // blank line, card border
+	if ctx.BodyHeight <= 0 {
+		rows = 0
+	}
+	return m.menu.SetWidth(cardW - 4).SetHeight(max(0, rows))
+}
+
+// menuTop is the body row the menu's first line is drawn on: after the
+// masthead, the blank line and the card's top border.
+func (m Model) menuTop(ctx uictx.Context) int {
+	return m.headHeight(ctx, cardWidth(ctx.Width)) + 2
+}
+
+// headHeight is how many rows the masthead takes, without rendering it.
+func (m Model) headHeight(ctx uictx.Context, cardW int) int {
+	if bigWordmark(ctx, cardW) {
+		// wordmark, byline
+		return logo.Height(ctx.Icons.Tier == icons.TierASCII) + 1
+	}
+	return 1
+}
+
+// head is the masthead above the card: the wordmark with its byline, centred
+// over the card's width. The byline is the author's credit; it is drawn
+// tight under the letters so it reads as part of the mark.
 func (m Model) head(ctx uictx.Context, cardW int) string {
 	th := ctx.Theme
 	ascii := ctx.Icons.Tier == icons.TierASCII
-
-	tagline := taglineText
-	if e := ctx.Emoji(icons.EmojiBroom); e != "" {
-		tagline = e + " " + tagline
-	}
 
 	if bigWordmark(ctx, cardW) {
 		return lipgloss.JoinVertical(
 			lipgloss.Left,
 			centre(cardW, th.Logo.Render(logo.String(ascii))),
-			"",
-			centre(cardW, th.Tagline.Render(tagline)),
+			centre(cardW, th.Muted.Render(about.Byline)),
 		)
 	}
-	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		centre(cardW, th.Title.Render(compactMark)),
-		centre(cardW, th.Tagline.Render(tagline)),
-	)
+	return centre(cardW, th.Title.Render(compactMark)+" "+th.Muted.Render(about.Byline))
 }
 
 // compactMark is the wordmark for a terminal too short for the block letters:
@@ -218,12 +296,13 @@ func bigWordmark(ctx uictx.Context, cardW int) bool {
 	if ctx.BodyHeight <= 0 {
 		return false
 	}
-	if cardW < logo.Width(ctx.Icons.Tier == icons.TierASCII)+2 {
+	ascii := ctx.Icons.Tier == icons.TierASCII
+	if cardW < logo.Width(ascii)+2 {
 		return false
 	}
-	// The wordmark, a blank line and the tagline, then the blank line and the
-	// card border between the masthead and the first menu row.
-	head := logo.Height(false) + 2
+	// The wordmark and its byline, then the blank line and the card border
+	// between the masthead and the first menu row.
+	head := logo.Height(ascii) + 1
 	return ctx.BodyHeight-head-1-2 >= minMenuRows
 }
 
@@ -243,10 +322,11 @@ func centre(width int, s string) string {
 	return lipgloss.PlaceHorizontal(width, lipgloss.Center, s)
 }
 
-// open maps a section to the screen it pushes. Each section owns one screen
+// Open maps a section to the screen it pushes. Each section owns one screen
 // and pushes it once; the flows inside a section are states of that screen,
-// not further router entries.
-func (m Model) open(id string) tea.Cmd {
+// not further router entries. It is exported so the tab bar can open a
+// section through exactly the path the menu uses.
+func (m Model) Open(id string) tea.Cmd {
 	if newScreen, ok := m.factories[id]; ok && newScreen != nil {
 		return uictx.Push(newScreen())
 	}

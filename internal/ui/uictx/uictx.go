@@ -38,7 +38,34 @@ type Context struct {
 	// BodyHeight is Height minus the header and footer, i.e. the rows a
 	// screen may draw into.
 	BodyHeight int
+	// BodyTop is the number of rows above the body, i.e. the header. A
+	// mouse event arrives with terminal coordinates, and a screen subtracts
+	// this to find which of its own rows was clicked.
+	BodyTop int
+	// Update describes a newer published Devpit, once the background check
+	// has found one. Its zero value means none is known.
+	Update UpdateInfo
 }
+
+// UpdateInfo is what the settings screen tells the user about a newer
+// release: which version, where it is, and the one command that installs it
+// on this machine.
+type UpdateInfo struct {
+	// Version is the newer version, without a leading "v".
+	Version string
+	// URL is the release page.
+	URL string
+	// Hint is the upgrade command for however Devpit was installed here.
+	Hint string
+}
+
+// Available reports whether a newer version is known.
+func (u UpdateInfo) Available() bool { return u.Version != "" }
+
+// BodyRow converts a terminal row into a row of the screen's body. It is
+// negative for the header and at least BodyHeight for the footer, so a screen
+// can ignore clicks that were never on it.
+func (c Context) BodyRow(y int) int { return y - c.BodyTop }
 
 // Emoji returns e when the user has emoji enabled, otherwise "".
 func (c Context) Emoji(e string) string { return icons.Emoji(c.Config.Emoji, e) }
