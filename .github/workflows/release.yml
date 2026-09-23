@@ -43,9 +43,10 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Token with write access to the scoop bucket repository. Until that
-          # repository exists, GoReleaser skips the bucket step (skip_upload:
-          # auto) rather than failing the release.
+          # Token with write access to the scoop bucket repository. The
+          # template in .goreleaser.yml fails the release if this secret is
+          # unset, so create the bucket and the secret before the first tag.
+          # See docs/releasing.md.
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
 
       - name: Attest build provenance

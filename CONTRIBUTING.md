@@ -37,6 +37,8 @@ on `git push` runs `task check` first and refuses to push if anything fails,
 so a red CI run never starts from this machine. `git push --no-verify` skips
 it in an emergency.
 
+Cutting a release is a tag push; see `docs/releasing.md`.
+
 ## House rules
 
 These are not style preferences; they are why the app starts instantly and does
