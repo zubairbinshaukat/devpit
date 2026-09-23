@@ -66,7 +66,10 @@ try {
   $zip = Join-Path $tmp $zipName
   Write-Step "Downloading $zipName..."
   Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip -Headers @{ 'User-Agent' = 'devpit-installer' }
-  $sumsText = (Invoke-WebRequest -Uri $sums.browser_download_url -Headers @{ 'User-Agent' = 'devpit-installer' }).Content
+  # GitHub serves checksums.txt as application/octet-stream, so PowerShell 7
+  # hands back a byte array rather than a string. Decode it ourselves.
+  $sumsRaw = (Invoke-WebRequest -Uri $sums.browser_download_url -Headers @{ 'User-Agent' = 'devpit-installer' }).Content
+  if ($sumsRaw -is [byte[]]) { $sumsText = [Text.Encoding]::UTF8.GetString($sumsRaw) } else { $sumsText = [string]$sumsRaw }
 
   Write-Step 'Verifying SHA256 checksum...'
   $expected = ($sumsText -split "`n" | Where-Object { $_ -match [regex]::Escape($zipName) } | Select-Object -First 1)

@@ -40,7 +40,7 @@ and SSH on a fresh machine.
 Windows first. Go, Bubble Tea, single executable, no runtime to install.
 
 > **Beta.** Every section works end to end and the delete engine is covered by
-> safety tests, but there has been no tagged release yet. Nothing is removed
+> safety tests, but this is an early release. Nothing is removed
 > without a preview and a confirmation, Safe items are renamed before a byte is
 > removed so an interrupted delete can be finished rather than half-done, and
 > riskier items go to the Recycle Bin. Keep your backups anyway.
@@ -58,6 +58,13 @@ Then type `devpit`.
 
 Other ways:
 
+- Scoop:
+
+  ```powershell
+  scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket
+  scoop install devpit
+  ```
+
 - Download `devpit.exe` from the [latest release](https://github.com/zubairbinshaukat/devpit/releases/latest) (x64 and ARM64).
 - Build from source with Go 1.26 or newer, no C toolchain needed:
 
@@ -67,9 +74,6 @@ Other ways:
   go build -o devpit.exe .
   .\devpit.exe
   ```
-
-The one-liner and the release download start working with the first tagged
-release. Until then, build from source.
 
 ## What it does
 
