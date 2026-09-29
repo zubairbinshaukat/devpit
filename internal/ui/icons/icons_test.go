@@ -18,7 +18,7 @@ func TestEveryGlyphIsOneCell(t *testing.T) {
 		set := icons.For(tier)
 		t.Run(string(tier), func(t *testing.T) {
 			for _, g := range set.Glyphs() {
-				if g == set.Checked || g == set.Unchecked {
+				if g == set.Checked || g == set.Unchecked || g == set.Partial {
 					continue
 				}
 				if w := ansi.StringWidth(g); w != 1 {
@@ -40,7 +40,7 @@ func TestTickBoxWidths(t *testing.T) {
 	}
 	for _, c := range cases {
 		set := icons.For(c.tier)
-		for name, g := range map[string]string{"Checked": set.Checked, "Unchecked": set.Unchecked} {
+		for name, g := range map[string]string{"Checked": set.Checked, "Unchecked": set.Unchecked, "Partial": set.Partial} {
 			if w := ansi.StringWidth(g); w != c.want {
 				t.Errorf("%s.%s = %q, %d cells, want %d", c.tier, name, g, w, c.want)
 			}
@@ -53,6 +53,13 @@ func TestTickBoxWidths(t *testing.T) {
 func TestNerdGlyphsAreBMPPrivateUse(t *testing.T) {
 	set := icons.Nerd()
 	shared := map[string]bool{set.Safe: true, set.Review: true, set.Careful: true, set.BarFull: true, set.BarEmpty: true}
+	// The spinner, the progress track, the selection bar and the version
+	// arrow are drawing primitives rather than icons: they are the same in
+	// the nerd and unicode tiers, so a spinner never changes shape when the
+	// icon font is turned on.
+	for _, g := range append([]string{set.SelectBar, set.Track, set.TrackEmpty, set.Queued, set.Arrow}, set.Spinner...) {
+		shared[g] = true
+	}
 
 	for _, g := range set.Glyphs() {
 		if shared[g] {
@@ -275,4 +282,48 @@ func lower(s string) string {
 		}
 	}
 	return string(out)
+}
+
+// TestSectionGlyphs pins which tiers draw a section icon: nerd and unicode
+// both do, so the home menu has icons on a stock terminal, and ascii draws
+// none rather than a letter that would read as a hotkey.
+func TestSectionGlyphs(t *testing.T) {
+	ids := []string{"clean", "ports", "install", "update", "network", "gitssh", "settings"}
+	for _, tier := range []icons.Tier{icons.TierNerd, icons.TierUnicode} {
+		set := icons.For(tier)
+		seen := map[string]bool{}
+		for _, id := range ids {
+			g := set.Section(id)
+			if g == "" {
+				t.Errorf("%s tier has no glyph for section %q", tier, id)
+			}
+			if seen[g] {
+				t.Errorf("%s tier reuses %q for section %q", tier, g, id)
+			}
+			seen[g] = true
+		}
+	}
+	for _, id := range ids {
+		if g := icons.ASCII().Section(id); g != "" {
+			t.Errorf("ascii tier draws %q for section %q, want nothing", g, id)
+		}
+	}
+}
+
+// TestSpinnerFrameWraps keeps the frame lookup safe for any tick count,
+// including one that has overflowed into negative numbers.
+func TestSpinnerFrameWraps(t *testing.T) {
+	for _, tier := range icons.Tiers() {
+		set := icons.For(tier)
+		n := len(set.Spinner)
+		if n == 0 {
+			t.Fatalf("%s tier has no spinner frames", tier)
+		}
+		if set.SpinnerFrame(n) != set.SpinnerFrame(0) || set.SpinnerFrame(-1) == "" {
+			t.Errorf("%s tier spinner does not wrap", tier)
+		}
+	}
+	if (icons.Set{}).SpinnerFrame(3) != "" {
+		t.Error("a set with no frames should draw nothing")
+	}
 }

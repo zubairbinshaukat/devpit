@@ -419,6 +419,64 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		return m.onKey(msg, ctx)
+
+	case tea.MouseClickMsg, tea.MouseWheelMsg, tea.MouseMotionMsg:
+		return m.onMouse(msg, ctx)
+	}
+	return m, nil
+}
+
+// onMouse routes a click or a wheel notch to whatever is on screen: the
+// submenu or the results table. Every other step either has no list to
+// point at or is busy with work a stray click must not disturb, so the
+// mouse does nothing there.
+//
+// A click arrives in terminal coordinates. ctx.BodyRow takes off the app's
+// header, and menuTop or tableTop takes off this screen's own lines above
+// the component, both measured from what View draws.
+func (m Model) onMouse(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
+	// The folder picker draws itself at the top of the body and knows where
+	// its own rows are.
+	if m.state == statePicker {
+		next, cmd, _ := m.picker.Pointer(ctx, msg, 0)
+		m.picker = next
+		return m, cmd
+	}
+	switch msg := msg.(type) {
+	case tea.MouseMotionMsg:
+		// Hover highlights a submenu row. The results table ignores it: a
+		// pointer resting on a long list must not drag the user's place in
+		// it around.
+		if m.state == stateMenu {
+			m.menu, _ = m.menu.Hover(ctx, ctx.BodyRow(msg.Y)-m.menuTop(ctx))
+		}
+		return m, nil
+	case tea.MouseClickMsg:
+		if msg.Button != tea.MouseLeft {
+			return m, nil
+		}
+		switch m.state {
+		case stateMenu:
+			next, cmd := m.menu.Click(ctx, ctx.BodyRow(msg.Y)-m.menuTop(ctx))
+			m.menu = next
+			return m, cmd
+		case stateResults:
+			next, cmd := m.table.Click(ctx, ctx.BodyRow(msg.Y)-m.tableTop(ctx), msg.X)
+			m.table = next
+			return m, cmd
+		}
+
+	case tea.MouseWheelMsg:
+		switch m.state {
+		case stateMenu:
+			next, cmd := m.menu.Update(msg)
+			m.menu = next
+			return m, cmd
+		case stateResults:
+			next, cmd := m.table.Update(msg)
+			m.table = next
+			return m, cmd
+		}
 	}
 	return m, nil
 }

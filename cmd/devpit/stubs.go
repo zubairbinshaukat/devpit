@@ -62,32 +62,6 @@ func newUpdateCmd() *cobra.Command {
 	}
 }
 
-// newFontCmd manages the icon font. Milestone 4 fills it in.
-func newFontCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "font",
-		Short: "Install, remove or check the icon font (not implemented yet)",
-		Args:  cobra.NoArgs,
-		RunE:  notImplemented("font", 4),
-	}
-	for _, sub := range []struct {
-		use   string
-		short string
-	}{
-		{"install", "Install Symbols Nerd Font Mono for the current user"},
-		{"remove", "Remove the icon font and undo the terminal patch"},
-		{"status", "Report whether the icon font is installed"},
-	} {
-		cmd.AddCommand(&cobra.Command{
-			Use:   sub.use,
-			Short: sub.short + " (not implemented yet)",
-			Args:  cobra.NoArgs,
-			RunE:  notImplemented("font "+sub.use, 4),
-		})
-	}
-	return cmd
-}
-
 // newSettingsCmd edits settings from a script. Milestone 6 fills it in.
 func newSettingsCmd() *cobra.Command {
 	return &cobra.Command{

@@ -103,3 +103,45 @@ func assertOutdatedEqual(t *testing.T, got, want []managers.Outdated) {
 		}
 	}
 }
+
+func TestScoopUpgradeCommands(t *testing.T) {
+	s := managers.Scoop{}
+	assertArgv(t, "UpgradeCmd", s.UpgradeCmd("git"), []string{"scoop", "update", "git"})
+	check := s.CheckCmds()
+	if len(check) != 2 {
+		t.Fatalf("CheckCmds() = %v, want two steps", check)
+	}
+	assertArgv(t, "CheckCmds()[0]", check[0], []string{"scoop", "update"})
+	assertArgv(t, "CheckCmds()[1]", check[1], []string{"scoop", "status"})
+
+	clean := s.CleanupCmds([]string{"git", "7zip"})
+	if len(clean) != 2 {
+		t.Fatalf("CleanupCmds() = %v, want two steps", clean)
+	}
+	assertArgv(t, "CleanupCmds()[0]", clean[0], []string{"scoop", "cleanup", "git", "7zip"})
+	assertArgv(t, "CleanupCmds()[1]", clean[1], []string{"scoop", "cache", "rm", "git", "7zip"})
+	if got := s.CleanupCmds(nil); got != nil {
+		t.Errorf("CleanupCmds(nil) = %v, want nil", got)
+	}
+}
+
+func TestScoopParseOutdatedReport(t *testing.T) {
+	s := managers.Scoop{}
+	rep := s.ParseOutdatedReport(readTestdata(t, "scoop_status_held.txt"))
+	if !rep.Parsed {
+		t.Fatal("Parsed = false, want true")
+	}
+	assertOutdatedEqual(t, rep.Packages, []managers.Outdated{
+		{Name: "git", ID: "git", Current: "2.42.0", Latest: "2.43.0"},
+		{Name: "nodejs-lts", ID: "nodejs-lts", Current: "20.10.0", Latest: "20.11.0", Held: true},
+	})
+
+	up := s.ParseOutdatedReport(readTestdata(t, "scoop_status_uptodate.txt"))
+	if !up.Parsed || len(up.Packages) != 0 {
+		t.Errorf("up to date report = %+v, want Parsed with no packages", up)
+	}
+
+	if bad := s.ParseOutdatedReport("scoop : The term 'scoop' is not recognized"); bad.Parsed {
+		t.Errorf("unrecognised output Parsed = true, want false")
+	}
+}

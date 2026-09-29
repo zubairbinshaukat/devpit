@@ -179,6 +179,40 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// listTop is the row of the picker's own view the folder list starts on:
+// under the question and the blank line after it.
+const listTop = 2
+
+// Pointer handles the mouse for a picker drawn top rows below the start of
+// the screen body: a click on a folder picks it (the same as Enter on it),
+// hovering highlights it, the wheel moves through the list. handled is false
+// for anything that is not the mouse, and while the path is being typed.
+func (m Model) Pointer(ctx uictx.Context, msg tea.Msg, top int) (next Model, cmd tea.Cmd, handled bool) {
+	if m.typing || m.busy {
+		return m, nil, false
+	}
+	switch pm := msg.(type) {
+	case tea.MouseClickMsg:
+		if pm.Button != tea.MouseLeft {
+			return m, nil, true
+		}
+		i, ok := m.menu.RowAt(ctx, ctx.BodyRow(pm.Y)-top-listTop)
+		if !ok || m.menu.Items()[i].Disabled {
+			return m, nil, true
+		}
+		m.menu = m.menu.SetCursor(i)
+		next, cmd = m.activate()
+		return next, cmd, true
+	case tea.MouseMotionMsg:
+		m.menu, _ = m.menu.Hover(ctx, ctx.BodyRow(pm.Y)-top-listTop)
+		return m, nil, true
+	case tea.MouseWheelMsg:
+		m.menu, cmd = m.menu.Update(pm)
+		return m, cmd, true
+	}
+	return m, nil, false
+}
+
 // updateTyping routes keys to the text input.
 func (m Model) updateTyping(km tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch km.Code {

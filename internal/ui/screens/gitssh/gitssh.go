@@ -62,14 +62,23 @@ func (m Model) FullHelp() [][]key.Binding {
 }
 
 // Update implements uictx.Screen.
-func (m Model) Update(msg tea.Msg, _ uictx.Context) (uictx.Screen, tea.Cmd) {
+func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	if sel, ok := msg.(menu.SelectedMsg); ok {
 		return m, open(sel.ID)
+	}
+	// The lead-in line and the blank line under it sit above the menu.
+	if next, cmd, ok := m.menu.Pointer(ctx, msg, menuTop); ok {
+		m.menu = next
+		return m, cmd
 	}
 	next, cmd := m.menu.Update(msg)
 	m.menu = next
 	return m, cmd
 }
+
+// menuTop is the body row the menu starts on: under the one-line lead-in
+// and the blank line after it.
+const menuTop = 2
 
 // View implements uictx.Screen.
 func (m Model) View(ctx uictx.Context) string {

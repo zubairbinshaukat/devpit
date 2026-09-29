@@ -394,13 +394,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		// A click on the tab row is the root model's; everything else goes
 		// to the screen, which knows where its own rows are.
-		if msg.Button == tea.MouseLeft && msg.Y == header.TabRow && !m.showHelp {
-			if t, ok := m.header.TabAt(msg.X); ok {
+		hdr := m.headerFor()
+		if msg.Button == tea.MouseLeft && hdr.Height() == header.Rows && msg.Y == header.TabRow && !m.showHelp {
+			if t, ok := hdr.TabAt(msg.X); ok {
 				return m.switchSection(t.ID)
 			}
 			return m, nil
 		}
-		if msg.Y < m.header.Height() || m.showHelp {
+		if msg.Y < hdr.Height() || m.showHelp {
+			return m, nil
+		}
+
+	case tea.MouseMotionMsg:
+		// Hover is a nicety: the help overlay ignores it, and a pointer
+		// moving over the header means nothing to the screen below.
+		if m.showHelp || msg.Y < m.headerFor().Height() {
 			return m, nil
 		}
 
@@ -487,6 +495,11 @@ func (m Model) globalKey(msg tea.KeyPressMsg) (bool, tea.Model, tea.Cmd) {
 		// away the progress report the user is waiting for. handled=false
 		// lets the message fall through to the screen's own Update.
 		if m.topBusy() {
+			return false, m, nil
+		}
+		// With nothing to go back to, Esc belongs to the screen: the
+		// first-run wizard uses it to step back a page.
+		if m.router.Len() == 1 {
 			return false, m, nil
 		}
 		if m.router.Pop() {
@@ -612,23 +625,56 @@ func (m Model) applyConfig(msg uictx.ConfigChangedMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// headerFor is the header as this frame draws it: the visible screen's
+// breadcrumb, the open section's tab lit, and the tab row only inside a
+// section. Layout, rendering and click hit-testing all go through it, so the
+// three can never disagree about how tall the header is.
+func (m Model) headerFor() header.Model {
+	hdr := m.header
+	if s, ok := m.router.Top(); ok {
+		hdr.Title = s.Title()
+	}
+	hdr.Active = m.activeSection()
+	hdr.ShowTabs = m.router.Len() > 1 && m.cfg.FirstRunDone
+	return hdr
+}
+
 // context builds the render context handed to screens.
 func (m Model) context() uictx.Context {
 	th := theme.Resolve(m.cfg.Theme, m.dark)
-	body := m.height - m.header.Height() - m.footer.Height()
+	hdr := m.headerFor()
+	body := m.height - hdr.Height() - m.footer.Height()
 	if body < 0 {
 		body = 0
 	}
 	return uictx.Context{
-		Theme:      th,
-		Icons:      m.iconSet,
-		Config:     m.cfg,
-		Width:      m.width,
-		Height:     m.height,
-		BodyHeight: body,
-		BodyTop:    m.header.Height(),
-		Update:     m.update,
+		Theme:         th,
+		Icons:         m.iconSet,
+		Config:        m.cfg,
+		Width:         m.width,
+		Height:        m.height,
+		BodyHeight:    body,
+		BodyTop:       hdr.Height(),
+		Update:        m.update,
+		ReducedMotion: m.reducedMotion(),
 	}
+}
+
+// reducedMotion reports whether animations should hold still: the user asked
+// through DEVPIT_REDUCED_MOTION, or the terminal is one (ascii tier,
+// NO_COLOR) where a spinning glyph is more noise than signal.
+func (m Model) reducedMotion() bool {
+	if m.iconSet.Tier == icons.TierASCII {
+		return true
+	}
+	env := m.opts.Env
+	if env == nil {
+		env = os.Getenv
+	}
+	if v := strings.TrimSpace(env(uictx.ReducedMotionEnv)); v != "" && v != "0" {
+		return true
+	}
+	return env("NO_COLOR") != ""
 }
 
 // View implements tea.Model.
@@ -637,8 +683,10 @@ func (m Model) View() tea.View {
 	v.AltScreen = true
 	v.WindowTitle = WindowTitle
 	// Clicks and the wheel work everywhere the keyboard does: tabs, menus
-	// and lists. Cell motion is the mode terminals support most widely.
-	v.MouseMode = tea.MouseModeCellMotion
+	// and lists. All-motion adds hover, which moves a menu's highlight under
+	// the pointer. A terminal that does not report bare motion simply never
+	// sends it, and clicks and the wheel work exactly as they did.
+	v.MouseMode = tea.MouseModeAllMotion
 	v.ProgressBar = m.terminalProgress()
 	return v
 }
@@ -659,9 +707,7 @@ func (m Model) render() string {
 		return ""
 	}
 
-	hdr := m.header
-	hdr.Title = screen.Title()
-	hdr.Active = m.activeSection()
+	hdr := m.headerFor()
 
 	var body string
 	var bindings []key.Binding

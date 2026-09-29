@@ -1,24 +1,24 @@
  DEVPIT  vdev                                                    node …   git …
-  Clean   Ports   Apps   Update   Network   Git   Settings
 ────────────────────────────────────────────────────────────────────────────────
                    D E V P I T by Zubair Bin Shaukat
 
 ╭──────────────────────────────────────────────────────────────────────╮
-│   ▸ Free Up Disk Space                                               │
-│     (Scan and clean dev junk, caches and temp files)                 │
-│     Fix Stuck Ports & Apps                   Port 3000 busy? Kill it │
-│     (Free busy ports and stop stuck processes)                       │
-│     Install Developer Apps                                           │
-│     (Pick and install dev apps)                                      │
-│     Update Everything                                                │
-│     (Update apps and tools through every detected package manager)   │
-│     Network Tools                                                    │
-│     (IP, connectivity and DNS helpers)                               │
-│     Git & SSH Setup                                                  │
-│     (Identity and SSH key setup)                                     │
-│     Devpit Settings                                                  │
-│     (Preferences, theme, privacy, tool rescan)                       │
+│ ▌ ▸ ◧  Free Up Disk Space                                            │
+│ ▌      Scan and clean dev junk, caches and temp files                │
+│     ◉  Fix Stuck Ports & Apps                Port 3000 busy? Kill it │
+│                                                                      │
+│     ▣  Install Developer Apps                                        │
+│                                                                      │
+│     ↻  Update Everything                                             │
+│                                                                      │
+│     ◎  Network Tools                                                 │
+│                                                                      │
+│     ◈  Git & SSH Setup                                               │
+│                                                                      │
+│     ≡  Devpit Settings                                               │
 ╰──────────────────────────────────────────────────────────────────────╯
+
+             Pit crew ready. Pick a section, or press 1–7.
 
 ────────────────────────────────────────────────────────────────────────────────
 ↑↓ move  ·  enter select  ·  q quit  ·  ? help

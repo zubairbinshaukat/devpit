@@ -1,11 +1,16 @@
 package confirm_test
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
+	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
+	"github.com/zubairbinshaukat/devpit/internal/ui/theme"
+	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
 // press builds the key message for a single printable character.
@@ -146,4 +151,58 @@ func TestAnswerString(t *testing.T) {
 	if confirm.AnswerNo.String() != "no" || confirm.AnswerYes.String() != "yes" {
 		t.Error("Answer.String is wrong")
 	}
+}
+
+// A click on a button answers the way pressing it would, a click anywhere
+// else answers nothing, and Yes stays out of reach until the typed word is in.
+func TestClickAnswersOnlyOnTheButtons(t *testing.T) {
+	c := uictx.Context{Theme: theme.For(true), Icons: icons.Unicode(), Width: 80, Height: 24, BodyHeight: 20}
+	m := confirm.New("x", "Delete 3 folders?", "1.2 GB")
+	lines := strings.Split(ansi.Strip(m.View(c)), "\n")
+	row := len(lines) - 2
+	noX := cellIndex(lines[row], "[ No ]")
+	yesX := cellIndex(lines[row], "[ Yes ]")
+	if noX < 0 || yesX < 0 {
+		t.Fatalf("buttons not on the row above the border: %q", lines[row])
+	}
+
+	answer := func(cmd tea.Cmd) (confirm.Answer, bool) {
+		if cmd == nil {
+			return 0, false
+		}
+		a, ok := cmd().(confirm.AnsweredMsg)
+		return a.Answer, ok
+	}
+	if _, cmd := m.Click(c, noX+2, row); true {
+		if a, ok := answer(cmd); !ok || a != confirm.AnswerNo {
+			t.Errorf("click on No = %v,%v", a, ok)
+		}
+	}
+	if _, cmd := m.Click(c, yesX+2, row); true {
+		if a, ok := answer(cmd); !ok || a != confirm.AnswerYes {
+			t.Errorf("click on Yes = %v,%v", a, ok)
+		}
+	}
+	for _, at := range [][2]int{{yesX + 2, row - 1}, {0, row}, {yesX - 1, row}, {yesX + 40, row}} {
+		if _, cmd := m.Click(c, at[0], at[1]); cmd != nil {
+			t.Errorf("a click at %v answered the dialog", at)
+		}
+	}
+
+	typed := confirm.New("x", "Delete?", "").WithTypedWord("DELETE")
+	tl := strings.Split(ansi.Strip(typed.View(c)), "\n")
+	trow := len(tl) - 2
+	if _, cmd := typed.Click(c, cellIndex(tl[trow], "[ Yes ]")+2, trow); cmd != nil {
+		t.Error("a click on Yes answered before the word was typed")
+	}
+}
+
+// cellIndex is the terminal column sub starts at in line, or -1. The card
+// border is a multi-byte rune, so a byte offset would land in the wrong cell.
+func cellIndex(line, sub string) int {
+	i := strings.Index(line, sub)
+	if i < 0 {
+		return -1
+	}
+	return ansi.StringWidth(line[:i])
 }

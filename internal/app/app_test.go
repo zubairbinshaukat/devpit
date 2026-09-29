@@ -126,9 +126,28 @@ func fakeScreens() map[string]func() uictx.Screen {
 		home.SectionUpdate: func() uictx.Screen {
 			return update.New(
 				update.WithDetectFunc(func(context.Context) []tools.Tool { return detected }),
+				update.WithRunStepFunc(fakeScoop),
 			)
 		},
 	}
+}
+
+// fakeScoop answers the update screen's scoop checks with a fixed status
+// table, so its golden frame shows a real pick list without running Scoop.
+func fakeScoop(_ context.Context, argv []string, _ time.Duration, onLine func(tools.Line)) tools.StepResult {
+	if strings.Join(argv, " ") == "scoop status" {
+		for _, l := range []string{
+			"Name       Installed Version Latest Version Missing Dependencies Info",
+			"----       ----------------- -------------- -------------------- ----",
+			"git        2.46.0            2.47.1",
+			"nodejs-lts 22.9.0            22.11.0",
+			"pnpm       9.11.0            9.14.2",
+			"nvm        1.1.12            1.2.2                               Held package",
+		} {
+			onLine(tools.Line{Text: l})
+		}
+	}
+	return tools.StepResult{OK: true}
 }
 
 // busyScreen is a screen that is working until it is asked to stop. It is a
@@ -191,8 +210,8 @@ func TestFirstRunSavesAndHandsOverToHome(t *testing.T) {
 		t.Fatal("a fresh install should open on the first-run screen")
 	}
 
-	// Say yes to the glyph probe, then walk down to the last row and finish.
-	m = drive(m, press("y"), press("down"), press("down"), press("down"), press("enter"))
+	// Welcome, then yes to the glyph probe, keep the theme, keep stats off.
+	m = drive(m, press("enter"), press("y"), press("enter"), press("enter"), press("enter"))
 
 	saved, ok := spy.last()
 	if !ok {
@@ -233,7 +252,7 @@ func TestTelemetryStaysOffUnlessAsked(t *testing.T) {
 
 	m := tea.Model(app.New(testOptions(cfg, spy)))
 	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30})
-	drive(m, press("down"), press("down"), press("down"), press("enter"))
+	drive(m, press("enter"), press("enter"), press("enter"), press("enter"))
 
 	saved, ok := spy.last()
 	if !ok {
@@ -293,7 +312,7 @@ func TestEverySectionOpensItsRealScreen(t *testing.T) {
 		{"Free Up Disk Space", "Pick what to look through"},
 		{"Fix Stuck Ports & Apps", "Free a busy port or stop a stuck process"},
 		{"Install Developer Apps", "Manager: scoop"},
-		{"Update Everything", "Space unticks a manager"},
+		{"Update Everything", "updates available"},
 		{"Network Tools", "IP, connectivity and DNS helpers"},
 		{"Git & SSH Setup", "Get a fresh machine ready to push code"},
 		{"Devpit Settings", "Changes save as soon as you make them"},

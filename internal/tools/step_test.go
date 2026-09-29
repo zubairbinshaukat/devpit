@@ -104,3 +104,46 @@ func TestRunStepDefaultTimeoutDoesNotPanic(t *testing.T) {
 		t.Fatalf("OK = false, want true")
 	}
 }
+
+func TestRunStepLinesTransientAndLastLines(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("printf with \\r escapes needs a POSIX shell")
+	}
+	// A progress bar redrawn in place with bare \r, a spinner frame that
+	// cleans to nothing, then two real lines, one of them CRLF-terminated.
+	argv := []string{"sh", "-c", `printf '  \342\226\210\342\226\210\342\226\222\342\226\222  1 MB / 4 MB\r  \342\226\210\342\226\210\342\226\210\342\226\222  3 MB / 4 MB\r   - \rDownloaded\r\nInstalled\n'`}
+
+	var got []tools.Line
+	var texts []string
+	res := tools.RunStepLines(context.Background(), argv, time.Minute, func(l tools.Line) {
+		got = append(got, l)
+	})
+	resText := tools.RunStep(context.Background(), argv, time.Minute, func(s string) {
+		texts = append(texts, s)
+	})
+
+	want := []tools.Line{
+		{Text: "1 MB / 4 MB", Transient: true},
+		{Text: "3 MB / 4 MB", Transient: true},
+		{Text: "Downloaded"},
+		{Text: "Installed"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("lines = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("line[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	if strings.Join(res.LastLines, "|") != "Downloaded|Installed" {
+		t.Errorf("LastLines = %q, want only the non-transient lines", res.LastLines)
+	}
+	if strings.Join(resText.LastLines, "|") != "Downloaded|Installed" {
+		t.Errorf("RunStep LastLines = %q, want only the non-transient lines", resText.LastLines)
+	}
+	if strings.Join(texts, "|") != "1 MB / 4 MB|3 MB / 4 MB|Downloaded|Installed" {
+		t.Errorf("RunStep onLine got %q, want every line's text, transient included", texts)
+	}
+}

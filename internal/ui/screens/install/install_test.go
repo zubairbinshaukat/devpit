@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +15,8 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
 	"github.com/zubairbinshaukat/devpit/internal/tools"
 	"github.com/zubairbinshaukat/devpit/internal/tools/catalog"
+	"github.com/zubairbinshaukat/devpit/internal/tools/managers"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/activity"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/theme"
@@ -554,5 +557,59 @@ func TestStopCancelsTheRunAndUnblocksTheGoroutine(t *testing.T) {
 	}
 	if len(r.LastLines) == 0 || r.LastLines[0] != "still downloading" {
 		t.Errorf("LastLines = %v, want the output the fake produced before cancellation", r.LastLines)
+	}
+}
+
+// A Stop against a chatty install that has filled the event buffer still
+// lands on the summary: the run's last events can be dropped, but the
+// channel's close ends the run, and every row it never reported on reads
+// "cancelled" instead of spinning forever.
+func TestStopWithAFullBufferStillReachesTheSummary(t *testing.T) {
+	ctx := testCtx()
+	m := New(
+		WithDetectFunc(fakeDetectFn([]tools.Tool{{Name: "winget", Found: true}})),
+		WithLookPathFunc(fakeLookPath(nil)),
+		WithLoadCatalogFunc(func() ([]catalog.App, error) { return testCatalog(), nil }),
+		WithRunStepFunc(func(ctx context.Context, _ []string, _ time.Duration, onLine func(string)) tools.StepResult {
+			for i := range 400 {
+				onLine(fmt.Sprintf("line %d", i))
+			}
+			<-ctx.Done()
+			return tools.StepResult{ExitCode: -1}
+		}),
+	)
+	m = reachList(t, m, ctx)
+	m = startRun(t, m, ctx, rowIndex(m.rows, "AppA"))
+	time.Sleep(50 * time.Millisecond) // let the step fill the buffer
+	m.Stop()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for m.state == stateRunning {
+		if time.Now().After(deadline) {
+			t.Fatalf("still running after Stop: runIdx=%d", m.runIdx)
+		}
+		evs, closed := drainEvents(m.events)
+		next, _ := m.Update(runBatchMsg{events: evs, closed: closed}, ctx)
+		m = next.(Model)
+		time.Sleep(5 * time.Millisecond)
+	}
+	if m.state != stateSummary || m.Busy() {
+		t.Fatalf("state = %v busy = %v, want the summary", m.state, m.Busy())
+	}
+	for _, r := range m.jobs {
+		if !r.State.Final() {
+			t.Errorf("row %q left in state %v", r.Label, r.State)
+		}
+	}
+}
+
+// A failure with no exit code (the admin helper never started) must not
+// read "updated".
+func TestFailureWithoutExitCodeReadsFailed(t *testing.T) {
+	m := Model{manager: managers.Winget{}, jobs: []activity.Row{{Label: "AppA", State: activity.Running}}}
+	m.finishJob(0, outcome{Name: "AppA", LastLines: []string{"pipe connect failed"}})
+	r := m.jobs[0]
+	if r.State != activity.Failed || strings.Contains(r.Detail, "updated") || !strings.Contains(r.Detail, "pipe connect failed") {
+		t.Errorf("row = %+v", r)
 	}
 }

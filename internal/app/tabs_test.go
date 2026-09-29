@@ -71,6 +71,7 @@ func TestClickOnTheTabBarOpensThatSection(t *testing.T) {
 	// eye does, rather than hard-coding it.
 	h := header.New()
 	h.Tabs = home.Tabs()
+	h.ShowTabs = true
 	x := -1
 	for col := 0; col < 100; col++ {
 		if tb, ok := h.TabAt(col); ok && tb.ID == home.SectionSettings {
@@ -82,7 +83,19 @@ func TestClickOnTheTabBarOpensThatSection(t *testing.T) {
 		t.Fatal("the settings tab is not on the bar")
 	}
 
+	// Home draws no tab bar, so the same click there lands on the rule
+	// under the badge row and does nothing.
 	m := homeAt100x30(t)
+	m = drive(m, tea.MouseClickMsg{X: x, Y: header.TabRow, Button: tea.MouseLeft})
+	if strings.Contains(view(m), settingsSentinel) {
+		t.Fatalf("home has no tab bar, yet a click on row %d opened settings", header.TabRow)
+	}
+
+	// Inside a section the bar is there, and the click switches to it.
+	m = drive(m, tea.KeyPressMsg{Code: '2', Text: "2"})
+	if !strings.Contains(view(m), portsSentinel) {
+		t.Fatalf("2 did not open ports:\n%s", view(m))
+	}
 	m = drive(m, tea.MouseClickMsg{X: x, Y: header.TabRow, Button: tea.MouseLeft})
 	if !strings.Contains(view(m), settingsSentinel) {
 		t.Fatalf("clicking the Settings tab did not open settings:\n%s", view(m))
@@ -101,12 +114,39 @@ func TestClickOnTheTabBarOpensThatSection(t *testing.T) {
 }
 
 func TestClickOnAHomeRowOpensItsSection(t *testing.T) {
-	// The second menu entry sits on terminal row 15 at 100x30: three header
-	// rows, a seven-row masthead, a blank line, the card border, then two
-	// rows per entry.
-	m := drive(homeAt100x30(t), tea.MouseClickMsg{X: 40, Y: 15, Button: tea.MouseLeft})
+	// Find the row the Ports entry is drawn on the way the eye does, rather
+	// than counting the masthead's rows by hand.
+	m := homeAt100x30(t)
+	y := -1
+	for i, line := range strings.Split(view(m), "\n") {
+		if strings.Contains(line, "Fix Stuck Ports") {
+			y = i
+		}
+	}
+	if y < 0 {
+		t.Fatalf("no ports row on home:\n%s", view(m))
+	}
+	m = drive(m, tea.MouseClickMsg{X: 40, Y: y, Button: tea.MouseLeft})
 	if !strings.Contains(view(m), portsSentinel) {
 		t.Fatalf("clicking the ports row did not open it:\n%s", view(m))
+	}
+}
+
+// Hovering a home row highlights it, so its description appears in place.
+func TestHoverOnAHomeRowShowsItsDescription(t *testing.T) {
+	m := homeAt100x30(t)
+	if strings.Contains(view(m), "Identity and SSH key setup") {
+		t.Fatal("an unhighlighted row already shows its description")
+	}
+	y := -1
+	for i, line := range strings.Split(view(m), "\n") {
+		if strings.Contains(line, "Git & SSH Setup") {
+			y = i
+		}
+	}
+	m = drive(m, tea.MouseMotionMsg{X: 40, Y: y})
+	if !strings.Contains(view(m), "Identity and SSH key setup") {
+		t.Errorf("hovering Git & SSH did not show its description:\n%s", view(m))
 	}
 }
 

@@ -1,5 +1,11 @@
 // Package home is Devpit's main menu: the seven sections from the PRD, each
-// with a fixed name and a one-line description.
+// with a fixed name, an icon in the section's own colour and a one-line
+// description.
+//
+// Only the highlighted section shows its description, in a line every other
+// section keeps blank: the list stays calm and keeps its shape, and the
+// sentence under the cursor (or the pointer, where the terminal reports
+// hover) is the one worth reading.
 //
 // Descriptions are static today. They are meant to become dynamic
 // ("~14 GB can be freed", "5 updates"), fed by detectors that run as commands
@@ -11,6 +17,8 @@
 package home
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -27,18 +35,20 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/ports"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/update"
+	"github.com/zubairbinshaukat/devpit/internal/ui/theme"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
-// Section identifiers, matching the PRD's main menu.
+// Section identifiers, matching the PRD's main menu. They are the theme's
+// own section names, so each section's icon finds its hue by id.
 const (
-	SectionClean    = "clean"
-	SectionPorts    = "ports"
-	SectionInstall  = "install"
-	SectionUpdate   = "update"
-	SectionNetwork  = "network"
-	SectionGitSSH   = "gitssh"
-	SectionSettings = "settings"
+	SectionClean    = theme.SectionClean
+	SectionPorts    = theme.SectionPorts
+	SectionInstall  = theme.SectionInstall
+	SectionUpdate   = theme.SectionUpdate
+	SectionNetwork  = theme.SectionNetwork
+	SectionGitSSH   = theme.SectionGitSSH
+	SectionSettings = theme.SectionSettings
 )
 
 // Tabs returns the seven sections as the header draws them: the same order
@@ -91,53 +101,22 @@ func SectionFor(s uictx.Screen) string {
 }
 
 // Items returns the seven menu entries, in PRD order, with the icons of the
-// given tier. Tool glyphs are empty outside the nerd tier and the menu draws
-// nothing in their place.
+// given tier. The ascii tier has no section glyphs and the menu draws nothing
+// in their place.
 func Items(ic icons.Set) []menu.Item {
+	item := func(id, title, desc string) menu.Item {
+		return menu.Item{ID: id, Title: title, Desc: desc, Icon: ic.Section(id), Hue: id}
+	}
+	ports := item(SectionPorts, "Fix Stuck Ports & Apps", "Free busy ports and stop stuck processes")
+	ports.Hint = "Port 3000 busy? Kill it"
 	return []menu.Item{
-		{
-			ID:    SectionClean,
-			Title: "Free Up Disk Space",
-			Desc:  "Scan and clean dev junk, caches and temp files",
-			Icon:  ic.Trash,
-		},
-		{
-			ID:    SectionPorts,
-			Title: "Fix Stuck Ports & Apps",
-			Desc:  "Free busy ports and stop stuck processes",
-			Hint:  "Port 3000 busy? Kill it",
-			Icon:  ic.Node,
-		},
-		{
-			ID:    SectionInstall,
-			Title: "Install Developer Apps",
-			Desc:  "Pick and install dev apps",
-			Icon:  ic.Package,
-		},
-		{
-			ID:    SectionUpdate,
-			Title: "Update Everything",
-			Desc:  "Update apps and tools through every detected package manager",
-			Icon:  ic.Update,
-		},
-		{
-			ID:    SectionNetwork,
-			Title: "Network Tools",
-			Desc:  "IP, connectivity and DNS helpers",
-			Icon:  ic.Globe,
-		},
-		{
-			ID:    SectionGitSSH,
-			Title: "Git & SSH Setup",
-			Desc:  "Identity and SSH key setup",
-			Icon:  ic.Key,
-		},
-		{
-			ID:    SectionSettings,
-			Title: "Devpit Settings",
-			Desc:  "Preferences, theme, privacy, tool rescan",
-			Icon:  ic.Gear,
-		},
+		item(SectionClean, "Free Up Disk Space", "Scan and clean dev junk, caches and temp files"),
+		ports,
+		item(SectionInstall, "Install Developer Apps", "Pick and install dev apps"),
+		item(SectionUpdate, "Update Everything", "Update apps and tools through every detected package manager"),
+		item(SectionNetwork, "Network Tools", "IP, connectivity and DNS helpers"),
+		item(SectionGitSSH, "Git & SSH Setup", "Identity and SSH key setup"),
+		item(SectionSettings, "Devpit Settings", "Preferences, theme, privacy, tool rescan"),
 	}
 }
 
@@ -151,7 +130,7 @@ type Model struct {
 // New returns the home screen rendered with the given icon tier.
 func New(ic icons.Set) Model {
 	return Model{
-		menu: menu.New(Items(ic)),
+		menu: menu.New(Items(ic)).DescOnSelectedOnly(true).ReserveDescRows(true),
 		quit: key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	}
 }
@@ -206,6 +185,14 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 		next, cmd := mm.Click(ctx, row)
 		m.menu = next
 		return m, cmd
+	case tea.MouseMotionMsg:
+		// The pointer passing over a row highlights it, so its description
+		// shows up in place, the way it would under the keyboard cursor.
+		row := ctx.BodyRow(msg.Y) - m.menuTop(ctx)
+		if next, changed := m.sizedMenu(ctx).Hover(ctx, row); changed {
+			m.menu = next
+		}
+		return m, nil
 	}
 	next, cmd := m.menu.Update(msg)
 	m.menu = next
@@ -236,11 +223,61 @@ func (m Model) View(ctx uictx.Context) string {
 	mm := m.sizedMenu(ctx)
 	card := ctx.Theme.CardFor(ascii).Width(cardW).Render(mm.View(ctx))
 
-	block := lipgloss.JoinVertical(lipgloss.Left, head, "", card)
+	parts := []string{head, "", card}
+	if m.hasTagline(ctx) {
+		parts = append(parts, "", centre(cardW, tagline(ctx)))
+	}
+	block := lipgloss.JoinVertical(lipgloss.Left, parts...)
+	if top := m.topPad(ctx); top > 0 {
+		block = strings.Repeat("\n", top) + block
+	}
 	if ctx.Width >= centreFrom {
 		return lipgloss.PlaceHorizontal(ctx.Width, lipgloss.Center, block)
 	}
 	return block
+}
+
+// Rows the tagline under the card takes: a blank line and the line itself.
+const taglineRows = 2
+
+// spare is how many body rows the masthead and the card leave unused.
+func (m Model) spare(ctx uictx.Context) int {
+	if ctx.BodyHeight <= 0 {
+		return 0
+	}
+	cardW := cardWidth(ctx.Width)
+	used := m.headHeight(ctx, cardW) + 1 + 2 + m.sizedMenu(ctx).Height(ctx)
+	return max(0, ctx.BodyHeight-used)
+}
+
+// hasTagline reports whether there is room for the line under the card.
+func (m Model) hasTagline(ctx uictx.Context) bool { return m.spare(ctx) >= taglineRows }
+
+// topPad is the blank rows above the masthead that centre the whole block in
+// the body, so a tall terminal does not leave the menu hanging from the top
+// with a gap under it.
+func (m Model) topPad(ctx uictx.Context) int {
+	left := m.spare(ctx)
+	if m.hasTagline(ctx) {
+		left -= taglineRows
+	}
+	return max(0, left/2)
+}
+
+// tagline is the muted line under the card: the space Devpit has won back
+// on this machine once there is any, and a greeting before that. It is the
+// one place the home screen talks about the user rather than about itself.
+func tagline(ctx uictx.Context) string {
+	th := ctx.Theme
+	if freed := ctx.Config.LifetimeFreedBytes; freed > 0 {
+		return th.Muted.Render("You've freed ") + th.Success.Render(header.FormatBytes(freed)) +
+			th.Muted.Render(" with Devpit. See you next lap.")
+	}
+	keys := "1–7"
+	if ctx.Icons.Tier == icons.TierASCII {
+		keys = "1-7"
+	}
+	return th.Muted.Render("Pit crew ready. Pick a section, or press " + keys + ".")
 }
 
 // sizedMenu is the menu with the width and height View draws it at, so the
@@ -255,14 +292,14 @@ func (m Model) sizedMenu(ctx uictx.Context) menu.Model {
 }
 
 // menuTop is the body row the menu's first line is drawn on: after the
-// masthead, the blank line and the card's top border.
+// centring pad, the masthead, the blank line and the card's top border.
 func (m Model) menuTop(ctx uictx.Context) int {
-	return m.headHeight(ctx, cardWidth(ctx.Width)) + 2
+	return m.topPad(ctx) + m.headHeight(ctx, cardWidth(ctx.Width)) + 2
 }
 
 // headHeight is how many rows the masthead takes, without rendering it.
 func (m Model) headHeight(ctx uictx.Context, cardW int) int {
-	if bigWordmark(ctx, cardW) {
+	if m.bigWordmark(ctx, cardW) {
 		// wordmark, byline
 		return logo.Height(ctx.Icons.Tier == icons.TierASCII) + 1
 	}
@@ -276,7 +313,7 @@ func (m Model) head(ctx uictx.Context, cardW int) string {
 	th := ctx.Theme
 	ascii := ctx.Icons.Tier == icons.TierASCII
 
-	if bigWordmark(ctx, cardW) {
+	if m.bigWordmark(ctx, cardW) {
 		return lipgloss.JoinVertical(
 			lipgloss.Left,
 			centre(cardW, th.Logo.Render(logo.String(ascii))),
@@ -291,8 +328,9 @@ func (m Model) head(ctx uictx.Context, cardW int) string {
 const compactMark = "D E V P I T"
 
 // bigWordmark reports whether there is room for the block-letter logo on top
-// of a menu that is still worth looking at.
-func bigWordmark(ctx uictx.Context, cardW int) bool {
+// of the whole menu. The menu wins: when both do not fit, the wordmark
+// shrinks to one line rather than the menu starting to scroll.
+func (m Model) bigWordmark(ctx uictx.Context, cardW int) bool {
 	if ctx.BodyHeight <= 0 {
 		return false
 	}
@@ -303,7 +341,10 @@ func bigWordmark(ctx uictx.Context, cardW int) bool {
 	// The wordmark and its byline, then the blank line and the card border
 	// between the masthead and the first menu row.
 	head := logo.Height(ascii) + 1
-	return ctx.BodyHeight-head-1-2 >= minMenuRows
+	full := ctx
+	full.BodyHeight = 0 // unbounded: the menu's natural height
+	need := max(minMenuRows, m.menu.SetWidth(cardW-4).SetHeight(0).Height(full))
+	return ctx.BodyHeight-head-1-2 >= need
 }
 
 // cardWidth is how wide the menu card is drawn.

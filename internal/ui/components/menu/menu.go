@@ -54,6 +54,10 @@ type Item struct {
 	Hint string
 	// Icon is a glyph drawn before the title. It may be empty.
 	Icon string
+	// Hue names the colour the icon is drawn in: a section id the theme
+	// has a hue for ([theme.Theme.SectionIcon]). Empty draws the icon in the
+	// row's own colour.
+	Hue string
 	// Disabled greys the row out and skips it when moving.
 	Disabled bool
 }
@@ -65,6 +69,10 @@ func (i Item) rows(withDesc bool) int {
 	}
 	return 2
 }
+
+// iconGap is the air between an icon and its title. Two columns, because a
+// glyph pressed against a word reads as part of it.
+const iconGap = "  "
 
 // SelectedMsg is emitted when the user presses Enter on an item.
 type SelectedMsg struct {
@@ -116,9 +124,13 @@ type Model struct {
 	width  int
 	height int
 	// descSelectedOnly draws a description under the highlighted row only.
-	// Long settings lists use it so the screen is not a wall of text; the
-	// home menu keeps every description because they are the tour.
+	// Long settings lists use it so the screen is not a wall of text.
 	descSelectedOnly bool
+	// reserveDesc keeps an empty line where a hidden description would be,
+	// so moving the highlight never makes the rows under it jump. The home
+	// menu uses it with descSelectedOnly: the description appears in place,
+	// under whichever row is highlighted.
+	reserveDesc bool
 }
 
 // New returns a menu over the given items with the cursor on the first
@@ -142,12 +154,29 @@ func (m Model) DescOnSelectedOnly(on bool) Model {
 	return m
 }
 
+// ReserveDescRows keeps a blank line under every row whose description is
+// hidden, so the list keeps its shape as the highlight moves. It only
+// matters together with [Model.DescOnSelectedOnly].
+func (m Model) ReserveDescRows(on bool) Model {
+	m.reserveDesc = on
+	return m
+}
+
 // showsDesc reports whether item i's description is drawn this frame.
 func (m Model) showsDesc(i int) bool {
 	if i < 0 || i >= len(m.items) || m.items[i].Desc == "" {
 		return false
 	}
 	return !m.descSelectedOnly || i == m.cursor
+}
+
+// descRow reports whether item i takes a second line this frame: its
+// description, or the blank line reserved for it.
+func (m Model) descRow(i int) bool {
+	if i < 0 || i >= len(m.items) || m.items[i].Desc == "" {
+		return false
+	}
+	return m.showsDesc(i) || m.reserveDesc
 }
 
 // SetItems replaces the items, keeping the cursor in range.
@@ -256,7 +285,7 @@ func (m Model) RowAt(ctx uictx.Context, row int) (index int, ok bool) {
 		line = 1
 	}
 	for i := start; i < end; i++ {
-		rows := m.items[i].rows(m.showsDesc(i))
+		rows := m.items[i].rows(m.descRow(i))
 		if row >= line && row < line+rows {
 			return i, true
 		}
@@ -284,6 +313,50 @@ func (m Model) Click(ctx uictx.Context, row int) (Model, tea.Cmd) {
 	return m, func() tea.Msg { return SelectedMsg{ID: it.ID, Index: i} }
 }
 
+// Hover moves the highlight to the item on the given row of the rendered
+// menu, without selecting it: it is what the pointer passing over a row
+// does. changed is false when the row is already highlighted, blank, or
+// disabled, so the caller can skip a redraw that would draw the same frame.
+//
+// Hover never scrolls. The window follows the cursor, so moving the cursor
+// to a row near the edge of a long list would slide a different row under
+// a pointer that has not moved, and the next click would land on it. When
+// highlighting the row would scroll the list, the highlight stays put.
+func (m Model) Hover(ctx uictx.Context, row int) (next Model, changed bool) {
+	i, ok := m.RowAt(ctx, row)
+	if !ok || i == m.cursor || m.items[i].Disabled {
+		return m, false
+	}
+	height := m.viewHeight(ctx)
+	before, _, _, _ := m.window(height, m.gap(height))
+	moved := m
+	moved.cursor = i
+	if after, _, _, _ := moved.window(height, moved.gap(height)); after != before {
+		return m, false
+	}
+	return moved, true
+}
+
+// Pointer handles the mouse for a screen that draws this menu top rows
+// below the start of its body: a left click selects the row under it, the
+// pointer passing over a row highlights it. handled is false for anything
+// else, which the screen should pass on to [Model.Update] as usual (that is
+// where the wheel is handled).
+func (m Model) Pointer(ctx uictx.Context, msg tea.Msg, top int) (next Model, cmd tea.Cmd, handled bool) {
+	switch pm := msg.(type) {
+	case tea.MouseClickMsg:
+		if pm.Button != tea.MouseLeft {
+			return m, nil, true
+		}
+		next, cmd = m.Click(ctx, ctx.BodyRow(pm.Y)-top)
+		return next, cmd, true
+	case tea.MouseMotionMsg:
+		next, _ = m.Hover(ctx, ctx.BodyRow(pm.Y)-top)
+		return next, nil, true
+	}
+	return m, nil, false
+}
+
 // View renders the menu, windowed so the cursor is always on screen.
 func (m Model) View(ctx uictx.Context) string {
 	width := m.viewWidth(ctx)
@@ -304,8 +377,11 @@ func (m Model) View(ctx uictx.Context) string {
 		selected := i == m.cursor
 		b.WriteString(m.renderTitle(ctx, it, selected, width))
 		b.WriteByte('\n')
-		if m.showsDesc(i) {
+		switch {
+		case m.showsDesc(i):
 			b.WriteString(m.renderDesc(ctx, it, selected, width))
+			b.WriteByte('\n')
+		case m.descRow(i):
 			b.WriteByte('\n')
 		}
 		if gap > 0 && i < end-1 {
@@ -317,6 +393,25 @@ func (m Model) View(ctx uictx.Context) string {
 		return b.String()
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// Height is how many lines View draws this frame: every row with its gaps
+// when the list fits, the full window when it scrolls. Screens use it to
+// place things under the menu without rendering it twice.
+func (m Model) Height(ctx uictx.Context) int {
+	height := m.viewHeight(ctx)
+	gap := m.gap(height)
+	total := 0
+	for i, it := range m.items {
+		total += it.rows(m.descRow(i)) + gap
+	}
+	if total > 0 {
+		total -= gap
+	}
+	if height > 0 && total > height {
+		return height
+	}
+	return total
 }
 
 // viewWidth is the width the menu draws into.
@@ -358,7 +453,7 @@ func (m Model) window(height, gap int) (start, end, above, below int) {
 	h := make([]int, n)
 	total := 0
 	for i, it := range m.items {
-		h[i] = it.rows(m.showsDesc(i)) + gap
+		h[i] = it.rows(m.descRow(i)) + gap
 		total += h[i]
 	}
 	total -= gap // the blank line after the last item is never drawn
@@ -413,12 +508,17 @@ func (m Model) gap(height int) int {
 	if n < 2 {
 		return 0
 	}
+	// A reserved description line already separates every row from the
+	// next; a gap on top of it would space the list out twice.
+	if m.reserveDesc && m.descSelectedOnly {
+		return 0
+	}
 	if height <= 0 {
 		return 1
 	}
 	dense := 0
 	for i, it := range m.items {
-		dense += it.rows(m.showsDesc(i))
+		dense += it.rows(m.descRow(i))
 	}
 	if dense+n-1 <= height {
 		return 1
@@ -427,53 +527,97 @@ func (m Model) gap(height int) int {
 }
 
 // renderTitle draws the cursor, icon, title and hint of one row.
+//
+// The highlighted row is a lifted band: an accent bar at its left edge, the
+// caret, and every piece drawn on the highlight colour right to the menu's
+// edge. Each piece carries the band itself, because the reset that ends one
+// styled piece would otherwise punch a hole in it.
 func (m Model) renderTitle(ctx uictx.Context, it Item, selected bool, width int) string {
 	th := ctx.Theme
 
-	var row strings.Builder
-	row.WriteString(strings.Repeat(" ", leftPad))
+	lead := strings.Repeat(" ", leftPad)
 	if selected {
-		row.WriteString(ctx.Icons.Cursor)
-	} else {
-		row.WriteString(strings.Repeat(" ", cellWidth(ctx.Icons.Cursor)))
+		lead = ctx.Icons.SelectBar + strings.Repeat(" ", leftPad-cellWidth(ctx.Icons.SelectBar))
 	}
-	row.WriteByte(' ')
+	caret := strings.Repeat(" ", cellWidth(ctx.Icons.Cursor))
+	if selected {
+		caret = ctx.Icons.Cursor
+	}
+	icon := ""
 	if it.Icon != "" {
-		row.WriteString(it.Icon)
-		row.WriteByte(' ')
+		icon = it.Icon + iconGap
 	}
-	row.WriteString(it.Title)
 
-	left := truncate(ctx, row.String(), width)
-	gap, hint := spread(left, it.Hint, width)
+	// Measure on plain text, then style: the title is what gets cut when the
+	// row is too narrow, never the caret or the icon.
+	prefixW := ansi.StringWidth(lead) + ansi.StringWidth(caret) + 1 + ansi.StringWidth(icon)
+	title := it.Title
+	if width > 0 && prefixW+ansi.StringWidth(title) > width {
+		title = truncate(ctx, title, max(1, width-prefixW))
+	}
+	gap, hint := spread(lead+caret+" "+icon+title, it.Hint, width)
+
+	iconStyle := th.Base
+	if it.Hue != "" {
+		iconStyle = th.SectionIcon(it.Hue)
+	}
 
 	switch {
 	case it.Disabled:
-		return th.Muted.Render(left + gap + hint)
+		return th.Muted.Render(lead + caret + " " + icon + title + gap + hint)
 	case selected:
-		// One Render over the whole padded row, so the reverse-video bar runs
-		// the full width of the menu instead of stopping after the title.
-		return th.Selected.Render(pad(left+gap+hint, width))
-	case hint != "":
-		return th.Base.Render(left) + gap + th.Hint.Render(hint)
+		band := th.SelBand
+		row := th.SelectBar.Render(lead[:len(ctx.Icons.SelectBar)]) +
+			band.Render(lead[len(ctx.Icons.SelectBar):]) +
+			th.OnBand(th.Cursor).Render(caret) + band.Render(" ")
+		if it.Icon != "" {
+			row += th.OnBand(iconStyle).Render(it.Icon) + band.Render(iconGap)
+		}
+		row += th.Selected.Render(title) + band.Render(gap)
+		if hint != "" {
+			row += th.OnBand(th.Hint).Render(hint)
+		}
+		if n := width - ansi.StringWidth(lead+caret+" "+icon+title+gap+hint); n > 0 {
+			row += band.Render(strings.Repeat(" ", n))
+		}
+		return row
 	default:
-		return th.Base.Render(left)
+		row := th.Base.Render(lead + caret + " ")
+		if it.Icon != "" {
+			row += iconStyle.Render(it.Icon) + iconGap
+		}
+		row += th.Base.Render(title)
+		if hint != "" {
+			row += gap + th.Hint.Render(hint)
+		}
+		return row
 	}
 }
 
-// renderDesc draws the muted second line of one row: the description in
-// brackets, aligned under the title text.
+// renderDesc draws the muted second line of one row, aligned under the
+// title text. Under the highlighted row it continues the band, bar and all,
+// so the title and its description read as one lifted card.
 func (m Model) renderDesc(ctx uictx.Context, it Item, selected bool, width int) string {
 	th := ctx.Theme
-	indent := strings.Repeat(" ", leftPad+cellWidth(ctx.Icons.Cursor)+1)
+	indentW := leftPad + cellWidth(ctx.Icons.Cursor) + 1
 	if it.Icon != "" {
-		indent += strings.Repeat(" ", cellWidth(it.Icon)+1)
+		indentW += cellWidth(it.Icon) + len(iconGap)
 	}
-	text := truncate(ctx, indent+"("+it.Desc+")", width)
-	if selected && !it.Disabled {
-		return th.SelectedDesc.Render(text)
+	text := it.Desc
+	if width > 0 && indentW+ansi.StringWidth(text) > width {
+		text = truncate(ctx, text, max(1, width-indentW))
 	}
-	return th.Muted.Render(text)
+	if !selected || it.Disabled {
+		return th.Muted.Render(strings.Repeat(" ", indentW) + text)
+	}
+	bar := ctx.Icons.SelectBar
+	row := th.SelectBar.Render(bar) +
+		th.SelBandSoft.Render(strings.Repeat(" ", indentW-cellWidth(bar))) +
+		th.SelectedDesc.Render(text)
+	if n := width - indentW - ansi.StringWidth(text); n > 0 {
+		row += th.SelBandSoft.Render(strings.Repeat(" ", n))
+	}
+	return row
 }
 
 // indicator draws one "n more" marker, or a blank line when that end of the
@@ -511,14 +655,6 @@ func spread(left, hint string, width int) (gap, kept string) {
 		return "", ""
 	}
 	return strings.Repeat(" ", space), hint
-}
-
-// pad grows a line to exactly width cells.
-func pad(s string, width int) string {
-	if n := width - ansi.StringWidth(s); n > 0 {
-		return s + strings.Repeat(" ", n)
-	}
-	return s
 }
 
 // truncate cuts a line to the menu's width, marking the cut the way the

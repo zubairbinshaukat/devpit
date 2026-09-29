@@ -1,0 +1,11 @@
+Name           Id             Version   Available Source
+--------------------------------------------------------
+Git            Git.Git        2.42.0    2.43.0    winget
+Microsoft Edge Microsoft.Edge 120.0.0.0 121.0.0.0 winget
+2 upgrades available.
+
+The following packages have an upgrade available, but require explicit targeting for upgrade:
+Name    Id              Version  Available Source
+-------------------------------------------------
+Discord Discord.Discord 1.0.9030 1.0.9170  winget
+1 package(s) have version numbers that cannot be determined. Use --include-unknown to see all results.

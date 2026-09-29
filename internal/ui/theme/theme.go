@@ -12,8 +12,10 @@
 //   - No faint/dim SGR: Windows Terminal renders it unreadably on light
 //     backgrounds. An explicit muted grey is used instead.
 //   - No bold-only cues: Windows Terminal renders bold as a brighter colour,
-//     not a thicker glyph. The selected row uses accent plus reverse video,
-//     which still reads under NO_COLOR.
+//     not a thicker glyph. The selected row sits on a soft highlight band
+//     and carries a caret and a bar glyph beside it, so it still reads under
+//     NO_COLOR, where the band itself is stripped. Mono keeps reverse video,
+//     which is the one attribute every terminal draws.
 package theme
 
 import (
@@ -46,6 +48,19 @@ type Palette struct {
 	// Surface is the background of a pill or badge. It is a small step away
 	// from the terminal background, never a second colour scheme.
 	Surface color.Color
+	// Highlight is the band behind the row under the cursor. It sits between
+	// the terminal background and Surface, so a selected row reads as lifted
+	// rather than shouted, the way Catppuccin apps draw selection.
+	Highlight color.Color
+
+	// Peach, Sky, Yellow and Mauve are the extra hues the section icons wear.
+	// They carry identity, not meaning: a section keeps its colour on every
+	// screen so the eye learns where it is, and nothing is ever signalled by
+	// one of them alone.
+	Peach  color.Color
+	Sky    color.Color
+	Yellow color.Color
+	Mauve  color.Color
 }
 
 // Dark is the palette for dark terminal backgrounds.
@@ -66,6 +81,12 @@ var Dark = Palette{
 	Fg:      lipgloss.Color("#CDD6F4"),
 	Border:  lipgloss.Color("#45475A"),
 	Surface: lipgloss.Color("#313244"),
+
+	Highlight: lipgloss.Color("#2A2D40"),
+	Peach:     lipgloss.Color("#FAB387"),
+	Sky:       lipgloss.Color("#89DCEB"),
+	Yellow:    lipgloss.Color("#F9E2AF"),
+	Mauve:     lipgloss.Color("#CBA6F7"),
 }
 
 // Light is the palette for light terminal backgrounds: the same roles, taken
@@ -80,6 +101,12 @@ var Light = Palette{
 	Fg:      lipgloss.Color("#4C4F69"),
 	Border:  lipgloss.Color("#BCC0CC"),
 	Surface: lipgloss.Color("#E6E9EF"),
+
+	Highlight: lipgloss.Color("#DCE0E8"),
+	Peach:     lipgloss.Color("#FE640B"),
+	Sky:       lipgloss.Color("#04A5E5"),
+	Yellow:    lipgloss.Color("#DF8E1D"),
+	Mauve:     lipgloss.Color("#8839EF"),
 }
 
 // Variant is a colour scheme: which accent the theme paints with, or none.
@@ -149,11 +176,41 @@ type Theme struct {
 	Danger  lipgloss.Style
 	Info    lipgloss.Style
 
-	// Selected is the style for the row under the cursor: accent plus reverse
-	// video, so it survives NO_COLOR.
+	// Selected is the style for the row under the cursor: accent text on the
+	// soft highlight band. Mono uses reverse video instead, since it has no
+	// band colour to spare.
 	Selected lipgloss.Style
 	// SelectedDesc is the description line of the selected row.
 	SelectedDesc lipgloss.Style
+	// SelBand is the bare highlight band: the background every segment of a
+	// selected row is drawn on, so a row built from several styled pieces
+	// still reads as one lifted bar. See [Theme.OnBand].
+	SelBand lipgloss.Style
+	// SelBandSoft is the band under a selected row's second line, such as a
+	// menu description. It is the band itself where the band is a colour,
+	// and nothing on mono, where a second reverse-video line would turn the
+	// selection into a slab.
+	SelBandSoft lipgloss.Style
+	// SelectBar is the accent bar glyph at the left edge of a selected row.
+	// It is a character, not a colour, so the selection survives NO_COLOR.
+	SelectBar lipgloss.Style
+
+	// CheckOn and CheckOff draw a tick box: green when ticked, a quiet grey
+	// when not, so a long list reads at a glance as "what will happen".
+	CheckOn  lipgloss.Style
+	CheckOff lipgloss.Style
+
+	// Section icons, one hue per home section, keyed by section id. Read it
+	// through [Theme.SectionIcon], which falls back to the accent.
+	sectionIcons map[string]lipgloss.Style
+
+	// TabActive is the open section on the tab bar; TabIdle is every other.
+	TabActive lipgloss.Style
+	TabIdle   lipgloss.Style
+
+	// KeyCap is a keystroke inside a hint, e.g. the "space" in
+	// "[space] toggle". Peach, so keys read apart from their labels.
+	KeyCap lipgloss.Style
 	// Cursor is the caret drawn to the left of the selected row.
 	Cursor lipgloss.Style
 	// Hint is the right-hand note on a menu row, e.g. "~14 GB can be freed".
@@ -196,6 +253,40 @@ type Theme struct {
 	Notice lipgloss.Style
 }
 
+// Section ids the palette knows a hue for. They match the home screen's
+// section identifiers; the theme names them itself so it does not import a
+// screen package.
+const (
+	SectionClean    = "clean"
+	SectionPorts    = "ports"
+	SectionInstall  = "install"
+	SectionUpdate   = "update"
+	SectionNetwork  = "network"
+	SectionGitSSH   = "gitssh"
+	SectionSettings = "settings"
+)
+
+// SectionIcon is the style a section's icon is drawn in: its own hue, or the
+// accent for an id the palette has no hue for.
+func (t *Theme) SectionIcon(id string) lipgloss.Style {
+	if s, ok := t.sectionIcons[id]; ok {
+		return s
+	}
+	return t.Accent
+}
+
+// OnBand returns s drawn on the selection band. A selected row is several
+// styled pieces (tick box, icon, title, hint), and each has to carry the band
+// itself: the reset that ends one piece would otherwise punch a hole in the
+// bar. It copies a prebuilt style and chains one attribute onto it, which is
+// cheap; it never builds a style from scratch.
+func (t *Theme) OnBand(s lipgloss.Style) lipgloss.Style {
+	if t.Variant == VariantMono {
+		return s.Reverse(true)
+	}
+	return s.Background(t.Palette.Highlight)
+}
+
 // CardFor returns the card border that the given icon tier can draw: the
 // rounded one everywhere, the +-| one on a terminal limited to ASCII.
 func (t *Theme) CardFor(ascii bool) lipgloss.Style {
@@ -221,12 +312,19 @@ func build(isDark bool, v Variant) Theme {
 		Fg:      ld(Light.Fg, Dark.Fg),
 		Border:  ld(Light.Border, Dark.Border),
 		Surface: ld(Light.Surface, Dark.Surface),
+
+		Highlight: ld(Light.Highlight, Dark.Highlight),
+		Peach:     ld(Light.Peach, Dark.Peach),
+		Sky:       ld(Light.Sky, Dark.Sky),
+		Yellow:    ld(Light.Yellow, Dark.Yellow),
+		Mauve:     ld(Light.Mauve, Dark.Mauve),
 	}
 	if v == VariantMono {
 		// Monochrome keeps two greys and nothing else: meaning is carried by
 		// the risk shapes and the words beside them, which is what the rule
 		// "shape + colour + word" is insurance for in the first place.
 		p.Success, p.Warning, p.Danger, p.Info = p.Fg, p.Fg, p.Fg, p.Fg
+		p.Peach, p.Sky, p.Yellow, p.Mauve = p.Fg, p.Fg, p.Fg, p.Fg
 	}
 
 	base := lipgloss.NewStyle().Foreground(p.Fg)
@@ -234,6 +332,25 @@ func build(isDark bool, v Variant) Theme {
 	accent := lipgloss.NewStyle().Foreground(p.Accent)
 	rule := lipgloss.NewStyle().Foreground(p.Border)
 	pill := lipgloss.NewStyle().Foreground(p.Fg).Background(p.Surface)
+
+	band := lipgloss.NewStyle().Background(p.Highlight)
+	selected := lipgloss.NewStyle().Foreground(p.Accent).Background(p.Highlight).Bold(true)
+	onBand := lipgloss.NewStyle().Foreground(p.Accent).Background(p.Highlight)
+	tabActive := onBand.Bold(true)
+	softBand := band
+	descOnBand := lipgloss.NewStyle().Foreground(p.Fg).Background(p.Highlight)
+	if v == VariantMono {
+		// Mono has no band colour: reverse video is the band, and the pieces
+		// that sit beside it (the description, the bar) stay plain so the
+		// selection is one solid block rather than a stack of them.
+		band = lipgloss.NewStyle().Reverse(true)
+		selected = lipgloss.NewStyle().Foreground(p.Accent).Reverse(true)
+		onBand = lipgloss.NewStyle().Foreground(p.Accent)
+		tabActive = selected.Bold(true)
+		softBand = lipgloss.NewStyle()
+		descOnBand = lipgloss.NewStyle().Foreground(p.Fg)
+	}
+	fg := func(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
 	card := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -255,13 +372,32 @@ func build(isDark bool, v Variant) Theme {
 		Danger:   lipgloss.NewStyle().Foreground(p.Danger),
 		Info:     lipgloss.NewStyle().Foreground(p.Info),
 
-		// Reverse video is the part that carries the selection when colours
-		// are stripped; the accent foreground is the part that carries it when
-		// they are not.
-		Selected:     lipgloss.NewStyle().Foreground(p.Accent).Reverse(true),
-		SelectedDesc: accent,
+		// The band carries the selection when colours are on; the caret and
+		// the bar glyph drawn beside it carry it when they are stripped.
+		Selected:     selected,
+		SelectedDesc: descOnBand,
+		SelBand:      band,
+		SelBandSoft:  softBand,
+		SelectBar:    onBand,
 		Cursor:       accent,
 		Hint:         lipgloss.NewStyle().Foreground(p.Info),
+
+		CheckOn:  fg(p.Success),
+		CheckOff: fg(p.Muted),
+
+		sectionIcons: map[string]lipgloss.Style{
+			SectionClean:    fg(p.Peach),
+			SectionPorts:    fg(p.Danger),
+			SectionInstall:  fg(p.Info),
+			SectionUpdate:   fg(p.Success),
+			SectionNetwork:  fg(p.Sky),
+			SectionGitSSH:   fg(p.Yellow),
+			SectionSettings: fg(p.Mauve),
+		},
+
+		TabActive: tabActive,
+		TabIdle:   muted,
+		KeyCap:    fg(p.Peach),
 
 		HeaderBar:  base,
 		HeaderName: accent.Bold(true),

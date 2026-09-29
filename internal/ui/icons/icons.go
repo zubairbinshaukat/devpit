@@ -49,9 +49,11 @@ type Set struct {
 	Fail string
 	Warn string
 
-	// Selection. Three cells wide in the unicode and ascii tiers.
+	// Selection. Three cells wide in the unicode and ascii tiers. Partial is
+	// the box of a group where only some of the items under it are ticked.
 	Checked   string
 	Unchecked string
+	Partial   string
 
 	// Risk tiers. Shape plus colour plus word, never colour alone.
 	Safe    string
@@ -82,6 +84,28 @@ type Set struct {
 
 	// Cursor is the caret drawn beside the selected row.
 	Cursor string
+	// SelectBar is the bar at the left edge of the selected row. It is a
+	// glyph rather than a colour so the selection survives NO_COLOR.
+	SelectBar string
+
+	// Spinner is the frame sequence of the busy indicator. Every frame is one
+	// cell, so a spinning row never jitters.
+	Spinner []string
+	// Track and TrackEmpty are the progress-bar pieces: a heavy line over a
+	// light one, the look of the website's terminal demo.
+	Track      string
+	TrackEmpty string
+	// Queued marks a row that is waiting its turn in a run.
+	Queued string
+	// Arrow separates an old version from a new one, e.g. "4.87 → 4.91".
+	Arrow string
+
+	// sections maps a home section id to its glyph. Unlike the tool glyphs,
+	// sections have a unicode shape too, so the menu has icons on a stock
+	// Windows Terminal; ascii has none. The unicode shapes come from the
+	// geometric-shape, arrow and operator blocks Cascadia Mono and Consolas
+	// both carry, so no font substitution can widen one to two cells.
+	sections map[string]string
 
 	// extensions maps a lower-cased file name or extension to a glyph. It is
 	// nil outside the nerd tier.
@@ -100,6 +124,7 @@ func Nerd() Set {
 		Warn:       "", // nf-fa-warning
 		Checked:    "", // nf-fa-check_square_o
 		Unchecked:  "", // nf-fa-square_o
+		Partial:    "", // nf-fa-minus_square_o
 		Safe:       "●",
 		Review:     "◆",
 		Careful:    "▲",
@@ -120,6 +145,21 @@ func Nerd() Set {
 		BarFull:    "█",
 		BarEmpty:   "░",
 		Cursor:     "", // nf-fa-chevron_right
+		SelectBar:  "▌",
+		Spinner:    brailleSpinner,
+		Track:      "━",
+		TrackEmpty: "─",
+		Queued:     "·",
+		Arrow:      "→",
+		sections: map[string]string{
+			"clean":    "", // nf-fa-trash
+			"ports":    "", // nf-fa-plug
+			"install":  "", // nf-oct-package
+			"update":   "", // nf-fa-refresh
+			"network":  "", // nf-fa-globe
+			"gitssh":   "", // nf-dev-git_branch
+			"settings": "", // nf-fa-cog
+		},
 		extensions: nerdExtensions,
 	}
 }
@@ -137,12 +177,28 @@ func Unicode() Set {
 		Warn:       "!",
 		Checked:    "[x]",
 		Unchecked:  "[ ]",
+		Partial:    "[-]",
 		Safe:       "●",
 		Review:     "◆",
 		Careful:    "▲",
 		BarFull:    "█",
 		BarEmpty:   "░",
 		Cursor:     "▸",
+		SelectBar:  "▌",
+		Spinner:    brailleSpinner,
+		Track:      "━",
+		TrackEmpty: "─",
+		Queued:     "·",
+		Arrow:      "→",
+		sections: map[string]string{
+			"clean":    "◧",
+			"ports":    "◉",
+			"install":  "▣",
+			"update":   "↻",
+			"network":  "◎",
+			"gitssh":   "◈",
+			"settings": "≡",
+		},
 	}
 }
 
@@ -156,18 +212,49 @@ func ASCII() Set {
 		File:       "-",
 		// The plan writes this as "OK", but a two-cell tick breaks every
 		// column it sits in, so the ascii tier uses a one-cell "+".
-		Tick:      "+",
-		Fail:      "X",
-		Warn:      "!",
-		Checked:   "[x]",
-		Unchecked: "[ ]",
-		Safe:      "●",
-		Review:    "◆",
-		Careful:   "▲",
-		BarFull:   "#",
-		BarEmpty:  "-",
-		Cursor:    ">",
+		Tick:       "+",
+		Fail:       "X",
+		Warn:       "!",
+		Checked:    "[x]",
+		Unchecked:  "[ ]",
+		Partial:    "[-]",
+		Safe:       "●",
+		Review:     "◆",
+		Careful:    "▲",
+		BarFull:    "#",
+		BarEmpty:   "-",
+		Cursor:     ">",
+		SelectBar:  "|",
+		Spinner:    []string{"|", "/", "-", "\\"},
+		Track:      "=",
+		TrackEmpty: "-",
+		Queued:     ".",
+		Arrow:      ">",
 	}
+}
+
+// brailleSpinner is the ten-frame dot spinner most modern CLIs use. Every
+// frame is a single braille cell.
+var brailleSpinner = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// sectionOrder is the home menu order, so Glyphs lists section glyphs in a
+// stable order.
+var sectionOrder = []string{"clean", "ports", "install", "update", "network", "gitssh", "settings"}
+
+// Section returns the glyph for a home section id, or "" when the tier has
+// none for it.
+func (s Set) Section(id string) string { return s.sections[id] }
+
+// SpinnerFrame returns frame n of the spinner, wrapping around. A set with no
+// frames returns "".
+func (s Set) SpinnerFrame(n int) string {
+	if len(s.Spinner) == 0 {
+		return ""
+	}
+	if n < 0 {
+		n = -n
+	}
+	return s.Spinner[n%len(s.Spinner)]
 }
 
 // For returns the concrete set for a tier. TierAuto and any unknown value fall
@@ -213,11 +300,16 @@ func (s Set) Glyphs() []string {
 	all := []string{
 		s.Folder, s.FolderOpen, s.File,
 		s.Tick, s.Fail, s.Warn,
-		s.Checked, s.Unchecked,
+		s.Checked, s.Unchecked, s.Partial,
 		s.Safe, s.Review, s.Careful,
 		s.Node, s.Docker, s.Git, s.Windows, s.Python, s.Rust, s.Go,
 		s.Trash, s.Gear, s.Globe, s.Key, s.Update, s.Package, s.Clock,
-		s.BarFull, s.BarEmpty, s.Cursor,
+		s.BarFull, s.BarEmpty, s.Cursor, s.SelectBar,
+		s.Track, s.TrackEmpty, s.Queued, s.Arrow,
+	}
+	all = append(all, s.Spinner...)
+	for _, id := range sectionOrder {
+		all = append(all, s.sections[id])
 	}
 	out := make([]string, 0, len(all))
 	for _, g := range all {

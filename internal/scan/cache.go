@@ -15,7 +15,11 @@ import (
 // a different version is discarded rather than reinterpreted: a stale cache
 // is worth exactly one rescan, and guessing at an old layout is worth less
 // than that.
-const CacheVersion = 1
+//
+// Version 2 added [Item.Repo]. gob would decode a version 1 file happily and
+// leave Repo empty, which would show a monorepo flat until the rescan behind
+// it finished; discarding it costs the same rescan without the jump.
+const CacheVersion = 2
 
 // CacheFileName is the base name of the cache file inside the cache
 // directory, which is %LOCALAPPDATA%\devpit by default.

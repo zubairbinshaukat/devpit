@@ -97,7 +97,7 @@ func TestFirstRunScreenGolden(t *testing.T) {
 
 	m := app.New(goldenOptions(cfg))
 
-	runUntilQuit(t, m, []byte("Start using Devpit"), tea.KeyPressMsg{Mod: tea.ModCtrl, Code: 'c'})
+	runUntilQuit(t, m, []byte("Welcome to Devpit"), tea.KeyPressMsg{Mod: tea.ModCtrl, Code: 'c'})
 	requireGolden(t, "firstrun_100x30_unicode_nocolor", frame(m, 100, 30))
 }
 
@@ -172,7 +172,7 @@ var sections = []struct {
 	{"clean", 0, "Pick what to look through"},
 	{"ports", 1, "Free a busy port or stop a stuck process"},
 	{"install", 2, "Manager: scoop"},
-	{"update", 3, "Space unticks a manager"},
+	{"update", 3, "updates available"},
 	{"network", 4, "IP, connectivity and DNS helpers"},
 	{"gitssh", 5, "Get a fresh machine ready to push code"},
 }

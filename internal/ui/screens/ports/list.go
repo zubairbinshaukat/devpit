@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	engine "github.com/zubairbinshaukat/devpit/internal/ports"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/checklist"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/summary"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
@@ -232,6 +233,11 @@ func (m Model) markedRows() []row {
 
 // updateList handles navigation, marking and the actions on the table.
 func (m Model) updateList(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
+	if !m.loading && len(m.rows) > 0 {
+		if next, handled := m.pointList(ctx, msg); handled {
+			return next, nil
+		}
+	}
 	km, ok := msg.(tea.KeyPressMsg)
 	if !ok || m.loading {
 		return m, nil
@@ -350,21 +356,11 @@ func (m Model) viewList(ctx uictx.Context) string {
 	return b.String()
 }
 
-// renderListRow draws one row: a cursor, a checkbox (or the protected
-// reason, greyed, in its place), PID, name and parent.
+// renderListRow draws one row: the selection band, a tick box (or a blank
+// box when the row is protected, with the reason under it), PID, name and
+// parent.
 func (m Model) renderListRow(ctx uictx.Context, i int, r row) string {
 	th := ctx.Theme
-	selected := i == m.cursor
-
-	cursor := " "
-	if selected {
-		cursor = ctx.Icons.Cursor
-	}
-
-	box := ctx.Icons.Unchecked
-	if m.marked[r.PID] {
-		box = ctx.Icons.Checked
-	}
 
 	loc := r.Local
 	if loc == "" {
@@ -375,19 +371,78 @@ func (m Model) renderListRow(ctx uictx.Context, i int, r row) string {
 		parent = "-"
 	}
 
-	line := fmt.Sprintf("%s %s  %-21s  PID %-8d %-16s parent %s",
-		cursor, box, loc, r.PID, r.Name, parent)
-
-	style := th.Base
-	if selected {
-		style = th.Selected
-	}
-	out := style.Render(ctx.Truncate(line))
-
+	box := checklist.BoxOf(m.marked[r.PID])
 	if r.Protected {
-		out += "\n  " + th.Muted.Render(ctx.Icons.Warn+" protected — "+r.ProtectedReason)
+		box = checklist.Blank
+	}
+	line := checklist.Line{
+		Selected: i == m.cursor,
+		Box:      box,
+		Text:     fmt.Sprintf("%-21s  PID %-8d %-16s parent %s", loc, r.PID, r.Name, parent),
+		Dim:      r.Protected,
+	}
+	out := checklist.Render(ctx, line, ctx.Width)
+	if r.Protected {
+		out += "\n      " + th.Muted.Render(ctx.Icons.Warn+" protected — "+r.ProtectedReason)
 	}
 	return out
+}
+
+// listTop is the body row the first process row is drawn on: under the
+// title and the blank line after it.
+const listTop = 2
+
+// rowAtLine maps a line of the list body (0 is the first row's line) to the
+// row drawn there, walking the same heights viewList draws: a protected row
+// takes a second line for its reason.
+func (m Model) rowAtLine(line int) (int, bool) {
+	at := 0
+	for i, r := range m.rows {
+		h := 1
+		if r.Protected {
+			h = 2
+		}
+		if line >= at && line < at+h {
+			return i, true
+		}
+		at += h
+	}
+	return 0, false
+}
+
+// pointList handles the mouse over the process list: a click moves the
+// cursor to the row and toggles its tick, hovering moves the cursor, the
+// wheel scrolls it.
+func (m Model) pointList(ctx uictx.Context, msg tea.Msg) (Model, bool) {
+	switch pm := msg.(type) {
+	case tea.MouseClickMsg:
+		i, ok := m.rowAtLine(ctx.BodyRow(pm.Y) - listTop)
+		if !ok || pm.Button != tea.MouseLeft {
+			return m, true
+		}
+		m.cursor = i
+		if r := m.rows[i]; !r.Protected {
+			if m.marked == nil {
+				m.marked = map[uint32]bool{}
+			}
+			m.marked[r.PID] = !m.marked[r.PID]
+		}
+		return m, true
+	case tea.MouseMotionMsg:
+		if i, ok := m.rowAtLine(ctx.BodyRow(pm.Y) - listTop); ok {
+			m.cursor = i
+		}
+		return m, true
+	case tea.MouseWheelMsg:
+		switch pm.Button {
+		case tea.MouseWheelUp:
+			m.cursor = max(0, m.cursor-1)
+		case tea.MouseWheelDown:
+			m.cursor = min(len(m.rows)-1, m.cursor+1)
+		}
+		return m, true
+	}
+	return m, false
 }
 
 // viewListConfirm renders the marked rows above the confirm dialog.

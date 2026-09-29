@@ -1,16 +1,16 @@
  DEVPIT  vdev  ·  Ports                                          node …   git …
-  Clean   Ports   Apps   Update   Network   Git   Settings
-────────────────────────────────────────────────────────────────────────────────
+  Clean    Ports    Apps    Update    Network    Git    Settings    tab ⇄ · 1–7
+──────────━━━━━━━───────────────────────────────────────────────────────────────
 Free a busy port or stop a stuck process.
 
-  ▸ Kill a port
-    (Type a port number and free whatever is listening on it)
+▌ ▸ Kill a port
+▌   Type a port number and free whatever is listening on it
 
     Busy dev ports
-    (Check every configured dev port at once)
+    Check every configured dev port at once
 
     Node processes
-    (List and stop node, npm, pnpm or yarn)
+    List and stop node, npm, pnpm or yarn
 
 
 

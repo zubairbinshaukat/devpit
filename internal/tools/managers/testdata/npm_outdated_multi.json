@@ -1,0 +1,26 @@
+{
+  "typescript": [
+    {
+      "current": "5.3.3",
+      "wanted": "5.4.5",
+      "latest": "5.4.5",
+      "location": "C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\typescript"
+    },
+    {
+      "current": "5.2.0",
+      "wanted": "5.4.5",
+      "latest": "5.4.5",
+      "location": "C:\\Program Files\\nodejs\\node_modules\\typescript"
+    }
+  ],
+  "npm": {
+    "current": "10.2.0",
+    "wanted": "10.2.4",
+    "latest": "10.2.4"
+  },
+  "same": {
+    "current": "1.0.0",
+    "wanted": "1.0.0",
+    "latest": "1.0.0"
+  }
+}

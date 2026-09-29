@@ -48,13 +48,19 @@ Windows first. Go, Bubble Tea, single executable, no runtime to install.
 ## Install
 
 One line in PowerShell. It downloads the latest release from GitHub, verifies
-the SHA256 checksum and adds Devpit to your user PATH. No admin needed.
+the SHA256 checksum, adds Devpit to your user PATH and installs the icon font
+for your user (see [Icons and themes](#icons-and-themes)). No admin needed.
 
 ```powershell
 irm https://devpit.zubyr.dev/install | iex
 ```
 
-Then type `devpit`.
+Then type `devpit`. To skip the icon font, pass `-NoFont` through a script
+block (`iex` cannot take flags):
+
+```powershell
+& ([scriptblock]::Create((irm https://devpit.zubyr.dev/install))) -NoFont
+```
 
 Other ways:
 
@@ -121,10 +127,13 @@ until you do. `DEVPIT_NO_TELEMETRY=1` and `DO_NOT_TRACK=1` always win. See
 devpit                 open the app
 devpit version         print the version
 devpit --ascii         force the plain ASCII icon tier
+devpit font install    install the icon font (--quiet for one line)
+devpit font remove     remove it and undo the Windows Terminal change
+devpit font status     say whether it is installed
 ```
 
-The other subcommands (`clean`, `ports`, `update`, `font`, `settings`) are
-reserved and tell you which milestone fills them in.
+The other subcommands (`clean`, `ports`, `update`, `settings`) are reserved
+and tell you which milestone fills them in.
 
 Inside the app the header carries a tab for every section. `Tab` and
 `Shift+Tab` move along it, `1`–`7` jump straight to a section from the main
@@ -137,8 +146,10 @@ you the one command that upgrades your install.
 
 Devpit has three icon tiers and picks one automatically. Windows Terminal ships
 a font with no Nerd Font glyphs, and no program can ask a terminal what fonts it
-has, so the rich tier is opt-in: Settings can install the icon font for you and
-then asks whether the glyphs render before turning them on. Themes: auto, dark,
+has, so the rich tier is opt-in: the installer (or Settings › Icon font, or
+`devpit font install`) installs the icon font for you, adding it to Windows
+Terminal as a fallback so your own font is kept, and Devpit asks whether the
+glyphs render before turning them on. Themes: auto, dark,
 light, aqua, blue, rose and mono. See [docs/icons.md](docs/icons.md).
 
 ## Development
