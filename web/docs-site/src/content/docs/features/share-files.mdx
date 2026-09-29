@@ -48,7 +48,7 @@ There are two sides:
    - the **share** name,
    - the **user** name,
    - the **password**,
-   - two lines for a PC without Devpit: a `net use` line and a `robocopy` line.
+   - two commands for a PC without Devpit: a `net use` command that signs in, and a `robocopy` command that copies. The copy goes into a new folder, named after the share, in the folder that terminal is in. A long command wraps on the card instead of being cut, so you can read all of it.
 
 <Shot name="share-card" />
 
@@ -117,6 +117,7 @@ This works as long as Devpit stays open.
 
 You can also stop it yourself with <kbd>Esc</kbd>.
 Closing Devpit in the middle also leaves the copy to resume.
+To resume a copy made without Devpit, see [resume an interrupted file copy](/docs/blog/resume-interrupted-file-copy-windows).
 
 1. Open Devpit and choose **Share Files**.
 2. Choose **Resume the copy from** the other PC. It shows how much is already copied.
@@ -136,10 +137,11 @@ If the same files keep failing for three rounds in a row and nothing new is copi
 
 ## Good to know
 
-- The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed while it copies.
+- The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed while it copies. The math, and what slows a copy down, is in [move 100 GB between PCs](/docs/blog/move-100gb-between-computers).
+- For the fastest, steadiest link, connect the two PCs with a cable. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
 - It works in any Windows language.
 - It works whether or not the other PC has Devpit.
-- Both PCs must be on the same network. Sending over the internet is not part of this feature.
+- Both PCs must be on the same network. Sending over the internet is not part of this feature. For phones, Macs or other ways to move files, see [transfer files between two PCs over Wi-Fi](/docs/blog/transfer-files-between-two-pcs-over-wifi) and [LocalSend vs Quick Share vs Syncthing](/docs/blog/localsend-vs-quick-share-vs-syncthing).
 
 ## Safety
 
@@ -149,4 +151,5 @@ If the same files keep failing for three rounds in a row and nothing new is copi
 - Devpit turns on only the firewall rule `FPS-SMB-In-TCP`, and only if it was off. When you stop, it turns off only what it turned on. If Windows names that rule differently, Devpit turns on the File and Printer Sharing group instead.
 - **Stop sharing** removes the share, the login, the firewall rule and the network change. Quitting Devpit does the same.
 - Share only the folder you mean to. Anyone on your network who has the password can read it while it is shared.
+- Devpit does not turn on SMB encryption for the share. Unless your Windows is set to require it, the files cross the network unencrypted. Use it on a network you trust. See [SMB vs FTP vs HTTP](/docs/blog/smb-vs-ftp-vs-http-local-network) for what SMB protects and what it does not.
 - Devpit refuses to share Windows folders, Program Files, the shared program data folder, or the whole system drive.

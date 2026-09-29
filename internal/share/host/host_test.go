@@ -155,7 +155,10 @@ func TestCommandsCarryEverythingAndAreSafeToPaste(t *testing.T) {
 	if netUse != `net use \\192.168.1.5\Games-x7k2 /user:devpit-abcd Ab3dEf7hJk9mNp2q` {
 		t.Error(netUse)
 	}
-	for _, want := range []string{`robocopy \\192.168.1.5\Games-x7k2`, "/E", "/MT:16", "/Z", "/R:3", "/W:5"} {
+	if strings.Contains(robo, `:\`) || strings.Contains(robo, "%") {
+		t.Errorf("the copy line must not assume a drive or a cmd-only variable: %q", robo)
+	}
+	for _, want := range []string{`robocopy \\192.168.1.5\Games-x7k2 ".\Games-x7k2"`, "/E", "/MT:16", "/Z", "/R:3", "/W:5", "/XO"} {
 		if !strings.Contains(robo, want) {
 			t.Errorf("robocopy line %q lacks %q", robo, want)
 		}
@@ -186,6 +189,9 @@ type fakeAdmin struct {
 	onOp     func(elevate.ShareRequest)
 	fwLines  []string
 	sidLines []string
+	// shareLines is what the share step reports, such as a 24H2 rule that
+	// creating the share turned on.
+	shareLines []string
 }
 
 func (f *fakeAdmin) Share(_ context.Context, req elevate.ShareRequest, onLine func(string)) error {
@@ -205,6 +211,10 @@ func (f *fakeAdmin) Share(_ context.Context, req elevate.ShareRequest, onLine fu
 			}
 		case elevate.ShareOpAccount:
 			for _, l := range f.sidLines {
+				onLine(l)
+			}
+		case elevate.ShareOpShare:
+			for _, l := range f.shareLines {
 				onLine(l)
 			}
 		}
@@ -276,7 +286,8 @@ func newRig(t *testing.T, cat Category) *rig {
 			r.awake++
 			return func() { r.released++ }, nil
 		},
-		PID: 4321,
+		PID:    4321,
+		Getenv: env,
 	})
 	return r
 }
@@ -348,14 +359,14 @@ func TestTheManifestIsOnDiskBeforeAnythingIsCreatedAndNeverHoldsThePassword(t *t
 	if final.SID != "S-1-5-21-1-2-3-1004" || len(final.Rules) != 1 || final.Rules[0] != "FPS-SMB-In-TCP" {
 		t.Errorf("final manifest = %+v, want the SID and the rule that was turned on", final)
 	}
-	raw, err := os.ReadFile(manifestPath(r.dir))
+	raw, err := os.ReadFile(manifestPath(r.dir, card.User))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(raw), card.Password) || strings.Contains(strings.ToLower(string(raw)), "password") {
 		t.Errorf("the manifest mentions the password:\n%s", raw)
 	}
-	info, _ := os.Stat(manifestPath(r.dir))
+	info, _ := os.Stat(manifestPath(r.dir, card.User))
 	if runtimeIsUnix() && info.Mode().Perm()&0o077 != 0 {
 		t.Errorf("manifest mode %v is readable by others", info.Mode())
 	}
@@ -556,7 +567,7 @@ func TestLeftover(t *testing.T) {
 		t.Fatal(err)
 	}
 	alive := map[int]bool{500: true}
-	isAlive := func(pid int) bool { return alive[pid] }
+	isAlive := func(pid int, _ time.Time) bool { return alive[pid] }
 
 	if _, ok, _ := Leftover(dir, isAlive, 1); ok {
 		t.Error("a share that a live Devpit owns was offered for cleanup")
@@ -573,7 +584,7 @@ func TestLeftover(t *testing.T) {
 
 func TestLeftoverReportsADamagedManifestInsteadOfIgnoringIt(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(manifestPath(dir), []byte("{not json"), 0o600); err != nil {
+	if err := os.WriteFile(manifestPath(dir, "devpit-abcd"), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok, err := Leftover(dir, nil, 1); ok || err == nil {
@@ -584,7 +595,7 @@ func TestLeftoverReportsADamagedManifestInsteadOfIgnoringIt(t *testing.T) {
 func TestCleanUpSendsTheManifestToTheWorkerAndRemovesIt(t *testing.T) {
 	dir := t.TempDir()
 	m := Manifest{
-		PID: 9, User: "devpit-abcd", SID: "S-1-5-21-1-2-3-1004", Path: `D:\Games`, Share: "Games-x7k2",
+		PID: 9, User: "devpit-abcd", SID: "S-1-5-21-1-2-3-1004", Path: `D:\Games`, Granted: true, Share: "Games-x7k2",
 		ProfileIndex: 4, ProfileOriginal: "Public", Rules: []string{"FPS-SMB-In-TCP"},
 	}
 	if err := saveManifest(dir, m); err != nil {
@@ -642,5 +653,36 @@ func TestManifestPathRoundTrip(t *testing.T) {
 	out, ok, err := LoadManifest(dir)
 	if !ok || err != nil || fmt.Sprint(out.Rules) != "[a b]" || out.Version != manifestVersion || !out.StartedAt.Equal(in.StartedAt) {
 		t.Errorf("round trip = %+v %v %v", out, ok, err)
+	}
+}
+
+// On 24H2 creating the share can turn on FPS-SMB-In-TCP-V2 by itself. The
+// worker reports it from the share step, and it must reach the manifest, also
+// when the share step then fails, so the next launch after a crash turns it
+// off again. A rule reported twice is recorded once.
+func TestARuleTheShareStepTurnedOnIsRecordedForCleanup(t *testing.T) {
+	for _, failShare := range []bool{false, true} {
+		r := newRig(t, CategoryPrivate)
+		r.admin.shareLines = []string{"FW=FPS-SMB-In-TCP-V2", "FW=FPS-SMB-In-TCP"}
+		if failShare {
+			r.admin.failOp, r.admin.failErr = elevate.ShareOpShare, errors.New("New-SmbShare failed")
+		}
+		_, err := r.m.Start(context.Background(), Options{Path: `D:\Games`, Adapter: lan}, func(Step) {})
+		if (err != nil) != failShare {
+			t.Fatalf("failShare=%v: err = %v", failShare, err)
+		}
+		m, ok, lerr := LoadManifest(r.dir)
+		if failShare {
+			// A failed start is taken down at once by the worker's own stop,
+			// which undoes every rule its session turned on, the V2 rule
+			// included; the manifest is gone because nothing is left.
+			if got := r.admin.opNames(); !strings.HasSuffix(got, "share,stop") {
+				t.Errorf("failed share: operations = %s, want a stop right after the share step", got)
+			}
+			continue
+		}
+		if !ok || lerr != nil || fmt.Sprint(m.Rules) != "[FPS-SMB-In-TCP FPS-SMB-In-TCP-V2]" {
+			t.Errorf("manifest rules = %v (%v, %v), want the firewall step's rule and the share step's, once each", m.Rules, ok, lerr)
+		}
 	}
 }

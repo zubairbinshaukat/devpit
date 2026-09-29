@@ -64,7 +64,7 @@ $Logo = @(
 )
 Write-Host ''
 foreach ($line in $Logo) { Write-Host "  $line" -ForegroundColor Cyan }
-Write-Host '  A project by Zubair Bin Shaukat  -  devpit.zubyr.dev' -ForegroundColor DarkGray
+Write-Host '  A project by Zubair bin Shaukat  -  devpit.zubyr.dev' -ForegroundColor DarkGray
 Write-Host ''
 
 $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
@@ -213,7 +213,7 @@ Write-Host ''
 Write-Row 'Binary:' $Exe
 Write-Row 'Version:' "v$version"
 Write-Row 'Shell:' $pathNote Magenta
-Write-Row 'Author:' 'Zubair Bin Shaukat  -  https://zubyr.dev'
+Write-Row 'Author:' 'Zubair bin Shaukat  -  https://zubyr.dev'
 Write-Host ''
 Write-Host '  To start:' -ForegroundColor White
 Write-Host '    devpit' -ForegroundColor Magenta

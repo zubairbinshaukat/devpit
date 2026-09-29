@@ -158,10 +158,25 @@ func (s *Session) Disconnect(host, share string) {
 	_ = s.deps.Conn.Disconnect(netstat.UNC(host, "IPC$"))
 }
 
-// newLogPath returns a fresh robocopy log path in the log directory.
+// staleLogAge is how old a robocopy log left by a run that crashed must be
+// before the next run deletes it.
+const staleLogAge = 7 * 24 * time.Hour
+
+// newLogPath returns a fresh robocopy log path in the log directory. Each
+// run deletes its own log once it has been read (see [Session.dropLog]); logs
+// that a crashed run left behind are deleted here once they are a week old.
+// A log lists every file with its full path, so a copy of a million files
+// writes some hundreds of megabytes of it, and nothing ever read them again.
 func (s *Session) newLogPath(kind string) (string, error) {
 	if err := os.MkdirAll(s.deps.LogDir, 0o700); err != nil {
 		return "", fmt.Errorf("creating the log folder: %w", err)
+	}
+	if old, err := filepath.Glob(filepath.Join(s.deps.LogDir, "robocopy-*.log")); err == nil {
+		for _, p := range old {
+			if st, err := os.Stat(p); err == nil && s.deps.Now().Sub(st.ModTime()) > staleLogAge {
+				_ = os.Remove(p)
+			}
+		}
 	}
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
@@ -169,6 +184,9 @@ func (s *Session) newLogPath(kind string) (string, error) {
 	}
 	return filepath.Join(s.deps.LogDir, "robocopy-"+kind+"-"+hex.EncodeToString(b)+".log"), nil
 }
+
+// dropLog deletes a run's log once it has been read to the end.
+func (s *Session) dropLog(path string) { _ = os.Remove(path) }
 
 // LoadJob returns the saved copy, if any.
 func (s *Session) LoadJob() (job.Job, bool, error) { return job.Load(s.deps.StateDir) }

@@ -42,23 +42,35 @@ func newShareCmd() *cobra.Command {
 // runShareCleanup finds a leftover share and removes it. It says in easy
 // words what it did or why it could not. The directory and the launcher are
 // parameters so a test can run it on a temporary directory and a fake worker.
+//
+// Every leftover is removed, one after another: two Devpit windows that were
+// both sharing when the PC lost power leave two. Each one asks for permission.
 func runShareCleanup(ctx context.Context, out io.Writer, dir string, launch host.Launcher) error {
-	m, found, err := host.Leftover(dir, host.ProcessAlive, os.Getpid())
-	if err != nil {
-		return fmt.Errorf("reading the record of the old share: %w", err)
-	}
-	if !found {
-		_, _ = fmt.Fprintln(out, "Nothing to clean up.")
-		return nil
-	}
-	_, _ = fmt.Fprintf(out, "Removing the old share of %s. Windows will ask for permission.\n", m.Path)
-	if err := host.CleanUp(ctx, dir, m, launch); err != nil {
-		var declined *elevate.DeclinedError
-		if errors.As(err, &declined) {
-			_, _ = fmt.Fprintln(out, "You said no to the admin prompt. Nothing was changed.")
+	done := map[string]bool{}
+	for {
+		m, found, err := host.Leftover(dir, host.ProcessAlive, os.Getpid())
+		if err != nil {
+			return fmt.Errorf("reading the record of the old share: %w", err)
 		}
-		return err
+		if !found {
+			if len(done) == 0 {
+				_, _ = fmt.Fprintln(out, "Nothing to clean up.")
+			}
+			return nil
+		}
+		if done[m.User] {
+			// Cleaned, yet its record is still there: stop rather than loop.
+			return fmt.Errorf("the record of the old share of %s could not be removed", m.Path)
+		}
+		done[m.User] = true
+		_, _ = fmt.Fprintf(out, "Removing the old share of %s. Windows will ask for permission.\n", m.Path)
+		if err := host.CleanUp(ctx, dir, m, launch); err != nil {
+			var declined *elevate.DeclinedError
+			if errors.As(err, &declined) {
+				_, _ = fmt.Fprintln(out, "You said no to the admin prompt. Nothing was changed.")
+			}
+			return err
+		}
+		_, _ = fmt.Fprintln(out, "Done. The old share is gone.")
 	}
-	_, _ = fmt.Fprintln(out, "Done. The old share is gone.")
-	return nil
 }

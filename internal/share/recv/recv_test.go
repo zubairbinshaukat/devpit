@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -63,6 +64,7 @@ type scriptRunner struct {
 	logs  map[string]*memLog
 	steps []step
 	runs  []string
+	touch bool // also create the log file on disk, as robocopy does
 }
 
 func newScriptRunner(steps ...step) *scriptRunner {
@@ -87,6 +89,9 @@ func (s *scriptRunner) Run(ctx context.Context, args []string) (int, error) {
 	}
 	s.mu.Lock()
 	s.runs = append(s.runs, strings.Join(args, " "))
+	if s.touch && path != "" {
+		_ = os.WriteFile(path, []byte{0xFF, 0xFE}, 0o600) // the file robocopy would create
+	}
 	var st step
 	if len(s.steps) > 0 {
 		st, s.steps = s.steps[0], s.steps[1:]
@@ -345,13 +350,17 @@ func TestARetryingFileIsShownAsRetrying(t *testing.T) {
 	r := newRig(t, step{text: files("a") + "2026/09/29 10:15:02 ERROR 121 (0x00000079) Copying File D:\\Games\\b\n", code: 1, hold: hold})
 	j := startJob(r, 5000, 2)
 	var saw atomic.Bool
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		close(hold)
-	}()
+	// robocopy keeps running until the notice is seen, so a loaded machine
+	// cannot end the run before the log was read; the timer only stops a
+	// broken build from hanging.
+	var once sync.Once
+	release := func() { once.Do(func() { close(hold) }) }
+	stop := time.AfterFunc(5*time.Second, release)
+	defer stop.Stop()
 	_, _ = r.s.Run(context.Background(), j, func(e recv.Event) {
 		if e.Phase == recv.PhaseRetrying && strings.Contains(e.Note, "again") {
 			saw.Store(true)
+			release()
 		}
 	})
 	if !saw.Load() {
@@ -385,6 +394,53 @@ func TestRepeatedFailuresWithNothingNewStopWithTheFailedFiles(t *testing.T) {
 	saved, _, _ := r.s.LoadJob()
 	if saved.State != job.StateFailed || len(saved.Failed) != 2 {
 		t.Errorf("saved = %+v", saved)
+	}
+}
+
+// secondRunOfARecordedLockedCopy is what robocopy writes on a later run of
+// the recorded copy with one locked file (robocopy's testdata): the finished
+// files are skipped, so only the extra that lives in the destination and the
+// locked file with its retry are left. The paths are moved onto this rig's
+// share and destination.
+func secondRunOfARecordedLockedCopy(t *testing.T) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "robocopy", "testdata", "recorded_en_copy_locked.unilog"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keep []string
+	for l := range strings.SplitSeq(robocopy.DecodeLog(b), "\n") {
+		if strings.Contains(l, `\src\a.bin`) || strings.Contains(l, `\src\sub\`) || strings.Contains(l, `\src\写真\`) {
+			continue
+		}
+		keep = append(keep, l)
+	}
+	text := strings.Join(keep, "\n")
+	text = strings.ReplaceAll(text, `C:\rec\src`, `\\10.0.0.9\Games`)
+	return strings.ReplaceAll(text, `C:\rec\dst`, `D:\Games`)
+}
+
+// TestALockedFileStopsAfterThreeRunsInsteadOfLoopingForever pins a bug found
+// with a real robocopy log: robocopy writes a failed file's line, and its
+// retry's line, and lists a destination-only file each run. All three were
+// counted as finished files, so a run where nothing copied still looked like
+// progress, the "stalled" counter never grew, and a copy with one locked
+// file ran robocopy again and again for as long as Devpit stayed open.
+func TestALockedFileStopsAfterThreeRunsInsteadOfLoopingForever(t *testing.T) {
+	log := secondRunOfARecordedLockedCopy(t)
+	r := newRig(t, step{text: log, code: 11}, step{text: log, code: 11}, step{text: log, code: 11}, step{text: log, code: 11})
+	out, err := r.s.Run(context.Background(), startJob(r, 1048616, 4), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Done || len(r.runner.runs) != 3 {
+		t.Fatalf("outcome %+v after %d runs, want a stop after 3 runs with nothing new", out, len(r.runner.runs))
+	}
+	if len(out.Failed) != 1 || out.Failed[0].Code != 32 || out.Failed[0].Path != `\\10.0.0.9\Games\locked.txt` {
+		t.Errorf("failed = %+v", out.Failed)
+	}
+	if out.DoneBytes != 0 || out.DoneFiles != 0 {
+		t.Errorf("done = %d bytes %d files; nothing was copied", out.DoneBytes, out.DoneFiles)
 	}
 }
 
@@ -444,8 +500,20 @@ func TestClosingDevpitMidCopyLeavesARunningRecordToResume(t *testing.T) {
 		_, _ = r.s.Run(ctx, j, nil)
 		close(done)
 	}()
-	time.Sleep(50 * time.Millisecond)
-	saved, ok, _ := r.s.LoadJob()
+	// Wait for the first save rather than for a fixed time: on a loaded
+	// Windows machine the goroutine can take longer than any fixed pause to
+	// get there, and a read that raced the save used to make it fail.
+	var saved job.Job
+	var ok bool
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
+		var err error
+		if saved, ok, err = r.s.LoadJob(); err != nil {
+			t.Fatalf("reading the record while copying: %v", err)
+		}
+		if ok {
+			break
+		}
+	}
 	if !ok || saved.State != job.StateRunning || !saved.Resumable() {
 		t.Errorf("record while copying = %+v %v; a crash now must leave something to resume", saved, ok)
 	}
@@ -527,7 +595,9 @@ func TestPreflightChecksSizeSpaceFileSystemAndPaths(t *testing.T) {
 	}{
 		{"fine", dryLog(3000, 3, files("a")), 1 << 30, "NTFS", true, ""},
 		{"not enough space", dryLog(5000, 3, files("a")), 1000, "NTFS", false, "no-space"},
-		{"exactly enough space", dryLog(1000, 1, files("a")), 1000, "NTFS", true, ""},
+		{"exactly enough space", dryLog(1000, 1, files("a")), 4096, "NTFS", true, ""},
+		{"bytes fit but the clusters do not", dryLog(1000, 1, files("a")), 1000, "NTFS", false, "no-space"},
+		{"many small files", dryLog(100_000, 100, strings.Repeat(files("x"), 100)), 200_000, "NTFS", false, "no-space"},
 		{"fat32 with a big file", dryLog(5<<30, 1, "\t\t 5368709120\t\\\\10.0.0.9\\Games\\big.iso\n"), 1 << 40, "FAT32", false, "fat32"},
 		{"exfat with a big file", dryLog(5<<30, 1, "\t\t 5368709120\t\\\\10.0.0.9\\Games\\big.iso\n"), 1 << 40, "exFAT", true, ""},
 		{"fat32 with small files", dryLog(3000, 3, files("a")), 1 << 40, "FAT32", true, ""},
@@ -556,6 +626,42 @@ func TestPreflightChecksSizeSpaceFileSystemAndPaths(t *testing.T) {
 				t.Errorf("warning = %q, want %q", found, tt.wantKey)
 			}
 		})
+	}
+}
+
+// TestLogsDoNotPileUp pins a disk leak: every dry run and every robocopy run
+// wrote a new log that listed each file with its full path, and none was ever
+// deleted. Now each run deletes its own, and week-old logs of crashed runs go.
+func TestLogsDoNotPileUp(t *testing.T) {
+	r := newRig(t, step{text: dryLog(3000, 3, files("a")), code: 1}, step{text: files("a", "b", "c") + summaryOK, code: 1})
+	r.runner.touch = true
+	logs := filepath.Join(r.dir, "logs")
+	if err := os.MkdirAll(logs, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	stale, fresh := filepath.Join(logs, "robocopy-copy-old.log"), filepath.Join(logs, "robocopy-copy-other.log")
+	for _, p := range []string{stale, fresh} {
+		if err := os.WriteFile(p, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := time.Now().Add(-8 * 24 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.s.Preflight(context.Background(), "10.0.0.9", "Games", `D:\Games`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.s.Run(context.Background(), startJob(r, 3000, 3), nil); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := os.ReadDir(logs)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if len(names) != 1 || names[0] != filepath.Base(fresh) {
+		t.Errorf("logs left = %v, want only the recent one of another run", names)
 	}
 }
 

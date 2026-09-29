@@ -1,0 +1,124 @@
+---
+title: "SMB vs FTP vs HTTP for moving files on a LAN"
+description: "SMB, FTP and HTTP compared in plain words for local file transfer: what is built into Windows, encryption, resume, ports, and which to pick."
+date: 2026-09-29
+authors: [zubair]
+tags: [smb, ftp, file transfer, comparison]
+excerpt: "Three ways computers move files on a local network, what each one is good at, and a simple rule for choosing."
+related:
+  - blog/set-up-ftp-server-windows-11
+  - blog/share-a-folder-on-windows-11
+  - blog/localsend-vs-quick-share-vs-syncthing
+  - features/share-files
+faq:
+  - question: "Which is faster on a home network, SMB or FTP?"
+    answer: "There is no single answer. On the same network the link speed and the disks usually set the limit, not the protocol. Many small files are slower than one big file with any protocol. Copy the same test folder both ways on your own network and compare."
+  - question: "Is SMB safe to use on Wi-Fi?"
+    answer: "With a real account and a password, and on a network you trust, it is the normal way Windows shares files. The contents are not encrypted unless SMB encryption is turned on for the share. Never open SMB, port 445, to the internet."
+  - question: "Does SMB need a server?"
+    answer: "Every Windows PC can be an SMB server. Sharing a folder turns it on. You do not install anything extra, which is the main reason to prefer SMB between two Windows PCs."
+  - question: "Can a web browser receive files from my PC?"
+    answer: "Yes, if your PC runs a small web server. Python's http.server module does this with one command. It is plain HTTP by default and has only basic security checks, so use it only for a short time on a trusted network."
+---
+
+When two computers on the same network exchange files, they almost always use one of three protocols: **SMB**, **FTP** or **HTTP**. Apps like LocalSend or Quick Share are built on top of ideas like these.
+
+This post explains each one in plain words, compares them in one table, and ends with a simple rule for choosing. There are no speed charts here, because the only speed test that means anything is the one on your own network.
+
+## SMB: Windows file sharing
+
+**SMB** (Server Message Block) is what Windows uses when you share a folder and open `\\PC\share` in File Explorer. It is built into every Windows PC. macOS and Linux can speak it too.
+
+- **Port:** TCP 445.
+- **How you use it:** open the share in File Explorer, map it as a drive, or copy with `robocopy`.
+- **Sign-in:** a user name and password of an account on the sharing PC. Current Windows blocks guest (no password) sign-in by default.
+- **Integrity:** Microsoft says Windows 11 24H2 Pro, Enterprise and Education require SMB signing on all connections by default (Home does not). Signing proves the data was not changed on the way.
+- **Encryption:** SMB 3 can encrypt a share, but Microsoft says encryption is not mandatory by default. You turn it on per share, for example with `Set-SmbShare -Name Games -EncryptData $true`.
+- **Resume:** SMB itself is just access to files. The copy tool decides. `robocopy /Z` can pick up a cut-off file, and running it again skips finished files.
+- **Best at:** Windows to Windows. You can also open files in place, not only copy them.
+
+SMB 1.0, the very old version, is not installed on Windows 11 by default. Microsoft deprecated it in 2014. If an old NAS only speaks SMB 1.0, update it rather than turning SMB 1.0 back on.
+
+## FTP: the classic file transfer protocol
+
+**FTP** (File Transfer Protocol) is older than the web. A server program offers a folder, and a client connects to list, download and upload files.
+
+- **Ports:** TCP 21 for commands, plus separate data connections. In "passive" mode the server opens data ports from a range you choose, and the firewall must allow that range. This is the part that most often breaks.
+- **Encryption:** none in plain FTP. The FTP security RFC says passwords and data cross the network unencrypted. **FTPS** adds TLS encryption. **SFTP** is a different protocol over SSH that is encrypted by design.
+- **Resume:** FTP has a restart command (`REST`), so a client like FileZilla can continue a transfer that stopped, when the server supports it.
+- **Built into Windows:** there is an FTP server in IIS that you turn on as a Windows feature, and a very basic `ftp` command. Most people install FileZilla Server or use SFTP with Windows' optional OpenSSH Server.
+- **Best at:** devices that are not Windows PCs, such as phone file managers, TVs, cameras and scripts.
+
+The full setup is in [set up a local FTP server on Windows 11](/docs/blog/set-up-ftp-server-windows-11).
+
+## HTTP: the web
+
+**HTTP** is how your browser loads web pages. A small web server can offer files, and any browser can download them. Nothing needs to be installed on the receiving side.
+
+- **Ports:** any. 80 for HTTP and 443 for HTTPS are the standard ones. Python's quick server uses 8000 by default.
+- **Encryption:** none with plain HTTP. HTTPS adds TLS.
+- **Resume:** HTTP defines "range requests", so a client can ask for only the missing part of a file, if the server supports it. Many download managers use this.
+- **Best at:** "just get this file to that laptop or phone", with a browser on the other side.
+
+Several popular tools build on web technology. LocalSend's protocol is a REST API over HTTPS on port 53317. PairDrop runs in the browser and sends files with WebRTC, which encrypts them in transit.
+
+### The one-command web server
+
+If Python is installed, this serves a folder to your network:
+
+```powershell
+python -m http.server 8000 --bind 192.168.1.20 --directory D:\Share
+```
+
+Use your own IP address (from `ipconfig`) and folder. On the other device, open `http://192.168.1.20:8000` in a browser. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop it.
+
+Know the limits. Python's documentation says `http.server` is not recommended for production and only implements basic security checks. It also warns that it follows symbolic links, so files outside the folder can be served. Anyone on your network can open the address while it runs, with no password. Python is not part of Windows; you install it from python.org or the Microsoft Store. Windows may also ask whether to allow Python through the firewall.
+
+## Side by side
+
+| | SMB | FTP / FTPS | SFTP | HTTP / HTTPS |
+| --- | --- | --- | --- | --- |
+| Built into Windows | Yes, client and server | Basic client; IIS server is an optional feature | Optional OpenSSH feature | Browser yes; server no |
+| Open in File Explorer | Yes | Not as a normal folder | No | No |
+| Sign-in | Windows account | FTP user | SSH account | Usually none for a quick server |
+| Encrypted by default | No (signing on 24H2 Pro and up) | FTP no, FTPS yes | Yes | HTTP no, HTTPS yes |
+| Resume | Through the copy tool (robocopy `/Z`) | `REST`, if supported | Depends on the client | Range requests, if supported |
+| Firewall | TCP 445 | 21 plus a passive range (990 for implicit FTPS) | TCP 22 | One port you choose |
+| Phones and TVs | Some apps | Many apps | Some apps | Any browser |
+| Best for | Windows to Windows | Mixed devices, old gear | Encrypted transfers, scripts | Quick one-off downloads |
+
+## What about speed?
+
+People often ask which protocol is fastest. Honest answer: on a local network, the protocol is rarely the main limit.
+
+- The **link** (Wi-Fi or cable) sets the ceiling. See [move 100 GB between PCs](/docs/blog/move-100gb-between-computers) for the arithmetic.
+- The **disks** on both sides matter. A slow hard drive can be the bottleneck.
+- **Many small files** take longer than one big file of the same total size with any protocol, because each file has its own overhead.
+- **Encryption** costs some CPU work. Whether you notice depends on your PCs.
+
+So do not trust a speed chart made on someone else's network. Copy the same test folder two ways on yours and time it.
+
+## A simple rule for choosing
+
+1. **Two Windows PCs:** SMB. It is already there. Copy big folders with robocopy, or let [Devpit Share Files](/docs/features/share-files) set up a read-only share and do the copy with progress and resume.
+2. **A phone or mixed devices:** an app like LocalSend, or FTP/SFTP if the device has a client. See the [LocalSend, Quick Share and Syncthing comparison](/docs/blog/localsend-vs-quick-share-vs-syncthing).
+3. **One file to a device with only a browser:** a quick HTTP server, stopped right after.
+4. **Encryption matters:** SFTP, FTPS, HTTPS, or SMB with encryption turned on for the share.
+
+## Sources
+
+- [Microsoft: Control SMB signing behavior (24H2 editions)](https://learn.microsoft.com/windows-server/storage/file-server/smb-signing)
+- [Microsoft: SMB security hardening](https://learn.microsoft.com/windows-server/storage/file-server/smb-security-hardening)
+- [Microsoft: SMB security enhancements (EncryptData)](https://learn.microsoft.com/windows-server/storage/file-server/smb-security)
+- [Microsoft: SMBv1 is not installed by default in Windows](https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/smbv1-not-installed-by-default-in-windows)
+- [Microsoft: robocopy](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [IETF RFC 2577: FTP Security Considerations](https://www.rfc-editor.org/rfc/rfc2577)
+- [IETF RFC 4217: Securing FTP with TLS](https://www.rfc-editor.org/rfc/rfc4217)
+- [IETF RFC 959: File Transfer Protocol](https://www.rfc-editor.org/rfc/rfc959)
+- [IETF RFC 9110: HTTP Semantics (range requests)](https://www.rfc-editor.org/rfc/rfc9110)
+- [Microsoft: Configuring FTP firewall settings in IIS 7](https://learn.microsoft.com/iis/publish/using-the-ftp-service/configuring-ftp-firewall-settings-in-iis-7)
+- [Microsoft: Get started with OpenSSH for Windows](https://learn.microsoft.com/windows-server/administration/openssh/openssh_install_firstuse)
+- [Python: http.server](https://docs.python.org/3/library/http.server.html)
+- [Python: Using Python on Windows](https://docs.python.org/3/using/windows.html)
+- [LocalSend protocol](https://github.com/localsend/protocol)
+- [PairDrop FAQ](https://github.com/schlagmichdoch/PairDrop/blob/master/docs/faq.md)

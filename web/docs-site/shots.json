@@ -9,7 +9,7 @@
   },
   {
     "name": "home-menu",
-    "alt": "Devpit main menu with the block-letter DEVPIT logo and seven sections: Free Up Disk Space, Fix Stuck Ports and Apps, Install Developer Apps, Update Everything, Network Tools, Git and SSH Setup and Devpit Settings",
+    "alt": "Devpit main menu with the block-letter DEVPIT logo and eight sections: Free Up Disk Space, Fix Stuck Ports and Apps, Install Developer Apps, Update Everything, Network Tools, Git and SSH Setup, Devpit Settings and Share Files",
     "screen": "home",
     "state": "menu",
     "cols": 100,
@@ -115,12 +115,28 @@
     "rows": 28
   },
   {
+    "name": "update-admin-retry",
+    "alt": "Update Everything near the end of a run: every app is done except Docker Desktop, whose row says retrying as administrator after it failed with error 0x80073D28",
+    "screen": "update",
+    "state": "admin-retry",
+    "cols": 110,
+    "rows": 28
+  },
+  {
+    "name": "update-summary-problems",
+    "alt": "Update Everything summary with nine apps updated, Docker Desktop skipped because it needs admin rights, Visual Studio Code in use and Git crashed with code 0xC0000409, and a What to do next list with the exact command for each",
+    "screen": "update",
+    "state": "summary-problems",
+    "cols": 110,
+    "rows": 34
+  },
+  {
     "name": "network-menu",
     "alt": "Network Tools submenu with three tools: My IP addresses, Ping a host and Flush DNS cache",
     "screen": "network",
     "state": "menu",
     "cols": 100,
-    "rows": 22
+    "rows": 24
   },
   {
     "name": "network-ip",
@@ -145,7 +161,7 @@
     "screen": "gitssh",
     "state": "menu",
     "cols": 100,
-    "rows": 22
+    "rows": 24
   },
   {
     "name": "gitssh-key",

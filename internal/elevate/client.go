@@ -25,7 +25,7 @@ type Client struct {
 	elevated bool
 
 	mu        sync.Mutex
-	pending   map[string]chan Event
+	pending   map[string]*pending
 	lastLines []string
 	dead      bool
 	deathErr  error
@@ -82,7 +82,7 @@ func newClient(ctx context.Context, rwc io.ReadWriteCloser) (*Client, error) {
 		lw:       newLineWriter(rwc),
 		pid:      hello.PID,
 		elevated: hello.Elevated,
-		pending:  make(map[string]chan Event),
+		pending:  make(map[string]*pending),
 		readDone: make(chan struct{}),
 	}
 	go c.readLoop(lr)
@@ -113,12 +113,29 @@ func (c *Client) readLoop(lr *lineReader) {
 	}
 }
 
+// pending is one call waiting for its request's events. gone is closed when
+// the call stops listening, so the read loop never blocks on a channel
+// nobody will drain again.
+type pending struct {
+	ch   chan Event
+	gone chan struct{}
+}
+
+// dispatch hands ev to the call waiting on its ID. It blocks while that call
+// is busy (so a slow onLine slows the stream instead of dropping lines), but
+// never past the moment the call gives up: a call that returned on its
+// context must not be able to wedge the read loop, and with it every other
+// call on the client.
 func (c *Client) dispatch(ev Event) {
 	c.mu.Lock()
-	ch := c.pending[ev.ID]
+	p := c.pending[ev.ID]
 	c.mu.Unlock()
-	if ch != nil {
-		ch <- ev
+	if p == nil {
+		return
+	}
+	select {
+	case p.ch <- ev:
+	case <-p.gone:
 	}
 }
 
@@ -145,12 +162,12 @@ func (c *Client) killPending(err error) {
 	c.mu.Lock()
 	c.dead = true
 	c.deathErr = err
-	pending := c.pending
-	c.pending = make(map[string]chan Event)
+	all := c.pending
+	c.pending = make(map[string]*pending)
 	c.mu.Unlock()
 
-	for _, ch := range pending {
-		close(ch)
+	for _, p := range all {
+		close(p.ch)
 	}
 }
 
@@ -165,22 +182,27 @@ func (c *Client) deathError() error {
 // is already dead it returns a closed channel so the caller's select falls
 // straight through to the death path.
 func (c *Client) register(id string) chan Event {
-	ch := make(chan Event, 8)
+	p := &pending{ch: make(chan Event, 8), gone: make(chan struct{})}
 	c.mu.Lock()
 	if c.dead {
 		c.mu.Unlock()
-		close(ch)
-		return ch
+		close(p.ch)
+		return p.ch
 	}
-	c.pending[id] = ch
+	c.pending[id] = p
 	c.mu.Unlock()
-	return ch
+	return p.ch
 }
 
+// unregister forgets id and releases a dispatch that is blocked on it.
 func (c *Client) unregister(id string) {
 	c.mu.Lock()
+	p, ok := c.pending[id]
 	delete(c.pending, id)
 	c.mu.Unlock()
+	if ok {
+		close(p.gone)
+	}
 }
 
 func (c *Client) send(req Request) error {
@@ -291,6 +313,7 @@ func (c *Client) Remove(ctx context.Context, path string, onLine func(text strin
 				return nil
 			}
 		case <-ctx.Done():
+			c.cancelJob(id, ch)
 			return ctx.Err()
 		}
 	}

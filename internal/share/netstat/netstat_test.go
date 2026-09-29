@@ -316,6 +316,38 @@ func TestMeterSmoothsAndSurvivesACounterReset(t *testing.T) {
 	}
 }
 
+func TestMeterRebaseStartsReceivedAgainButKeepsTheSpeed(t *testing.T) {
+	now := time.Unix(1000, 0)
+	var in uint64
+	m := netstat.NewMeter(func() (uint64, uint64, error) { return in, 0, nil }, func() time.Time { return now })
+	m.Sample()
+	in += 50_000_000
+	now = now.Add(time.Second)
+	rate, got := m.Sample()
+	if got != 50_000_000 {
+		t.Fatalf("received = %d", got)
+	}
+	m.Rebase()
+	if r, got := m.Sample(); got != 0 || r != rate {
+		t.Errorf("after Rebase = %v, %d; want 0 received and the speed kept", r, got)
+	}
+	in += 10_000_000
+	now = now.Add(time.Second)
+	if _, got := m.Sample(); got != 10_000_000 {
+		t.Errorf("received after Rebase = %d, want only this run's bytes", got)
+	}
+}
+
+func TestNetViewRecordedOnWindows11WithNoShares(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("testdata", "netview_en_empty_recorded.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := netstat.ParseNetView(string(b)); len(got) != 0 {
+		t.Errorf("shares = %v, want none", got)
+	}
+}
+
 func TestMeterKeepsTheLastValueOnAReadError(t *testing.T) {
 	now := time.Unix(0, 0)
 	fail := false

@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
-	"github.com/zubairbinshaukat/devpit/internal/share/store"
 	"github.com/zubairbinshaukat/devpit/internal/winapi"
 )
 
@@ -60,6 +60,9 @@ type Deps struct {
 	KeepAwake func() (release func(), err error)
 	// PID is this process's ID, written into the manifest.
 	PID int
+	// Getenv reads the environment, for the folder check. Nil means
+	// os.Getenv.
+	Getenv func(string) string
 }
 
 // withDefaults fills in what a caller left out.
@@ -81,6 +84,9 @@ func (d Deps) withDefaults() Deps {
 	}
 	if d.PID == 0 {
 		d.PID = os.Getpid()
+	}
+	if d.Getenv == nil {
+		d.Getenv = os.Getenv
 	}
 	return d
 }
@@ -143,11 +149,15 @@ type Card struct {
 
 // Commands returns the three commands for a PC without Devpit: sign in, copy,
 // and sign out. The password is an alphanumeric word, so none of the lines
-// needs quoting around it.
+// needs quoting around it. The copy goes into a new folder, named after the
+// share, where the terminal is open: that folder exists on every PC and works
+// the same in cmd and PowerShell, which a drive letter or %USERPROFILE% does
+// not. /XO keeps a newer file on that PC instead of overwriting it, the same
+// rule Devpit's own copy follows.
 func Commands(ip, share, user, password string) (netUse, robocopy, cleanup string) {
 	unc := `\\` + ip + `\` + share
 	netUse = fmt.Sprintf(`net use %s /user:%s %s`, unc, user, password)
-	robocopy = fmt.Sprintf(`robocopy %s "D:\%s" /E /MT:16 /Z /R:3 /W:5`, unc, share)
+	robocopy = fmt.Sprintf(`robocopy %s ".\%s" /E /Z /MT:16 /R:3 /W:5 /XO`, unc, share)
 	cleanup = fmt.Sprintf(`net use %s /delete`, unc)
 	return netUse, robocopy, cleanup
 }
@@ -213,6 +223,12 @@ func (m *Manager) Start(ctx context.Context, opts Options, onStep func(Step)) (C
 		return Card{}, errors.New("a share is already running")
 	}
 	m.mu.Unlock()
+
+	// Refuse a folder that must never be shared before anything happens,
+	// even the admin prompt.
+	if err := CheckFolder(opts.Path, m.deps.Getenv); err != nil {
+		return Card{}, err
+	}
 
 	cat, err := m.deps.Net.CategoryOf(ctx, opts.Adapter.Index)
 	if err != nil {
@@ -285,12 +301,22 @@ func (m *Manager) Start(ctx context.Context, opts Options, onStep func(Step)) (C
 		}
 	}
 
-	step(stepFirewall)
-	if err = admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpFirewall}, func(l string) {
+	// recordRules notes every firewall rule the worker says it turned on
+	// ("FW=<name>"), so Stop, and the next launch after a crash, turn it off
+	// again. Both the firewall step and the share step report them: on 24H2,
+	// creating a share can turn on FPS-SMB-In-TCP-V2 by itself.
+	recordRules := func(l string) {
 		if rule, ok := strings.CutPrefix(l, "FW="); ok {
-			m.update(func(mm *Manifest) { mm.Rules = append(mm.Rules, rule) })
+			m.update(func(mm *Manifest) {
+				if !slices.Contains(mm.Rules, rule) {
+					mm.Rules = append(mm.Rules, rule)
+				}
+			})
 		}
-	}); err != nil {
+	}
+
+	step(stepFirewall)
+	if err = admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpFirewall}, recordRules); err != nil {
 		_ = m.saveOrFail()
 		return fail(fmt.Errorf("allowing file sharing in the firewall: %w", err))
 	}
@@ -312,12 +338,25 @@ func (m *Manager) Start(ctx context.Context, opts Options, onStep func(Step)) (C
 	}
 
 	step(stepFolder)
-	if err := admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpGrant, User: user, Path: opts.Path}, nil); err != nil {
+	// Recorded before the permission is written, so a crash in between still
+	// has it cleaned up; not before, because until the account exists there
+	// is no permission to remove and icacls fails on the unknown name.
+	m.update(func(mm *Manifest) { mm.Granted = true })
+	if err = m.saveOrFail(); err != nil {
+		return fail(err)
+	}
+	if err = admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpGrant, User: user, Path: opts.Path}, nil); err != nil {
 		return fail(fmt.Errorf("giving the login read access to the folder: %w", err))
 	}
 
 	step(stepShare)
-	if err := admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpShare, User: user, Path: opts.Path, Name: share}, nil); err != nil {
+	err = admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpShare, User: user, Path: opts.Path, Name: share}, recordRules)
+	// Saved whether or not the share worked: a rule it turned on before
+	// failing must still be turned off.
+	if serr := m.saveOrFail(); err == nil {
+		err = serr
+	}
+	if err != nil {
 		return fail(fmt.Errorf("sharing the folder: %w", err))
 	}
 
@@ -377,7 +416,10 @@ func (m *Manager) Stop(ctx context.Context) error {
 	if err := admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpStop}, nil); err != nil {
 		return fmt.Errorf("stopping the share: %w", err)
 	}
-	if err := store.Remove(manifestPath(m.deps.Dir)); err != nil {
+	m.mu.Lock()
+	man := m.man
+	m.mu.Unlock()
+	if err := removeManifest(m.deps.Dir, man); err != nil {
 		return fmt.Errorf("removing the cleanup record: %w", err)
 	}
 	_ = admin.Close()

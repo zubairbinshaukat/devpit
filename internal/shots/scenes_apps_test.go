@@ -158,8 +158,8 @@ const npmOutdated = `{"pnpm":{"current":"9.11.0","wanted":"9.14.2","latest":"9.1
 type outcome int
 
 const (
-	// outOK finishes cleanly.
-	outOK outcome = iota
+	// The zero outcome finishes cleanly.
+	_ outcome = iota
 	// outNeedsAdmin fails with winget's "needs administrator" code.
 	outNeedsAdmin
 	// outInUse fails with the "app is in use" code.

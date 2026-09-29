@@ -78,7 +78,9 @@ const winerror = "Microsoft: System error codes (winerror.h)"
 // that need a check rather than a number carry no Codes and are found by ID.
 var table = []Entry{
 	{
-		ID: "guest-signing", Codes: []int{1272},
+		// 3227320323 is 0xC05D0003, STATUS_SMB_GUEST_LOGON_BLOCKED_SIGNING_REQUIRED
+		// as `net use` prints it: "System error 3227320323 has occurred."
+		ID: "guest-signing", Codes: []int{1272, 3227320323},
 		Title: "Windows blocked the sign-in",
 		Why: "Windows 11 24H2 does not allow guest sign-in to a shared folder any more. " +
 			"It also insists on signed connections.",
@@ -87,7 +89,8 @@ var table = []Entry{
 			"Or type the user name and password of an account on the other PC.",
 			"Do not turn off SMB signing to work around this. It protects your files.",
 		},
-		Source: "Microsoft: SMB signing and guest logons in Windows 11 24H2; reported for `net use` as system error 1272",
+		Source: "Microsoft: SMB signing and guest logons in Windows 11 24H2; reported for `net use` as system error 1272, " +
+			"or 3227320323 (0xC05D0003) when signing is required",
 	},
 	{
 		ID: "blank-password", Codes: []int{1327},

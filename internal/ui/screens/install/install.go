@@ -550,7 +550,10 @@ func (m Model) onSkipKey() (uictx.Screen, tea.Cmd) {
 	if !fire {
 		return m, uictx.Status("warning", "Press s again to skip "+name+". Its installer is stopped partway.")
 	}
-	m.run.skip(m.runIdx)
+	if !m.run.skip(m.runIdx) {
+		// The install ended between the screen's last update and the key.
+		return m, uictx.Status("info", name+" has already finished.")
+	}
 	return m, uictx.Status("warning", "Skipping "+name+"…")
 }
 
@@ -983,7 +986,10 @@ func runInstallSteps(ctx context.Context, runStepFn RunStepFunc, launchElevatedF
 			sendEvent(ctx, events, runEvent{line: line})
 		})
 		skipped := handle.endJob()
-		if ctx.Err() != nil {
+		// An install that finished cleanly counts, even when a skip or Stop
+		// came in the same instant: RunStepLines never reports OK for a
+		// command it had to stop. The loop's own check then cancels the rest.
+		if ctx.Err() != nil && !res.OK {
 			sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{
 				Name: app.Name, SkipReason: "cancelled", LastLines: res.LastLines,
 			}})
@@ -1058,7 +1064,7 @@ func runElevatedInstalls(ctx context.Context, launchElevatedFn LaunchElevatedFun
 			sendEvent(ctx, events, runEvent{stepDone: true, outcome: skippedOutcome(app.Name, retry)})
 			continue
 		}
-		if ctx.Err() != nil {
+		if ctx.Err() != nil && (execErr != nil || code != 0) {
 			lines := lastLines
 			var died *elevate.WorkerDiedError
 			if errors.As(execErr, &died) {
@@ -1237,21 +1243,27 @@ func (m Model) runBody(ctx uictx.Context, height int) string {
 	return activity.View(ctx, m.jobs, m.frame, ctx.Width, height)
 }
 
+// minSummaryRows is how many finished rows a summary keeps on screen however
+// many next steps there are to list under them.
+const minSummaryRows = 4
+
 // viewSummary is the done box over the finished rows.
 func (m Model) viewSummary(ctx uictx.Context) string {
 	var b strings.Builder
 	b.WriteString(activity.DoneBox(ctx, "Installed", activity.Count(m.jobs), m.runElapse, ctx.Width))
 	b.WriteString("\n\n")
 	// Box (3 rows), a blank line, the rows, a blank line and the hint.
+	// The next steps get what the rows leave over, cut short if need be.
 	height := ctx.BodyHeight - 6
 	next, nextLines := "", 0
 	if !m.showLog {
 		next, nextLines = activity.NextSteps(ctx, m.jobs, ctx.Width)
 		if nextLines > 0 {
+			next, nextLines = activity.FitNextSteps(ctx, next, nextLines, height-min(len(m.jobs), minSummaryRows)-1)
 			height -= nextLines + 1
 		}
 	}
-	b.WriteString(m.runBody(ctx, height))
+	b.WriteString(m.runBody(ctx, max(1, height)))
 	if nextLines > 0 {
 		b.WriteString("\n\n")
 		b.WriteString(next)

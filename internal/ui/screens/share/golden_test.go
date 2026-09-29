@@ -30,7 +30,55 @@ func frameWithKeys(scr uictx.Screen, ctx uictx.Context) string {
 		h := b.Help()
 		hints = append(hints, h.Key+" "+h.Desc)
 	}
-	return strip(scr.View(ctx)) + "\n\n[keys] " + strings.Join(hints, "  ·  ") + "\n"
+	return platformNeutral(strip(scr.View(ctx))) + "\n\n[keys] " + strings.Join(hints, "  ·  ") + "\n"
+}
+
+// platformNeutral makes a frame the same on every OS. The only thing in these
+// screens that depends on the build is the folder picker's Browse row, whose
+// description comes from pathpicker's per-OS constant: off Windows the row is
+// disabled and says so. The share package cannot set that row, so the frame
+// is pinned in its Windows form, the one Devpit ships. (A pathpicker option to
+// say whether the browser is available would make this unnecessary.)
+func platformNeutral(frame string) string {
+	return strings.ReplaceAll(frame, "Only available on Windows", "Open the Windows folder browser")
+}
+
+// TestFramesDoNotDependOnTheOS guards the fix for goldens that passed on
+// Linux and failed on Windows: an error's detail line printed the errno's own
+// text, which is "errno 1219" on Linux and a long localised sentence on
+// Windows. It must be the stable "System error N" whatever the OS.
+func TestFramesDoNotDependOnTheOS(t *testing.T) {
+	for _, st := range recvStates() {
+		if !strings.HasPrefix(st.name, "recv_error_") {
+			continue
+		}
+		frame := frameWithKeys(st.build(t), testCtx(80, 24, icons.TierUnicode))
+		if !strings.Contains(frame, "System error ") {
+			t.Errorf("%s has no stable error number:\n%s", st.name, frame)
+		}
+		for _, osText := range []string{"errno", "Multiple connections", "Access is denied", "host is down", "…"} {
+			if strings.Contains(frame, osText) {
+				t.Errorf("%s shows OS-dependent text %q:\n%s", st.name, osText, frame)
+			}
+		}
+	}
+}
+
+func TestErrorDetailKeepsTheContextAndTheNumber(t *testing.T) {
+	tests := []struct {
+		err  error
+		want string
+	}{
+		{fmt.Errorf("copying: %w", syscall.Errno(112)), "copying: System error 112"},
+		{syscall.Errno(1219), "System error 1219"},
+		{fmt.Errorf("signing in to \\\\h\\s: %w", syscall.Errno(1326)), `signing in to \\h\s: System error 1326`},
+		{errors.New("that PC has no shared folders you can see"), "that PC has no shared folders you can see"},
+	}
+	for _, tt := range tests {
+		if got := errorDetail(tt.err); got != tt.want {
+			t.Errorf("errorDetail(%v) = %q, want %q", tt.err, got, tt.want)
+		}
+	}
 }
 
 // goldenState is one named state of a screen.

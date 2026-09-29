@@ -45,7 +45,7 @@ var absPath = regexp.MustCompile(`^(?:[A-Za-z]:[\\/]|\\\\)`)
 // The stamp has a date in either order and a time. The number and its
 // eight-digit hex form in brackets are the part that never changes.
 var errorLine = regexp.MustCompile(
-	`^\s*\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4}\s+\d{1,2}:\d{2}:\d{2}\s+\S+\s+(\d+)\s+\(0x[0-9A-Fa-f]{8}\)\s*(.*)$`)
+	`^\s*\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4}\s+\d{1,2}:\d{2}:\d{2}\s+\S.*?\s(\d+)\s+\(0x[0-9A-Fa-f]{8}\)\s*(.*)$`)
 
 // drivePathInText finds the start of a path inside a translated sentence.
 var drivePathInText = regexp.MustCompile(`(?:[A-Za-z]:\\|\\\\)`)
@@ -157,6 +157,11 @@ type Plan struct {
 	// more, and LongPathCount how many there are in all.
 	LongPaths     []string
 	LongPathCount int
+	// DiskBytes is what the listed files take on disk, each rounded up to a
+	// whole 4 KB cluster, the NTFS default. A hundred thousand files of 100
+	// bytes are 10 MB of data but 400 MB of disk, and a check on the bytes
+	// alone let such a copy start and fail near the end.
+	DiskBytes int64
 	// SummaryFound is false when the dry run ended without a summary, in
 	// which case Files and Bytes come from the listing and may include files
 	// that are already at the destination.
@@ -168,6 +173,11 @@ const FAT32Limit = 4<<30 - 1
 
 // MaxPath is Windows' classic path length limit, in characters.
 const MaxPath = 260
+
+// ClusterSize is the allocation unit [Plan.DiskBytes] rounds each file up
+// to: 4 KB, the NTFS default for volumes up to 16 TB. A disk with bigger
+// clusters needs more, so it is a floor, not an exact figure.
+const ClusterSize = 4096
 
 // sampleMax caps the example paths kept in a [Plan].
 const sampleMax = 5
@@ -192,6 +202,7 @@ func ParseDryRun(text, srcRoot, dstRoot string) Plan {
 		}
 		listFiles++
 		listBytes += l.Size
+		p.DiskBytes += (l.Size + ClusterSize - 1) / ClusterSize * ClusterSize
 		p.LargestFile = max(p.LargestFile, l.Size)
 		if l.Size > FAT32Limit {
 			p.OverFAT32Count++

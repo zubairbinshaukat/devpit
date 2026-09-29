@@ -60,6 +60,12 @@ func (m *Meter) Sample() (rate float64, received uint64) {
 	return m.rate, in - m.baseIn
 }
 
+// Rebase makes the next [Meter.Sample] the new starting point of "received",
+// keeping the smoothed speed. A copy that runs robocopy again after a network
+// drop calls it at the start of each run, so the bytes of an earlier run are
+// not counted again as progress of this one.
+func (m *Meter) Rebase() { m.started = false }
+
 // ETA is the time left for remaining bytes at rate, or zero when the speed
 // is not known yet.
 func ETA(remaining int64, rate float64) time.Duration {

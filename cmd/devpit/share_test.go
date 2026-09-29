@@ -67,6 +67,26 @@ func TestShareCleanupRemovesALeftoverShare(t *testing.T) {
 	}
 }
 
+func TestShareCleanupRemovesEveryLeftover(t *testing.T) {
+	dir := t.TempDir()
+	writeManifest(t, dir)
+	raw := `{"version":1,"pid":0,"user":"devpit-wxyz","path":"D:\\Movies","share":"Movies-x7k2"}`
+	if err := os.WriteFile(filepath.Join(dir, "share-host-devpit-wxyz.json"), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	admin := &fakeAdmin{}
+	var out bytes.Buffer
+	if err := runShareCleanup(context.Background(), &out, dir, func(context.Context) (host.Admin, error) { return admin, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if len(admin.ops) != 2 || strings.Count(out.String(), "The old share is gone") != 2 {
+		t.Errorf("ops = %+v, out %q", admin.ops, out.String())
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, "share-host*")); len(left) != 0 {
+		t.Errorf("records left: %v", left)
+	}
+}
+
 func TestShareCleanupSaysWhenThePromptWasDeclined(t *testing.T) {
 	dir := t.TempDir()
 	writeManifest(t, dir)

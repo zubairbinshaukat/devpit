@@ -13,7 +13,7 @@ faq:
   - question: "Is it safe to turn on insecure guest logons?"
     answer: "Microsoft recommends that you do not. Guest logons allow an attacker to trick you into connecting to a fake server without any credential prompt, and guest logons do not support SMB signing or encryption. Turn it on only for a device you trust that cannot use a user name and password."
   - question: "Why did this start after I updated to Windows 11 24H2?"
-    answer: "Microsoft says SMB signing is required by default in Windows 11 24H2. Guest logons cannot use signing, so guest access can fail even when guest fallback was allowed before. Guest logons were already off by default in many editions of Windows 10 and 11."
+    answer: "Microsoft says SMB signing is required by default in Windows 11 24H2 Pro, Enterprise and Education. Guest logons cannot use signing, so guest access can fail even when guest fallback was allowed before. Guest logons were already off by default in many editions of Windows 10 and 11."
   - question: "What is the best fix?"
     answer: "Do not use guest access. Give the shared folder a real user name and password, and sign in with it. That is what Devpit's Share Files feature does, with a temporary login for each share."
 ---
@@ -26,7 +26,7 @@ Windows blocks guest logons to remote shares by default. Microsoft's documentati
 
 - Since Windows 10 version 1709 and Windows Server 2019, SMB2 and SMB3 clients do not allow guest access to a remote server by default, or a fall back to the Guest account after wrong credentials.
 - In Windows 11 Pro Insider Preview build 25267 and later builds, guest credentials cannot be used to connect to a remote share by default.
-- In Windows 11 version 24H2, SMB signing is required by default. That causes problems with guest authentication, because signing does not work with guest.
+- In Windows 11 version 24H2, SMB signing is required by default on the Pro, Enterprise and Education editions (not on Home). That causes problems with guest authentication, because signing does not work with guest.
 
 The message says "your organization", but on a PC you own it is usually just the Windows default. A managed work PC can also have a policy that sets it.
 
@@ -67,4 +67,5 @@ Microsoft also says that SMB signing and SMB encryption policies must be disable
 
 - [Microsoft: Can't access shared folders from File Explorer (this error and the registry and Group Policy fixes)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
 - [Microsoft: How to enable insecure guest logons in SMB2 and SMB3](https://learn.microsoft.com/windows-server/storage/file-server/enable-insecure-guest-logons-smb2-and-smb3)
+- [Microsoft: Control SMB signing behavior (which 24H2 editions require signing)](https://learn.microsoft.com/windows-server/storage/file-server/smb-signing)
 - [Microsoft Q&A: the error message text](https://learn.microsoft.com/en-us/answers/questions/3857630/you-cant-access-this-shared-folder-because-your-or)

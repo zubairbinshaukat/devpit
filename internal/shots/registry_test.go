@@ -10,14 +10,19 @@ import "github.com/zubairbinshaukat/devpit/internal/config"
 var registry = map[string]scene{
 	"install/list":    installFlow("", nil, nil, "Install"),
 	"install/confirm": installFlow("", []string{"GitHub CLI", "pnpm", "ripgrep"}, []string{"enter"}, "Install 3"),
-	"install/running": installFlow("pnpm", []string{"GitHub CLI", "pnpm", "ripgrep"}, []string{"enter", "y", "wait:49%", "clock:9s"}, "32s"),
+	"install/running": installFlow("pnpm", []string{"GitHub CLI", "pnpm", "ripgrep"}, []string{"enter", "y", "wait:49%", "clock:9s"}, "Downloading installer"),
 	"install/summary": installFlow("", []string{"GitHub CLI", "pnpm", "ripgrep"}, []string{"enter", "y"}, "Installed"),
 
 	"update/checking": updateFlow(nil, nil, nil, "Checking"),
 	"update/results":  updateFlow(nil, nil, []string{"wait:Selected"}, "Selected"),
 	"update/confirm":  updateFlow(nil, nil, []string{"wait:Selected", "enter"}, "Update 12"),
-	"update/running":  updateFlow(map[string]outcome{"Git.Git": outHold}, nil, []string{"wait:Selected", "enter", "y"}, "Git"),
+	"update/running":  updateFlow(map[string]outcome{"Git.Git": outHold}, nil, []string{"wait:Selected", "enter", "y"}, "MB / 62.1 MB"),
 	"update/summary":  updateFlow(nil, nil, []string{"wait:Selected", "enter", "y"}, "Updated"),
+	"update/summary-problems": updateFlow(map[string]outcome{
+		"Microsoft.VisualStudioCode": outInUse, "Git.Git": outCrash, "Docker.DockerDesktop": outNeedsAdmin,
+	}, declineAdmin, []string{"wait:Selected", "enter", "y"}, "Updated"),
+	"update/admin-retry": updateFlow(map[string]outcome{"Docker.DockerDesktop": outNeedsAdmin}, holdAdmin,
+		[]string{"wait:Selected", "enter", "y"}, "administrator"),
 
 	"clean/menu": cleanFlow{found: projectJunk(), want: []string{"Resume interrupted deletes"}}.scene(),
 	"clean/picker": cleanFlow{
@@ -40,10 +45,8 @@ var registry = map[string]scene{
 	"clean/summary-locked": cleanFlow{
 		found: projectJunk(), steps: []string{"enter", "wait:Selected:", "d", "y"}, want: []string{"Code.exe"},
 		del: fakeClean(0, map[string]string{
-			shop + `
-ode_modules`: "Code.exe",
-			mobile + `
-ode_modules`: "node.exe",
+			shop + `\node_modules`:   "Code.exe",
+			mobile + `\node_modules`: "node.exe",
 		}),
 	}.scene(),
 	"clean/confirm": cleanFlow{found: projectJunk(), steps: []string{"enter", "wait:Selected:", "d"}, want: []string{"Delete"}}.scene(),
@@ -67,7 +70,7 @@ ode_modules`: "node.exe",
 	"network/menu":        networkAt(-1, nil, "My IP addresses"),
 	"network/ip":          networkAt(0, nil, "203.0.113.42"),
 	"network/ping-input":  networkAt(1, nil, "1.1.1.1"),
-	"network/ping-done":   networkAt(1, []string{"enter"}, "Average"),
+	"network/ping-done":   networkAt(1, []string{"enter"}, "avg 14ms"),
 	"network/dns-confirm": networkAt(2, nil, "Flush the DNS"),
 
 	"gitssh/menu":         gitAt(-1, false, true, nil, "Show git identity"),
@@ -81,4 +84,7 @@ ode_modules`: "node.exe",
 	"ports/kill-confirm": portsAt([]string{"enter", "enter"}, "node.exe"),
 	"ports/busy-list":    portsAt([]string{"down", "enter"}, "5173"),
 	"ports/node-list":    portsAt([]string{"down", "down", "enter"}, "node.exe"),
+
+	"share/sharing": shareAt(shareHosting, shareHostIP),
+	"share/copying": shareAt(shareCopying, "47.0 GB"),
 }

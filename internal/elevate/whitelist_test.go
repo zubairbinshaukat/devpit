@@ -5,15 +5,13 @@ import (
 	"testing"
 )
 
-func TestValidateRemovePathAllowsOnlyTheThreeRoots(t *testing.T) {
+func TestValidateRemovePathAllowsOnlyInsideTheThreeRoots(t *testing.T) {
 	t.Setenv("WINDIR", `C:\Windows`)
 	t.Setenv("LOCALAPPDATA", `C:\Users\dev\AppData\Local`)
 	t.Setenv("PROGRAMDATA", `C:\ProgramData`)
 
 	allowed := []string{
-		filepath.Join(`C:\Windows`, "Temp"),
 		filepath.Join(`C:\Windows`, "Temp", "leftover.tmp"),
-		filepath.Join(`C:\Users\dev\AppData\Local`, "CrashDumps"),
 		filepath.Join(`C:\Users\dev\AppData\Local`, "CrashDumps", "app.dmp"),
 		filepath.Join(`C:\ProgramData`, "Microsoft", "Windows", "WER", "ReportQueue"),
 	}
@@ -25,6 +23,14 @@ func TestValidateRemovePathAllowsOnlyTheThreeRoots(t *testing.T) {
 
 	refused := []string{
 		"",
+		// A root itself is never deleted, only what is inside it.
+		filepath.Join(`C:\Windows`, "Temp"),
+		filepath.Join(`C:\Windows`, "Temp") + `\`,
+		filepath.Join(`C:\Windows`, "Temp", "."),
+		filepath.Join(`C:\Users\dev\AppData\Local`, "CrashDumps"),
+		filepath.Join(`C:\ProgramData`, "Microsoft", "Windows", "WER"),
+		// Climbing out after a clean is still outside.
+		`C:\Windows\Temp\..\System32`,
 		`C:\Users\dev\Documents\important.docx`,
 		`C:\Windows\System32\kernel32.dll`,
 		// A sibling that merely shares a prefix must not slip through.

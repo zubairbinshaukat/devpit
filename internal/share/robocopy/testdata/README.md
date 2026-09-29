@@ -24,3 +24,35 @@ add it next to these and add its name to the table in `parse_test.go`.
 a retry line and one more finished file. `dry_*.log` is a dry run with a
 5 GB file, a file whose destination path passes 260 characters, and a file
 that lives in the destination and not the source (an extra).
+
+## Recorded fixtures
+
+`recorded_en_*.unilog` are **recorded, not constructed**: the byte-exact
+`/UNILOG` files robocopy wrote on Windows 11 (English, build 26200), run with
+exactly the flags `CopyArgs` and `DryRunArgs` build, between two local
+folders. The only edit is the folder prefix, replaced with `C:\rec`. They are
+UTF-16 little endian with a byte order mark and CRLF line ends, as robocopy
+writes them, so Git sees them as binary and never rewrites them.
+
+- `recorded_en_dry.unilog`: `/L` dry run; the destination holds an extra file
+  and an older copy of one file; a junction back to the source is skipped by
+  `/XJ`. Exit code 3.
+- `recorded_en_copy_locked.unilog`: the copy, with one destination file held
+  open by another program, `/R:1 /W:1`. Exit code 11.
+- `recorded_en_resume.unilog`: the same copy run again. Exit code 3.
+- `recorded_en_fatal.unilog`: a source folder that does not exist. Exit 16.
+- `recorded_en_mt_big.unilog`: a 3 GB file and a small one with `/MT:16`. The
+  log was polled while it ran: the big file's line appeared only when it had
+  finished.
+
+What the recordings showed that the constructed files did not:
+
+- a file's line is written even when its copy fails, just before its error
+  line, and a retry writes the line again;
+- with several threads, "Waiting 1 seconds..." and " Retrying..." are glued to
+  the end of whatever line came last, file lines included;
+- a file that is only in the destination is listed like a copied file, with
+  its destination path;
+- the error line of a failed copy names the **source** path ("Copying File
+  C:\rec\src\locked.txt"). The constructed fixtures use a destination path,
+  which robocopy prints for destination operations.

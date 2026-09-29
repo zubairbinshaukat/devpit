@@ -1,18 +1,12 @@
 package elevate
 
 import (
-	"context"
-	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
-	"unicode/utf16"
 )
 
 // KindShare is the job kind of the file sharing operations. Unlike
@@ -103,9 +97,11 @@ var (
 	sidPattern = regexp.MustCompile(`^S-1-5-21(-\d{1,10}){4}$`)
 	// rulePattern is a File and Printer Sharing firewall rule name.
 	rulePattern = regexp.MustCompile(`^FPS-[A-Za-z0-9_.-]{1,70}$`)
-	// pathPattern is a local absolute path with none of the characters a
-	// quote, a wildcard or a stream could smuggle in.
-	pathPattern = regexp.MustCompile(`^[A-Za-z]:\\[^<>:"|?*'\x00-\x1f]*$`)
+	// pathPattern is a local absolute path with none of the characters
+	// Windows forbids in a name, so no wildcard and no stream. An apostrophe
+	// is allowed ("Bob's Games"): nothing quotes the path into a script,
+	// [psString] carries it.
+	pathPattern = regexp.MustCompile(`^[A-Za-z]:\\[^<>:"|?*\x00-\x1f]*$`)
 	// passwordPattern is the alphabet [Password] draws from, which is also
 	// what the worker accepts: no quote, no space, no shell character.
 	passwordPattern = regexp.MustCompile(`^[A-Za-z0-9]{12,64}$`)
@@ -209,400 +205,52 @@ func (r ShareRequest) validateCleanup(needUser, needName, needPath func() error)
 // out rather than using path/filepath so the comparison means the same thing
 // whatever system runs it, tests included.
 func winPath(p string) string {
-	return strings.TrimRight(strings.ToLower(strings.ReplaceAll(p, "/", `\`)), `\`)
+	return strings.TrimRight(strings.ToLower(strings.ReplaceAll(strings.TrimSpace(p), "/", `\`)), `\`)
 }
 
-// validateSharePath refuses folders that must never be shared: the Windows
-// directory, Program Files, the shared program data and the root of the
-// system drive.
+// inside reports whether p is dir or a folder under it. Both are normalised.
+func inside(p, dir string) bool { return dir != "" && (p == dir || strings.HasPrefix(p, dir+`\`)) }
+
+// validateSharePath refuses the folders that must never be shared. It is the
+// worker's own copy of host.CheckFolder (internal/share/host/safepath.go),
+// which the TUI runs first; that package imports this one, so the rule is
+// duplicated rather than shared, and [TestValidateSharePathMirrorsHostCheckFolder]
+// keeps the two saying the same thing. Refused:
+//
+//   - a whole drive (sharing one grants read on every file, and writing the
+//     permission walks the entire drive);
+//   - Windows, Program Files and ProgramData, and everything in them;
+//   - the user's profile folder and the folders above it, which hold every
+//     account's AppData;
+//   - any account's whole profile, and AppData and .ssh inside any profile.
+//
+// pathPattern has already refused UNC paths, relative paths and "..".
 func validateSharePath(p string) error {
 	clean := winPath(p)
-	for _, env := range []string{"WINDIR", "ProgramFiles", "ProgramFiles(x86)", "ProgramData"} {
-		root := winPath(os.Getenv(env))
-		if root != "" && (clean == root || strings.HasPrefix(clean, root+`\`)) {
-			return fmt.Errorf("refused: %q is a system folder", p)
+	if len(clean) <= 2 {
+		return errors.New("refused: a whole drive cannot be shared")
+	}
+	for _, env := range []string{"WINDIR", "SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "ProgramData"} {
+		if inside(clean, winPath(os.Getenv(env))) {
+			return fmt.Errorf("refused: %q is a Windows or program folder", p)
 		}
 	}
-	if sys := winPath(os.Getenv("SystemDrive")); sys != "" && clean == sys {
-		return errors.New("refused: the whole system drive cannot be shared")
-	}
-	return nil
-}
-
-// UserManager is what the worker needs to make and remove the temporary
-// account. The default executor implements it with the Windows account
-// functions; tests use a fake. It is kept apart from [Executor] so that
-// interface stays as it is.
-type UserManager interface {
-	// CreateUser adds a local account with the given password, expiring at
-	// expires, and puts it in the Users group.
-	CreateUser(name, password string, expires time.Time) error
-	// DeleteUser removes a local account.
-	DeleteUser(name string) error
-	// UserSID returns the account's SID as text.
-	UserSID(name string) (string, error)
-}
-
-// shareState is what one worker connection has set up so far, and so what
-// stop has to undo. It lives only in the worker's memory; the TUI keeps its
-// own copy, without the password, in a manifest for the day both die.
-type shareState struct {
-	profileIndex    uint32
-	profileOriginal string
-	rules           []string
-	user            string
-	sid             string
-	grantPath       string
-	shareName       string
-}
-
-// empty reports whether there is nothing to undo.
-func (s *shareState) empty() bool {
-	return s.profileIndex == 0 && len(s.rules) == 0 && s.user == "" &&
-		s.grantPath == "" && s.shareName == ""
-}
-
-// shareSession runs the share operations of one worker connection.
-type shareSession struct {
-	exec  Executor
-	users UserManager
-	state shareState
-	now   func() time.Time
-	// stat is os.Stat, replaced in tests so no real folder is needed.
-	stat func(string) (os.FileInfo, error)
-}
-
-// newShareSession returns a session over exec. The account operations need
-// exec to be a [UserManager]; without it they are refused.
-func newShareSession(exec Executor) *shareSession {
-	um, _ := exec.(UserManager)
-	return &shareSession{exec: exec, users: um, now: time.Now, stat: os.Stat}
-}
-
-// psExe and icaclsExe are the full paths of the two programs the worker may
-// start, built from %WINDIR% so a program of the same name earlier in PATH
-// can never be picked up by an elevated process.
-func psExe() string {
-	return filepath.Join(os.Getenv("WINDIR"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-}
-
-// icaclsExe is the full path of icacls.exe.
-func icaclsExe() string { return filepath.Join(os.Getenv("WINDIR"), "System32", "icacls.exe") }
-
-// psArgv wraps script as an -EncodedCommand command line. The script is
-// passed as base64 of UTF-16, which leaves nothing for a command line parser
-// to misread, whatever the checked values inside it contain.
-func psArgv(script string) []string {
-	u := utf16.Encode([]rune(script))
-	b := make([]byte, 0, len(u)*2)
-	for _, c := range u {
-		b = binary.LittleEndian.AppendUint16(b, c)
-	}
-	return []string{
-		psExe(), "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand",
-		base64.StdEncoding.EncodeToString(b),
-	}
-}
-
-// scriptProfile is the profile switch. %d and %s are a checked index and a
-// category from a two-value list.
-const scriptProfile = `$ErrorActionPreference='Stop'
-Set-NetConnectionProfile -InterfaceIndex %d -NetworkCategory %s`
-
-// scriptFirewallOn turns on the SMB inbound rule of the File and Printer
-// Sharing group. The group is named by its resource string
-// @FirewallAPI.dll,-28502, which is the language-independent form of the
-// group's Group property; DisplayGroup would be "File and Printer Sharing"
-// only on an English Windows. Only the rule named FPS-SMB-In-TCP is switched
-// on when it exists, because the whole group also opens the print spooler and
-// name lookup; the group as a whole is the fallback when Windows names it
-// otherwise. Each rule that was off and is now on is printed as FW=<name>, so
-// stop turns off exactly those and leaves rules the user had on alone.
-const scriptFirewallOn = `$ErrorActionPreference='Stop'
-$all=@(Get-NetFirewallRule -Group '@FirewallAPI.dll,-28502')
-$pick=@($all | Where-Object { $_.Name -like 'FPS-SMB-In-TCP*' })
-if($pick.Count -eq 0){ $pick=$all }
-foreach($r in $pick){
-  if("$($r.Enabled)" -ne 'True'){
-    Set-NetFirewallRule -Name $r.Name -Enabled True
-    Write-Output ('FW=' + $r.Name)
-  }
-}`
-
-// scriptFirewallOff is the reverse, for the rules named FW= on the way in.
-const scriptFirewallOff = `$ErrorActionPreference='Stop'
-Set-NetFirewallRule -Name %s -Enabled False`
-
-// scriptShare creates the read-only share and prints who can reach it, one
-// ACE= line each, so the worker can check that nobody but the temporary
-// account has access. New-SmbShare with only -ReadAccess grants nothing to
-// anyone else.
-const scriptShare = `$ErrorActionPreference='Stop'
-$u=$env:COMPUTERNAME + '\' + '%s'
-New-SmbShare -Name '%s' -Path '%s' -ReadAccess $u -Description '%s' | Out-Null
-Get-SmbShareAccess -Name '%s' | ForEach-Object { Write-Output ('ACE=' + $_.AccountName + '|' + $_.AccessRight + '|' + $_.AccessControlType) }`
-
-// scriptUnshare removes a share, only when it carries Devpit's description.
-const scriptUnshare = `$ErrorActionPreference='Stop'
-$s=Get-SmbShare -Name '%s' -ErrorAction SilentlyContinue
-if($s -and $s.Description -eq '%s'){ Remove-SmbShare -Name '%s' -Force }`
-
-// onLine is the callback that carries a line of worker output to the TUI.
-type onLine func(stream, text string)
-
-// run runs one operation, sending progress lines through emit. It returns a
-// sentence for the TUI when the operation failed.
-func (s *shareSession) run(ctx context.Context, req ShareRequest, emit onLine) error {
-	if err := req.Validate(); err != nil {
-		return err
-	}
-	switch req.Op {
-	case ShareOpProfile:
-		return s.opProfile(ctx, req, emit)
-	case ShareOpFirewall:
-		return s.opFirewall(ctx, emit)
-	case ShareOpAccount:
-		return s.opAccount(req, emit)
-	case ShareOpGrant:
-		return s.opGrant(ctx, req, emit)
-	case ShareOpShare:
-		return s.opShare(ctx, req, emit)
-	case ShareOpStop:
-		return s.teardown(ctx, emit)
-	case ShareOpCleanup:
-		s.seed(req)
-		return s.teardown(ctx, emit)
-	default:
-		return fmt.Errorf("refused: unknown share operation %q", req.Op)
-	}
-}
-
-// ps runs a PowerShell script and returns its stdout lines. A non-zero exit
-// is an error carrying the last error line.
-func (s *shareSession) ps(ctx context.Context, script string) ([]string, error) {
-	var out, errLines []string
-	code, err := s.exec.Exec(ctx, psArgv(script), func(stream, text string) {
-		if stream == "stderr" {
-			errLines = append(errLines, text)
-			return
-		}
-		out = append(out, text)
-	})
-	if err != nil {
-		return out, err
-	}
-	if code != 0 {
-		return out, fmt.Errorf("powershell exited with %d: %s", code, lastNonEmpty(errLines, out))
-	}
-	return out, nil
-}
-
-// lastNonEmpty picks the most useful line to quote in an error.
-func lastNonEmpty(lists ...[]string) string {
-	for _, l := range lists {
-		for i := len(l) - 1; i >= 0; i-- {
-			if t := strings.TrimSpace(l[i]); t != "" {
-				return t
-			}
-		}
-	}
-	return ""
-}
-
-// opProfile switches the network category and remembers how to switch back.
-func (s *shareSession) opProfile(ctx context.Context, req ShareRequest, emit onLine) error {
-	emit("info", "Switching the network to "+req.Category)
-	if _, err := s.ps(ctx, fmt.Sprintf(scriptProfile, req.Index, req.Category)); err != nil {
-		return err
-	}
-	s.state.profileIndex, s.state.profileOriginal = req.Index, req.Original
-	return nil
-}
-
-// opFirewall turns on the SMB rule and records which rules it changed.
-func (s *shareSession) opFirewall(ctx context.Context, emit onLine) error {
-	emit("info", "Allowing file sharing through the firewall")
-	out, err := s.ps(ctx, scriptFirewallOn)
-	if err != nil {
-		return err
-	}
-	for _, l := range out {
-		if name, ok := strings.CutPrefix(strings.TrimSpace(l), "FW="); ok && rulePattern.MatchString(name) {
-			s.state.rules = append(s.state.rules, name)
-			emit("info", "FW="+name)
-		}
-	}
-	return nil
-}
-
-// opAccount creates the temporary account natively, so the password is never
-// on a command line, and reports its SID.
-func (s *shareSession) opAccount(req ShareRequest, emit onLine) error {
-	if s.users == nil {
-		return errors.New("this worker cannot create accounts")
-	}
-	emit("info", "Creating a temporary login")
-	if err := s.users.CreateUser(req.User, req.Password, s.now().Add(AccountLifetime)); err != nil {
-		return fmt.Errorf("creating the account: %w", err)
-	}
-	s.state.user = req.User
-	if sid, err := s.users.UserSID(req.User); err == nil && sidPattern.MatchString(sid) {
-		s.state.sid = sid
-		emit("info", "SID="+sid)
-	}
-	return nil
-}
-
-// opGrant gives the account read access to the folder, inherited by
-// everything in it. Share permissions and file permissions both have to
-// allow a read, and a folder under a user profile grants nobody else any.
-func (s *shareSession) opGrant(ctx context.Context, req ShareRequest, emit onLine) error {
-	if st, err := s.stat(req.Path); err != nil || !st.IsDir() {
-		return fmt.Errorf("%s is not a folder that exists", req.Path)
-	}
-	emit("info", "Letting the temporary login read the folder")
-	argv := []string{icaclsExe(), req.Path, "/grant", req.User + ":(OI)(CI)RX"}
-	code, err := s.exec.Exec(ctx, argv, nil)
-	if err != nil {
-		return err
-	}
-	if code != 0 {
-		return fmt.Errorf("icacls exited with %d", code)
-	}
-	s.state.grantPath = req.Path
-	return nil
-}
-
-// opShare creates the share and checks that only the account can reach it.
-func (s *shareSession) opShare(ctx context.Context, req ShareRequest, emit onLine) error {
-	emit("info", "Sharing the folder read-only")
-	script := fmt.Sprintf(scriptShare, req.User, req.Name, req.Path, shareDescription, req.Name)
-	out, err := s.ps(ctx, script)
-	if err != nil {
-		return err
-	}
-	s.state.shareName = req.Name
-	if err := checkACL(out, req.User); err != nil {
-		return err
-	}
-	return nil
-}
-
-// checkACL verifies the share's access list: exactly the account, allowed,
-// with Read and nothing more. Anything else means Windows did not do what
-// was asked, and the share must not stay open.
-func checkACL(lines []string, user string) error {
-	n := 0
-	for _, l := range lines {
-		rest, ok := strings.CutPrefix(strings.TrimSpace(l), "ACE=")
-		if !ok {
-			continue
-		}
-		n++
-		f := strings.Split(rest, "|")
-		if len(f) != 3 || !strings.HasSuffix(strings.ToLower(f[0]), `\`+user) ||
-			f[1] != "Read" || f[2] != "Allow" {
-			return fmt.Errorf("the share has an unexpected access entry %q", rest)
-		}
-	}
-	if n == 0 {
-		return errors.New("could not confirm who can reach the share")
-	}
-	return nil
-}
-
-// seed loads a manifest's record into the state, so teardown can undo it.
-func (s *shareSession) seed(r ShareRequest) {
-	s.state = shareState{
-		profileIndex: r.Index, profileOriginal: r.Original,
-		rules: append([]string(nil), r.Rules...),
-		user:  r.User, sid: r.SID, grantPath: r.Path, shareName: r.Name,
-	}
-}
-
-// teardown undoes everything in state, newest first: the share, the folder
-// permission, the account, the firewall rules, the network category. It goes
-// on past a failure so one stuck step does not leave the others behind, and
-// keeps a step in state until it has really succeeded, so a second stop
-// finishes the job. The errors are joined.
-func (s *shareSession) teardown(ctx context.Context, emit onLine) error {
-	if s.state.empty() {
+	profile := winPath(os.Getenv("USERPROFILE"))
+	if profile == "" {
 		return nil
 	}
-	emit("info", "Cleaning up")
-	var errs []error
-	st := &s.state
-
-	if st.shareName != "" {
-		script := fmt.Sprintf(scriptUnshare, st.shareName, shareDescription, st.shareName)
-		if _, err := s.ps(ctx, script); err != nil {
-			errs = append(errs, fmt.Errorf("removing the share: %w", err))
-		} else {
-			st.shareName = ""
+	if clean == profile || strings.HasPrefix(profile, clean+`\`) {
+		return fmt.Errorf("refused: %q holds a whole user profile", p)
+	}
+	users := profile[:max(strings.LastIndex(profile, `\`), 0)]
+	if len(users) > 2 && strings.HasPrefix(clean, users+`\`) {
+		parts := strings.Split(clean[len(users)+1:], `\`)
+		switch {
+		case len(parts) == 1:
+			return fmt.Errorf("refused: %q is a whole user profile", p)
+		case parts[1] == "appdata" || parts[1] == ".ssh":
+			return fmt.Errorf("refused: %q holds app data, saved passwords or keys", p)
 		}
 	}
-	if st.grantPath != "" {
-		who := st.user
-		if st.sid != "" {
-			who = "*" + st.sid
-		}
-		code, err := s.exec.Exec(ctx, []string{icaclsExe(), st.grantPath, "/remove:g", who}, nil)
-		if err != nil || code != 0 {
-			errs = append(errs, fmt.Errorf("removing the folder permission: %w", firstErr(err, code)))
-		} else {
-			st.grantPath = ""
-		}
-	}
-	if st.user != "" && s.users != nil {
-		if err := s.users.DeleteUser(st.user); err != nil && !isMissingUser(err) {
-			errs = append(errs, fmt.Errorf("removing the account: %w", err))
-		} else {
-			st.user, st.sid = "", ""
-		}
-	}
-	if len(st.rules) > 0 {
-		quoted := make([]string, len(st.rules))
-		for i, r := range st.rules {
-			quoted[i] = "'" + r + "'"
-		}
-		if _, err := s.ps(ctx, fmt.Sprintf(scriptFirewallOff, strings.Join(quoted, ","))); err != nil {
-			errs = append(errs, fmt.Errorf("restoring the firewall: %w", err))
-		} else {
-			st.rules = nil
-		}
-	}
-	if st.profileIndex != 0 {
-		script := fmt.Sprintf(scriptProfile, st.profileIndex, st.profileOriginal)
-		if _, err := s.ps(ctx, script); err != nil {
-			errs = append(errs, fmt.Errorf("restoring the network category: %w", err))
-		} else {
-			st.profileIndex, st.profileOriginal = 0, ""
-		}
-	}
-	return errors.Join(errs...)
-}
-
-// firstErr picks the error to quote for a command that may have failed by
-// error or by exit code.
-func firstErr(err error, code int) error {
-	if err != nil {
-		return err
-	}
-	return errors.New("exit code " + strconv.Itoa(code))
-}
-
-// teardownTimeout bounds the automatic cleanup when the connection breaks.
-const teardownTimeout = 2 * time.Minute
-
-// autoTeardown is the worker's own cleanup when its connection to the TUI
-// ends for any reason: a stop already ran (nothing left to do), the TUI
-// quit, or the TUI was killed. It is what makes "close Devpit" and "Devpit
-// crashed" leave no share, account or firewall change behind.
-func (s *shareSession) autoTeardown() {
-	if s.state.empty() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), teardownTimeout)
-	defer cancel()
-	_ = s.teardown(ctx, func(string, string) {})
+	return nil
 }

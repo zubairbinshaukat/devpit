@@ -69,7 +69,8 @@ export default defineConfig({
       // Code blocks use the same Catppuccin palette as the app itself.
       expressiveCode: {
         themes: ['catppuccin-mocha', 'catppuccin-latte'],
-        styleOverrides: { borderRadius: '0.6rem' },
+        // Matches --dp-r in src/styles/devpit.css.
+        styleOverrides: { borderRadius: '0.8rem' },
       },
       lastUpdated: false,
       credits: false,
@@ -89,6 +90,7 @@ export default defineConfig({
       components: {
         Footer: './src/components/Footer.astro',
         Search: './src/components/Search.astro',
+        PageTitle: './src/components/PageTitle.astro',
       },
       sidebar,
       plugins: [

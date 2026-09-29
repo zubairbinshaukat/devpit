@@ -120,6 +120,18 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
       else cleanSidebar(e.entries);
     }
   };
+  // Blog pages swap the docs sidebar for the blog's own (starlight-blog builds
+  // it before this runs); start it with the way back to the docs.
+  if (id === 'blog' || id.startsWith('blog/')) {
+    route.sidebar.unshift({
+      type: 'link',
+      label: 'Back to docs',
+      href: BASE,
+      isCurrent: false,
+      badge: undefined,
+      attrs: { class: 'dp-sidebar-back' },
+    });
+  }
   cleanSidebar(route.sidebar);
   if (route.pagination.prev) route.pagination.prev.href = cleanHref(route.pagination.prev.href);
   if (route.pagination.next) route.pagination.next.href = cleanHref(route.pagination.next.href);

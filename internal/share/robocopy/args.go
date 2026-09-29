@@ -53,7 +53,15 @@ func trimSlash(p string) string {
 //	/NDL    no directory lines
 //	/FP     full path on every file line, so a line is self-contained
 //	/NC     no file class words, which are translated
-var common = []string{"/E", "/XJ", "/NP", "/BYTES", "/NJH", "/NDL", "/FP", "/NC"}
+//	/XO     never replace a destination file with an older one. Robocopy's
+//	        default copies "Older" files too, so a save or a document edited
+//	        at the destination after an earlier copy was silently overwritten
+//	        by the stale version. A half-copied file still resumes: robocopy
+//	        dates it 1980-01-01, which is older than any source.
+//
+// There is never /MIR, /PURGE or /MOV: nothing at the destination is ever
+// deleted, and nothing at the source is ever touched.
+var common = []string{"/E", "/XJ", "/XO", "/NP", "/BYTES", "/NJH", "/NDL", "/FP", "/NC"}
 
 // DryRunArgs is the command line that lists what a copy would do and copies
 // nothing. /L is "list only". The output goes to a Unicode log file, not the

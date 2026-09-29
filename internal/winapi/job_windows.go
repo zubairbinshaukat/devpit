@@ -65,9 +65,16 @@ func (j *Job) Assign(pid int) error {
 	return windows.AssignProcessToJobObject(j.handle, ph)
 }
 
-// Kill terminates every process in the job by closing its handle, which the
-// kill-on-close limit turns into a kill. It is safe to call more than once,
-// on a nil Job, and after a failed [Job.Assign].
+// KilledExitCode is the exit code every process in a job gets from
+// [Job.Kill]. It is not zero on purpose: a process ended by closing its job
+// under the kill-on-close limit exits with code 0 (measured on Windows 11),
+// so a killed installer looked like one that had succeeded.
+const KilledExitCode = 1
+
+// Kill terminates every process in the job with [KilledExitCode], then
+// closes the handle; the kill-on-close limit is the backstop should the
+// terminate call fail. It is safe to call more than once, on a nil Job, and
+// after a failed [Job.Assign].
 func (j *Job) Kill() {
 	if j == nil {
 		return
@@ -77,6 +84,7 @@ func (j *Job) Kill() {
 	j.handle = 0
 	j.mu.Unlock()
 	if h != 0 {
+		_ = windows.TerminateJobObject(h, KilledExitCode)
 		_ = windows.CloseHandle(h)
 	}
 }

@@ -112,7 +112,7 @@ func (t Tool) Copy(ctx context.Context, src, dst, logPath string, log LogSource,
 		ch <- done{code, err}
 	}()
 
-	tr := NewTracker()
+	tr := NewTrackerFor(src)
 	tail := NewTail(log)
 	drain := func() {
 		lines, err := tail.Poll()

@@ -11,6 +11,7 @@ import (
 
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
 	"github.com/zubairbinshaukat/devpit/internal/tools"
+	"github.com/zubairbinshaukat/devpit/internal/tools/managers"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/activity"
 )
 
@@ -130,6 +131,116 @@ func TestSkipNeedsTwoPressesAndStopsOnlyThatApp(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("summary lacks %q:\n%s", want, out)
 		}
+	}
+}
+
+// Skip pressed just as the app finished: the update went through, so the
+// row says updated, not "skipped by you".
+func TestSkipRacingTheFinishKeepsTheResult(t *testing.T) {
+	r := newRunner()
+	seen := make(chan context.Context, 1)
+	run := func(ctx context.Context, argv []string, timeout time.Duration, onLine func(tools.Line)) tools.StepResult {
+		if strings.Contains(strings.Join(argv, " "), "Docker.DockerDesktop") {
+			seen <- ctx
+			<-ctx.Done()
+			// It exited 0 on its own in the same instant: RunStepLines
+			// reports OK only for a command it did not have to stop.
+			return tools.StepResult{OK: true}
+		}
+		return r.run(ctx, argv, timeout, onLine)
+	}
+	m := reachList(t, New(WithDetectFunc(fakeDetectFn("winget")), WithRunStepFunc(run), WithClock(newClock().now)))
+	m = startRun(t, m)
+	m = pump(t, m, rowState(activity.Running, "Docker Desktop"))
+	<-seen
+	m, _ = update(t, m, keyPress('s', "s"))
+	m, _ = update(t, m, keyPress('s', "s"))
+	m = pump(t, m, func(m Model) bool { return m.state == stateSummary })
+	if row := rowFor(m, "Docker Desktop"); row.State != activity.Done || row.Next != "" {
+		t.Errorf("row = %+v, want updated", row)
+	}
+}
+
+// A skip meant for an app that has already finished never reaches the next
+// one, even when the screen still showed the first as running.
+func TestSkipForAFinishedAppDoesNotSkipTheNext(t *testing.T) {
+	h := newRunHandle(func() {})
+	var cancelled bool
+	h.beginJob(1, func() { cancelled = true })
+	if h.skip(0) || cancelled {
+		t.Fatal("skip(0) stopped job 1")
+	}
+	if !h.skip(1) || !cancelled {
+		t.Fatal("skip(1) did not stop job 1")
+	}
+	if !h.endJob() {
+		t.Error("endJob did not report the skip")
+	}
+	if h.skip(1) {
+		t.Error("skip after endJob found something to stop")
+	}
+	var nilHandle *runHandle
+	if nilHandle.skip(0) {
+		t.Error("a nil handle skipped")
+	}
+}
+
+// A skipped npm package may be gone half-way: the row says how to put it
+// back, not only how to retry.
+func TestSkippedNpmPackageSaysItMayNeedReinstalling(t *testing.T) {
+	r := newRunner()
+	seen := make(chan context.Context, 1)
+	m := reachList(t, New(
+		WithDetectFunc(fakeDetectFn("npm")),
+		WithRunStepFunc(stuckRun(r, "pnpm@latest", seen)),
+		WithClock(newClock().now),
+	))
+	m = startRun(t, m)
+	m = pump(t, m, rowState(activity.Running, "pnpm"))
+	<-seen
+	m, _ = update(t, m, keyPress('s', "s"))
+	m, _ = update(t, m, keyPress('s', "s"))
+	m = pump(t, m, func(m Model) bool { return m.state == stateSummary })
+	row := rowFor(m, "pnpm")
+	if row.Detail != "skipped by you" || !strings.Contains(row.Next, "npm install -g pnpm@latest") ||
+		!strings.Contains(row.Next, "install it again") {
+		t.Errorf("row = %+v", row)
+	}
+}
+
+// A manager redrawing a status line (transient, no percentage) is still
+// talking: runPlain passes that on so the row is not called stuck. A plain
+// line is logged as before.
+func TestTransientRedrawCountsAsOutput(t *testing.T) {
+	events := make(chan runEvent, 8)
+	run := func(_ context.Context, _ []string, _ time.Duration, onLine func(tools.Line)) tools.StepResult {
+		onLine(tools.Line{Text: "Extracting files", Transient: true})
+		onLine(tools.Line{Text: "Successfully installed"})
+		return tools.StepResult{OK: true}
+	}
+	j := job{label: "x", cmds: [][]string{{"winget", "upgrade"}}}
+	for _, m := range managers.All() {
+		if m.Name() == "winget" {
+			j.manager = m
+		}
+	}
+	ctx := context.Background()
+	runPlain(ctx, ctx, run, j, 0, events)
+	close(events)
+	var progress, lines int
+	for ev := range events {
+		if ev.progress != nil {
+			progress++
+			if ev.progress.Percent != -1 {
+				t.Errorf("a redraw without a percentage moved the bar: %+v", ev.progress)
+			}
+		}
+		if ev.line != "" {
+			lines++
+		}
+	}
+	if progress != 1 || lines != 1 {
+		t.Errorf("progress events = %d, lines = %d; want 1 and 1", progress, lines)
 	}
 }
 
@@ -435,7 +546,7 @@ func TestStuckAppGetsAHintToSkip(t *testing.T) {
 
 	clk.advance(activity.StuckAfter - time.Second)
 	m, _ = update(t, m, runBatchMsg{})
-	if rowFor(m, "Docker Desktop").Stuck != 0 || strings.Contains(view(m), "press s to skip") {
+	if rowFor(m, "Docker Desktop").Stuck != 0 || strings.Contains(view(m), "press s twice to skip") {
 		t.Fatal("hinted before the silence was long enough")
 	}
 	clk.advance(2 * time.Second)
@@ -443,7 +554,7 @@ func TestStuckAppGetsAHintToSkip(t *testing.T) {
 	if rowFor(m, "Docker Desktop").Stuck < activity.StuckAfter {
 		t.Fatalf("row = %+v, want it marked stuck", rowFor(m, "Docker Desktop"))
 	}
-	if out := view(m); !strings.Contains(out, "no output for 3m") || !strings.Contains(out, "press s to skip") {
+	if out := view(m); !strings.Contains(out, "no output for 5m") || !strings.Contains(out, "press s twice to skip") {
 		t.Errorf("no hint in the view:\n%s", out)
 	}
 
@@ -451,6 +562,17 @@ func TestStuckAppGetsAHintToSkip(t *testing.T) {
 	m, _ = update(t, m, runBatchMsg{events: []runEvent{{job: 0, line: "Downloading"}}})
 	if rowFor(m, "Docker Desktop").Stuck != 0 {
 		t.Error("the hint stayed after new output")
+	}
+
+	// So does a redraw with no percentage in it, and it leaves the bar be.
+	clk.advance(activity.StuckAfter + time.Second)
+	m, _ = update(t, m, runBatchMsg{})
+	if rowFor(m, "Docker Desktop").Stuck == 0 {
+		t.Fatal("not stuck again after another long silence")
+	}
+	m, _ = update(t, m, runBatchMsg{events: []runEvent{{job: 0, progress: &tools.Progress{Percent: -1}}}})
+	if row := rowFor(m, "Docker Desktop"); row.Stuck != 0 || row.Percent != -1 {
+		t.Errorf("row = %+v, want the hint gone and no bar", row)
 	}
 	m.Stop()
 	pump(t, m, func(m Model) bool { return m.state == stateSummary })

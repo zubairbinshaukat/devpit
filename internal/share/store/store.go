@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // WriteJSON saves v as indented JSON at path. It writes a temporary file in
@@ -39,18 +41,56 @@ func WriteJSON(path string, v any) error {
 		_ = os.Remove(name)
 		return fmt.Errorf("closing %s: %w", name, err)
 	}
-	if err := os.Rename(name, path); err != nil {
+	if err := retry(func() error { return os.Rename(name, path) }); err != nil {
 		_ = os.Remove(name)
 		return fmt.Errorf("replacing %s: %w", path, err)
 	}
 	return nil
 }
 
+// retryFor bounds how long a rename or a read keeps trying while another
+// process has the file open for a moment.
+const retryFor = 2 * time.Second
+
+// retry runs op until it succeeds, fails for a reason that will not go away,
+// or [retryFor] has passed. On Windows an antivirus scanner or a reader
+// that opened the file without FILE_SHARE_DELETE makes a rename over it fail
+// with "Access is denied" for a few milliseconds; that is not a reason to
+// lose the record.
+func retry(op func() error) error {
+	deadline := time.Now().Add(retryFor)
+	wait := 2 * time.Millisecond
+	for {
+		err := op()
+		if err == nil || !transient(err) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(wait)
+		wait = min(wait*2, 100*time.Millisecond)
+	}
+}
+
+// readFile reads path through [openShared], so reading never blocks a
+// writer's rename.
+func readFile(path string) ([]byte, error) {
+	var b []byte
+	err := retry(func() error {
+		f, err := openShared(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close() //nolint:errcheck // read-only handle
+		b, err = io.ReadAll(f)
+		return err
+	})
+	return b, err
+}
+
 // ReadJSON loads path into v. A missing file returns an error that satisfies
 // errors.Is(err, os.ErrNotExist), and a file that is not valid JSON returns
 // [ErrCorrupt], so callers can tell "nothing saved" from "saved but broken".
 func ReadJSON(path string, v any) error {
-	b, err := os.ReadFile(path) // #nosec G304 -- path is Devpit's own record inside its settings directory
+	b, err := readFile(path)
 	if err != nil {
 		return err
 	}

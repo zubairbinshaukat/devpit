@@ -12,6 +12,7 @@
     "check": "node scripts/check-all.mjs",
     "llms": "node ../scripts/gen-llms.mjs --write",
     "whats-new": "node scripts/gen-whats-new.mjs",
+    "shots": "node scripts/shots-render.mjs",
     "site": "node ../scripts/build.mjs",
     "serve": "node ../scripts/serve.mjs"
   },

@@ -115,15 +115,15 @@ func TestRender(t *testing.T) {
 		t.Run(e.Name, func(t *testing.T) {
 			s := sc(t, e)
 			frame := s.frame()
-			if err := checkFrame(frame, e); err != nil {
-				t.Fatalf("%v\n%s", err, ansi.Strip(frame))
+			if ferr := checkFrame(frame, e); ferr != nil {
+				t.Fatalf("%v\n%s", ferr, ansi.Strip(frame))
 			}
 			if os.Getenv(envText) != "" {
 				t.Logf("%s (%dx%d, %s)\n%s", e.Name, e.Cols, e.Rows, e.Theme, ansi.Strip(frame))
 			}
 			path := filepath.Join(out, e.Name+".ans")
-			if err := os.WriteFile(path, []byte(frame), 0o600); err != nil {
-				t.Fatalf("writing %s: %v", path, err)
+			if werr := os.WriteFile(path, []byte(frame), 0o600); werr != nil {
+				t.Fatalf("writing %s: %v", path, werr)
 			}
 			idx.Rendered = append(idx.Rendered, renderedFrame{Name: e.Name, Cols: e.Cols, Rows: e.Rows, Theme: e.Theme})
 		})

@@ -219,15 +219,14 @@ type fakeHoster struct {
 }
 
 func newFakeHoster() *fakeHoster {
+	netUse, robo, cleanup := host.Commands("192.168.1.5", "Games-x7k2", "devpit-ab12", "Xk3mPq9RtVw2NbLc")
 	return &fakeHoster{
 		adapters: []host.Adapter{{Name: "Ethernet", Index: 4, IP: net.ParseIP("192.168.1.5"), Best: true}},
 		cat:      host.CategoryPrivate,
 		card: host.Card{
 			IP: "192.168.1.5", Adapter: "Ethernet", Share: "Games-x7k2", User: "devpit-ab12", Password: "Xk3mPq9RtVw2NbLc",
-			Path:     `D:\Games`,
-			NetUse:   `net use \\192.168.1.5\Games-x7k2 /user:devpit-ab12 Xk3mPq9RtVw2NbLc`,
-			Robocopy: `robocopy \\192.168.1.5\Games-x7k2 "D:\Games-x7k2" /E /MT:16 /Z /R:3 /W:5`,
-			Cleanup:  `net use \\192.168.1.5\Games-x7k2 /delete`,
+			Path:   `D:\Games`,
+			NetUse: netUse, Robocopy: robo, Cleanup: cleanup,
 		},
 		steps:   []host.Step{{Key: "firewall"}, {Key: "login"}, {Key: "folder"}, {Key: "share"}},
 		stopped: make(chan struct{}, 4),

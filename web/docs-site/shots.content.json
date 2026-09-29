@@ -3,7 +3,7 @@
     "name": "blog-node-modules-results",
     "alt": "Devpit Free Up Disk Space results listing node_modules folders with their sizes and Safe risk labels",
     "screen": "clean",
-    "state": "results",
+    "state": "results-node-modules",
     "cols": 100,
     "rows": 30
   },
@@ -19,7 +19,7 @@
     "name": "blog-delete-summary",
     "alt": "Devpit summary card after a delete, naming the program that holds a locked folder open",
     "screen": "clean",
-    "state": "summary",
+    "state": "summary-locked",
     "cols": 100,
     "rows": 30
   },
@@ -35,7 +35,7 @@
     "name": "blog-settings-icon-font",
     "alt": "Devpit Settings screen with the Icon font row that installs Symbols Nerd Font Mono",
     "screen": "settings",
-    "state": "menu",
+    "state": "menu-font",
     "cols": 100,
     "rows": 30
   },
@@ -43,7 +43,7 @@
     "name": "blog-settings-usage-stats",
     "alt": "Devpit Settings screen showing the Usage stats row set to off and the Update check row",
     "screen": "settings",
-    "state": "menu",
+    "state": "menu-stats",
     "cols": 100,
     "rows": 30
   }

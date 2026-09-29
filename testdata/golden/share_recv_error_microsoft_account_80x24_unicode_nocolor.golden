@@ -7,6 +7,6 @@ MicrosoftAccount\you@example.com.
 MicrosoftAccount\you@example.com.
 2. Use the account password. A PIN or fingerprint does not work here.
 
-errno 1326
+System error 1326
 
 [keys] r try again

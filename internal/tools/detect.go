@@ -150,6 +150,14 @@ func WithReadDir(f func(dir string) ([]string, error)) Option {
 	return func(d *Detector) { d.readDir = f }
 }
 
+// WithReadAlias overrides how the target of a Microsoft Store app execution
+// alias (the wt.exe in %LOCALAPPDATA%\Microsoft\WindowsApps) is read, which
+// is where the Windows Terminal version comes from without starting it.
+// Tests use this to avoid the real file system.
+func WithReadAlias(f func(path string) (string, error)) Option {
+	return func(d *Detector) { d.readAlias = f }
+}
+
 // WithPoolSize bounds how many probes [Detector.All] runs concurrently. n
 // less than 1 is ignored.
 func WithPoolSize(n int) Option {
@@ -163,25 +171,27 @@ func WithPoolSize(n int) Option {
 // Detector looks up and memoizes developer tools. A zero-value Detector is
 // not usable; construct one with [New].
 type Detector struct {
-	lookPath LookPathFunc
-	run      RunFunc
-	getenv   func(key string) string
-	stat     func(path string) error
-	readDir  func(dir string) ([]string, error)
-	poolSize int
-	entries  map[string]*entry
+	lookPath  LookPathFunc
+	run       RunFunc
+	getenv    func(key string) string
+	stat      func(path string) error
+	readDir   func(dir string) ([]string, error)
+	readAlias func(path string) (string, error)
+	poolSize  int
+	entries   map[string]*entry
 }
 
 // New builds a Detector for the fixed tool list in [Names]. Detection does
 // not start until [Detector.Get] or [Detector.All] is called.
 func New(opts ...Option) *Detector {
 	d := &Detector{
-		lookPath: exec.LookPath,
-		run:      runCombinedOutput,
-		getenv:   os.Getenv,
-		stat:     statFile,
-		readDir:  readDirNames,
-		poolSize: defaultPoolSize,
+		lookPath:  exec.LookPath,
+		run:       runCombinedOutput,
+		getenv:    os.Getenv,
+		stat:      statFile,
+		readDir:   readDirNames,
+		readAlias: readAppExecLink,
+		poolSize:  defaultPoolSize,
 	}
 	for _, opt := range opts {
 		opt(d)

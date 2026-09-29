@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A pit stop for your dev machine.</b><br>
-  Free disk space, fix stuck ports, and keep your tools up to date, from one terminal menu.
+  Free disk space, fix stuck ports, update your tools and move big folders between PCs, from one terminal menu.
 </p>
 
 <p align="center">
@@ -29,13 +29,17 @@
   <a href="#author">Author</a>
 </p>
 
+<p align="center">
+  <a href="https://devpit.zubyr.dev/docs/getting-started"><img src="web/docs-site/src/assets/screens/home-menu.webp" alt="The Devpit main menu in Windows Terminal: the DEVPIT logo and eight sections, Free Up Disk Space, Fix Stuck Ports and Apps, Install Developer Apps, Update Everything, Network Tools, Git and SSH Setup, Devpit Settings and Share Files" width="820"></a>
+</p>
+
 ---
 
 Devpit (or "Devpit CLI") is a free, open-source terminal app for Windows. One
 menu finds `node_modules`, build folders, package caches, Docker leftovers and
 old app versions, shows you what is safe, and clears gigabytes in one keystroke.
-It also frees busy ports, installs and updates developer tools, and sets up Git
-and SSH on a fresh machine.
+It also frees busy ports, installs and updates developer tools, sets up Git and
+SSH on a fresh machine, and copies big folders between two PCs on your network.
 
 Windows first. Go, Bubble Tea, single executable, no runtime to install.
 

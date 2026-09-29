@@ -65,6 +65,49 @@ func TestMissingAndCorrupt(t *testing.T) {
 	}
 }
 
+// TestAReaderNeverMakesAWriteFail pins a bug seen on real Windows: os.Open
+// shares a file without FILE_SHARE_DELETE, so a record that was being read
+// at the moment of a save made the atomic rename fail with "Access is denied"
+// (1759 of 2000 saves in the first measurement), and the resume record or the
+// cleanup manifest silently kept its old contents, or never appeared.
+func TestAReaderNeverMakesAWriteFail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "r.json")
+	if err := store.WriteJSON(path, doc{"v", -1}); err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	readErr := make(chan error, 1)
+	go func() {
+		var d doc
+		for {
+			select {
+			case <-stop:
+				readErr <- nil
+				return
+			default:
+			}
+			if err := store.ReadJSON(path, &d); err != nil {
+				readErr <- err
+				return
+			}
+		}
+	}()
+	for i := range 100 {
+		if err := store.WriteJSON(path, doc{"v", i}); err != nil {
+			close(stop)
+			t.Fatalf("save %d failed while another reader had the file: %v", i, err)
+		}
+	}
+	close(stop)
+	if err := <-readErr; err != nil {
+		t.Errorf("a read failed while saves were going on: %v", err)
+	}
+	var got doc
+	if err := store.ReadJSON(path, &got); err != nil || got.B != 99 {
+		t.Errorf("last save = %+v, %v", got, err)
+	}
+}
+
 func TestRemoveMissingIsFine(t *testing.T) {
 	if err := store.Remove(filepath.Join(t.TempDir(), "gone")); err != nil {
 		t.Error(err)

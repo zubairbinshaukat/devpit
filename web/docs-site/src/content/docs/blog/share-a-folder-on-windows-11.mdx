@@ -1,0 +1,164 @@
+---
+title: "Share a folder on Windows 11 with another PC"
+description: "Share a folder between two PCs on the same network in Windows 11, step by step: Private network, sharing settings, a real account, permissions and 24H2."
+date: 2026-09-29
+authors: [zubair]
+tags: [file sharing, smb, windows]
+excerpt: "The full, safe way to share a folder between two Windows 11 PCs on the same network, and how to fix it when the other PC cannot open it."
+related:
+  - features/share-files
+  - troubleshooting/guest-access-blocked-windows-11-24h2
+  - troubleshooting/you-do-not-have-permission-to-access
+  - troubleshooting/network-discovery-is-turned-off
+faq:
+  - question: "Should I turn off password protected sharing?"
+    answer: "Microsoft's own page suggests it, but it means the other PC connects as a guest, and current Windows blocks guest sign-in by default. Windows 11 24H2 Pro, Enterprise and Education also require SMB signing, which guest sign-in cannot use. Keep password protected sharing on and use a real account with a password."
+  - question: "Can I share a folder with Windows 11 Home?"
+    answer: "Yes. The steps on this page use Settings, File Explorer and Control Panel screens that Windows 11 Home has. The Local Group Policy Editor is not needed for any of them."
+  - question: "Why do I not see the other PC in the Network folder?"
+    answer: "The Network list needs network discovery, which is off on Public networks. You do not need the list. Type \\\\ followed by the PC's IP address and the share name in the File Explorer address bar."
+  - question: "Is a shared folder encrypted on the network?"
+    answer: "Not by default. Windows file sharing (SMB 3) can encrypt a share, but it is off unless someone turns it on for that share. Windows 11 24H2 Pro, Enterprise and Education require SMB signing by default, which stops changes in transit but does not hide the contents."
+---
+
+import Shot from '@/components/Shot.astro';
+
+You have two Windows 11 PCs on the same Wi-Fi or office network. You want one PC to open a folder on the other, for example to copy a game, photos or a project.
+
+Windows can do this without any extra app. It uses Windows file sharing, which works over a protocol called SMB. This guide shows every step, in the order that avoids the common errors, and says why each step matters.
+
+## Before you start
+
+You need:
+
+- Two PCs on the **same network**. A guest Wi-Fi or a VPN can keep them apart.
+- Administrator rights on the PC that shares the folder.
+- About ten minutes.
+
+In this guide, **PC A** has the folder and shares it. **PC B** opens it.
+
+## Step 1: set the network to Private on PC A
+
+Windows keeps two sets of sharing rules: one for **Public** networks and one for **Private** networks. On a Public network, Microsoft says your PC is hidden from other devices. On a Private network, it is discoverable and can share files.
+
+1. Open **Settings**, then **Network & internet**.
+2. Choose **Wi-Fi** or **Ethernet**, then the network you are on.
+3. Under **Network profile type**, choose **Private network**.
+
+Do this only for a network you trust, like your home Wi-Fi. Microsoft says to use Private only when you know and trust the people and devices on the network.
+
+## Step 2: turn on file and printer sharing on PC A
+
+1. Open **Settings**, **Network & internet**, **Advanced network settings**, then **Advanced sharing settings**. (Or type `manage advanced sharing settings` in Start.)
+2. Under **Private networks**, turn on **File and printer sharing**.
+3. Turn on **Network discovery** too if you want PC A to appear in the Network folder on other PCs. It is not needed to open a share by its address.
+
+If the other PC still cannot connect later, open **Control Panel**, **System and Security**, **Windows Defender Firewall**, **Allow an app or feature through Windows Defender Firewall**, and check that **File and Printer Sharing** is ticked for **Private**. A third-party firewall or security suite may need its own setting.
+
+## Step 3: make an account for the other PC to sign in with
+
+Windows lets someone open a share only after they sign in with an account that exists **on PC A**. You have three choices:
+
+1. **Your own account on PC A.** It works, but you give your own password to the other PC.
+2. **A separate local account just for sharing** (recommended). Open **Settings**, **Accounts**, **Other users**, then **Add account**. Choose **I don't have this person's sign-in information**, then **Add a user without a Microsoft account**, and give it a name and a password.
+3. **No account (guest access).** Do not use this. Current Windows blocks guest sign-in by default, and Windows 11 24H2 Pro, Enterprise and Education also require SMB signing, which guest sign-in cannot use. See [guest access blocked](/docs/troubleshooting/guest-access-blocked-windows-11-24h2).
+
+The account must have a password. Windows does not let an account with a blank password sign in over the network.
+
+If PC A signs in with a Microsoft account and you want to use that account, type its user name on PC B as `MicrosoftAccount\you@example.com` and use the account password, not the PIN.
+
+## Step 4: share the folder on PC A
+
+1. In File Explorer, right-click the folder and choose **Properties**.
+2. Open the **Sharing** tab and click **Advanced Sharing**.
+3. Tick **Share this folder**. Keep the share name, or type a short one without spaces, for example `Games`.
+4. Click **Permissions**.
+5. Click **Add**, type the account name from step 3, and click **OK**.
+6. Select that account and tick **Allow** for **Read**. Tick **Change** only if PC B must also write files.
+7. Select **Everyone** and click **Remove**, so only your account can use the share.
+8. Click **OK**, then **OK** again.
+
+There is also a shorter menu: right-click, **Show more options**, **Give access to**, **Specific people**. It sets both kinds of permission for you, but you see less of what it does.
+
+## Step 5: check the folder's own permissions
+
+A shared folder has two sets of permissions: the **share** permissions from step 4, and the folder's own **Security** permissions. Microsoft says Windows applies the more restrictive of the two. So the account needs Read in both places.
+
+1. In the same **Properties** window, open the **Security** tab and click **Edit**.
+2. Click **Add**, type the same account name, and click **OK**.
+3. Tick **Allow** for **Read & execute**. Click **OK** twice.
+
+This matters most for folders inside your user profile, such as Documents or Videos, which do not let other accounts in by default.
+
+## Step 6: find PC A's IP address
+
+On PC A, open Command Prompt and run `ipconfig`. Look for **IPv4 Address** under your Wi-Fi or Ethernet adapter, for example `192.168.1.20`.
+
+An address that starts with `192.168.`, `10.` or `172.16.` to `172.31.` is a private address on your own network. That is the one to use.
+
+## Step 7: open the share on PC B
+
+1. On PC B, open File Explorer.
+2. In the address bar, type two backslashes, the IP, a backslash and the share name, for example `\\192.168.1.20\Games`, and press <kbd>Enter</kbd>.
+3. Sign in with the account from step 3. On a local account, you can type it as `PCNAME\username` or just the user name.
+4. Tick **Remember my credentials** only on your own PC.
+
+Or from Command Prompt:
+
+```text
+net use \\192.168.1.20\Games /user:username
+```
+
+It asks for the password. To copy a big folder from there, use robocopy, which can retry and resume. See [copy a huge folder between two PCs with robocopy](/docs/blog/copy-huge-folders-between-pcs-robocopy-resume).
+
+## Step 8: stop sharing when you are done
+
+On PC A, open the folder's **Properties**, **Sharing**, **Advanced Sharing**, and untick **Share this folder**. If you made an account just for sharing, remove it in **Settings**, **Accounts**, **Other users**. Set the network back to Public if you changed it only for this.
+
+## If it does not work
+
+| What you see on PC B | What it means | Read |
+| --- | --- | --- |
+| "The network path was not found", 0x80070035, error 53 | PC B cannot reach PC A or the share | [System error 53](/docs/troubleshooting/system-error-53-network-path-not-found) |
+| "Windows cannot access", 0x80004005 | A general error; find the real one with `net use` | [0x80004005](/docs/troubleshooting/windows-cannot-access-0x80004005) |
+| "You do not have permission to access", error 5 | Signed in, but the account may not read the folder | [No permission](/docs/troubleshooting/you-do-not-have-permission-to-access) |
+| "The user name or password is incorrect", 1326 | The sign-in was refused | [System error 1326](/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect) |
+| "Multiple connections ... by the same user", 1219 | An old connection uses another account | [System error 1219](/docs/troubleshooting/system-error-1219-multiple-connections) |
+| "...block unauthenticated guest access" | The share wants a guest sign-in | [Guest access blocked](/docs/troubleshooting/guest-access-blocked-windows-11-24h2) |
+| "Network discovery is turned off" | Only the Network list is affected | [Network discovery](/docs/troubleshooting/network-discovery-is-turned-off) |
+
+## A note on security
+
+- **Share only what you mean to.** Share one folder, not a whole drive.
+- **Read-only is enough** to copy files away. Give Change only when the other PC must write.
+- **Use a real account with a password.** It keeps the share closed to anyone else on the network.
+- **Contents are not encrypted by default.** SMB 3 can encrypt a share, but that is off unless you turn it on for the share, for example with `Set-SmbShare -Name Games -EncryptData $true` in PowerShell as administrator. Both PCs must support SMB 3. On Windows 11 24H2 Pro, Enterprise and Education, SMB signing is required by default, which protects against changes in transit but does not hide the data. Microsoft says 24H2 Home does not require signing.
+- **Stop sharing** when the copy is done.
+
+## The same thing with Devpit
+
+[Share Files](/docs/features/share-files) in Devpit does steps 1 to 8 for you on PC A, with one admin prompt:
+
+- asks before it switches a Public network to Private,
+- turns on only the firewall rule for SMB, and only if it is off,
+- creates a temporary login with a new password, which expires by itself after 48 hours,
+- shares the folder **read-only** to that login only, gives it read access to the folder, and checks that nobody else has access,
+- shows a card with the IP, share name, user name, password, and a `net use` and a `robocopy` line for a PC without Devpit.
+
+<Shot name="share-card" />
+
+When you stop sharing, or quit Devpit, it removes the share, the folder permission, the login, the firewall change and the network change. PC B can copy with Devpit (with progress, retry and resume) or with the plain Windows commands on the card.
+
+## Sources
+
+- [Microsoft: File sharing over a network in Windows](https://support.microsoft.com/windows/file-sharing-over-a-network-in-windows-b58704b2-f53a-4b82-7bc1-80f9994725bf)
+- [Microsoft: Essential network settings and tasks in Windows (Public and Private)](https://support.microsoft.com/windows/essential-network-settings-and-tasks-in-windows-f21a9bbc-c582-55cd-35e0-73431160a1b9)
+- [Microsoft: Create a local user or administrator account in Windows](https://support.microsoft.com/windows/create-a-local-user-or-administrator-account-in-windows-20de74e0-ac7f-3502-a866-32915af2a34d)
+- [Microsoft: Can't access shared folders from File Explorer (Advanced Sharing, Security tab)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: Managing permissions for shared folders](https://learn.microsoft.com/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/cc753731(v=ws.10))
+- [Microsoft: Enable insecure guest logons in SMB2 and SMB3 (guest access and 24H2 signing)](https://learn.microsoft.com/windows-server/storage/file-server/enable-insecure-guest-logons-smb2-and-smb3)
+- [Microsoft: SMB security hardening (encryption)](https://learn.microsoft.com/windows-server/storage/file-server/smb-security-hardening)
+- [Microsoft: Set-SmbShare (EncryptData)](https://learn.microsoft.com/powershell/module/smbshare/set-smbshare)
+- [Microsoft: net use](https://learn.microsoft.com/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/gg651155(v=ws.11))
+- [Microsoft: ipconfig](https://learn.microsoft.com/windows-server/administration/windows-commands/ipconfig)
+- [IETF RFC 1918: private address ranges](https://www.rfc-editor.org/rfc/rfc1918)

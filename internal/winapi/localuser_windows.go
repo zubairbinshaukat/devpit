@@ -3,12 +3,14 @@
 package winapi
 
 import (
+	"errors"
 	"runtime"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 // Account flags and levels from lmaccess.h.
@@ -125,10 +127,57 @@ func createLocalUser(name, password string, expires time.Time) error {
 		uintptr(unsafe.Pointer(&member)), 1)
 	runtime.KeepAlive(&member)
 	runtime.KeepAlive(g)
-	if err := netErr(code); err != nil {
+	if err := groupAddErr(code); err != nil {
 		return fail(err)
 	}
+	// The account is for signing in over the network only. Leaving it off
+	// the sign-in screen stops a "devpit-ab12" tile appearing there for as
+	// long as the share runs. It is a nicety: failing to do it is no reason
+	// to fail the share.
+	_ = hideFromSignIn(name, true)
 	return nil
+}
+
+// errMemberInAlias is ERROR_MEMBER_IN_ALIAS: the account is already in the
+// group.
+const errMemberInAlias = 1378
+
+// groupAddErr turns the result of NetLocalGroupAddMembers into an error.
+// "Already a member" is success: depending on the Windows build, NetUserAdd
+// with USER_PRIV_USER may have put the new account in Users already, and
+// failing on that would delete the account again and fail every share.
+func groupAddErr(code uintptr) error {
+	if code == errMemberInAlias {
+		return nil
+	}
+	return netErr(code)
+}
+
+// userListKey is where Windows looks for accounts to leave off the sign-in
+// screen: a DWORD value named after the account, 0 to hide it.
+const userListKey = `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList`
+
+// hideFromSignIn adds or removes the account's value under [userListKey].
+// Only the one value named after the account is touched; the key itself may
+// hold the user's own entries and is never removed.
+func hideFromSignIn(name string, hide bool) error {
+	if !hide {
+		k, err := registry.OpenKey(registry.LOCAL_MACHINE, userListKey, registry.SET_VALUE)
+		if err != nil {
+			return err
+		}
+		defer k.Close() //nolint:errcheck // nothing to do about a failed close
+		if err := k.DeleteValue(name); err != nil && !errors.Is(err, registry.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	k, _, err := registry.CreateKey(registry.LOCAL_MACHINE, userListKey, registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer k.Close() //nolint:errcheck // nothing to do about a failed close
+	return k.SetDWordValue(name, 0)
 }
 
 // deleteLocalUser implements [DeleteLocalUser].
@@ -137,6 +186,7 @@ func deleteLocalUser(name string) error {
 	if err != nil {
 		return err
 	}
+	_ = hideFromSignIn(name, false)
 	code, _, _ := procNetUserDel.Call(0, uintptr(unsafe.Pointer(n)))
 	runtime.KeepAlive(n)
 	return netErr(code)

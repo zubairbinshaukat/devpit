@@ -7,6 +7,9 @@ package winapi
 // uses a Job needs no build tags of its own.
 type Job struct{}
 
+// KilledExitCode is the exit code a Windows job kill gives its processes.
+const KilledExitCode = 1
+
 // NewJob returns a Job that does nothing, and [ErrUnsupported] so a caller
 // can tell there is no real job behind it.
 func NewJob() (*Job, error) { return nil, ErrUnsupported }

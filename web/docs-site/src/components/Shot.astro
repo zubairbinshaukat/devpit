@@ -8,8 +8,8 @@
 // `name` must be listed in shots.json or shots.content.json (both are read
 // and merged). The alt text comes from that entry, so it is written once.
 // The image file is looked up at src/assets/screens/<name>.webp (png, jpg and
-// avif also work). The screenshot agent delivers those files as a separate
-// zip that is unpacked into that folder, so they are not part of any patch.
+// avif also work). `task docs:shots` renders them from the real app and they
+// are committed.
 //
 // Rendering goes through Astro's image pipeline (sharp): AVIF and WebP at
 // several widths with srcset and sizes, explicit width and height so nothing
@@ -17,12 +17,16 @@
 // image marked `priority` is loaded eagerly with high fetch priority, and it
 // should be the first image on the page and above the fold.
 //
+// Every screenshot opens larger on click (or Enter): a lightbox shows it at
+// the size of the window, and a click on the picture shows it at full size.
+// The full-size file is only fetched when someone opens it.
+//
 // Locally a missing file never breaks the build: a neutral placeholder is drawn
 // and `npm run check` lists the name. A production deploy must not ship
 // placeholders, so a missing file is a build error when VERCEL is set (Vercel
-// sets it on every build) or DOCS_REQUIRE_SHOTS=1. Unpack the screenshot zip at
-// the repo root before deploying.
-import { Picture } from 'astro:assets';
+// sets it on every build) or DOCS_REQUIRE_SHOTS=1. Run `task docs:shots` and
+// commit the images before deploying.
+import { getImage, Picture } from 'astro:assets';
 
 interface Props {
   name: string;
@@ -57,7 +61,7 @@ const image = found?.[1].default;
 
 if (!image && (process.env.VERCEL || process.env.DOCS_REQUIRE_SHOTS === '1')) {
   throw new Error(
-    `Missing screenshot src/assets/screens/${name}.webp. A production build (VERCEL or DOCS_REQUIRE_SHOTS=1) needs every screenshot: unpack the screenshot zip at the repo root first.`,
+    `Missing screenshot src/assets/screens/${name}.webp. A production build (VERCEL or DOCS_REQUIRE_SHOTS=1) needs every screenshot: run \`task docs:shots\` at the repo root and commit the images.`,
   );
 }
 
@@ -66,22 +70,49 @@ const text = alt ?? entry.alt;
 // the picture's aspect ratio. The placeholder reserves the same space the image
 // will take, so filling the image in later moves nothing.
 const ratio = entry.cols && entry.rows ? `${entry.cols} / ${Math.round(entry.rows * 2.1)}` : '16 / 9';
+
+// The lightbox copy: the full rendered size (the screenshots are drawn at 2x),
+// as WebP. Astro emits it with the others; the browser fetches it on open.
+const full = image ? await getImage({ src: image, width: image.width, format: 'webp', quality: 90 }) : undefined;
 ---
 
 <figure class="shot">
   {
-    image ? (
-      <Picture
-        src={image}
-        alt={text}
-        formats={['avif', 'webp']}
-        fallbackFormat="webp"
-        widths={[480, 736, 960, 1472]}
-        sizes="(min-width: 50rem) 46rem, calc(100vw - 2rem)"
-        loading={priority ? 'eager' : 'lazy'}
-        decoding={priority ? 'sync' : 'async'}
-        fetchpriority={priority ? 'high' : 'auto'}
-      />
+    image && full ? (
+      <button
+        type="button"
+        class="shot__open"
+        data-shot-full={full.src}
+        data-shot-width={image.width}
+        data-shot-alt={text}
+        aria-haspopup="dialog"
+        aria-label={`Enlarge screenshot: ${text}`}
+      >
+        <Picture
+          src={image}
+          alt={text}
+          formats={['avif', 'webp']}
+          fallbackFormat="webp"
+          widths={[480, 736, 960, 1472]}
+          sizes="(min-width: 50rem) 46rem, calc(100vw - 2rem)"
+          loading={priority ? 'eager' : 'lazy'}
+          decoding={priority ? 'sync' : 'async'}
+          fetchpriority={priority ? 'high' : 'auto'}
+        />
+        <span class="shot__hint" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <path
+              d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Zoom
+        </span>
+      </button>
     ) : (
       <div
         class="shot-missing"
@@ -96,19 +127,166 @@ const ratio = entry.cols && entry.rows ? `${entry.cols} / ${Math.round(entry.row
   {caption && <figcaption>{caption}</figcaption>}
 </figure>
 
+<script>
+  // One lightbox for the whole page, built the first time a screenshot is
+  // opened. It is a native <dialog>: Esc closes it, focus stays inside while
+  // it is open, and it goes back to the screenshot on close.
+  let dialog: HTMLDialogElement | undefined;
+  let opener: HTMLElement | undefined;
+
+  function build(): HTMLDialogElement {
+    const d = document.createElement('dialog');
+    d.className = 'shot-lightbox';
+    d.setAttribute('aria-label', 'Screenshot');
+    d.innerHTML = `
+      <div class="shot-lightbox__stage" data-fit>
+        <img class="shot-lightbox__img" alt="" decoding="async" />
+      </div>
+      <div class="shot-lightbox__bar">
+        <p class="shot-lightbox__caption"></p>
+        <span class="shot-lightbox__tip">Click the picture to zoom · Esc to close</span>
+        <button type="button" class="shot-lightbox__close" aria-label="Close">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
+    const stage = d.querySelector<HTMLElement>('.shot-lightbox__stage')!;
+    const img = d.querySelector<HTMLImageElement>('.shot-lightbox__img')!;
+    d.querySelector('.shot-lightbox__close')!.addEventListener('click', () => d.close());
+    // A click on the dark space around the picture closes it, like every lightbox.
+    d.addEventListener('click', (e) => {
+      if (e.target === d || e.target === stage) d.close();
+    });
+    // A click on the picture swaps between "fit the window" and full size,
+    // zooming towards the point that was clicked.
+    img.addEventListener('click', (e) => {
+      const fit = stage.hasAttribute('data-fit');
+      const r = img.getBoundingClientRect();
+      const fx = (e.clientX - r.left) / r.width;
+      const fy = (e.clientY - r.top) / r.height;
+      if (fit) {
+        // Zoom always magnifies: at least 1.6 times the fitted size, or the
+        // picture's own pixels on this screen if that is larger.
+        const own = Number(img.dataset.pixels || 0) / (window.devicePixelRatio || 1);
+        img.style.width = `${Math.round(Math.max(own, r.width * 1.6))}px`;
+      } else {
+        img.style.width = '';
+      }
+      stage.toggleAttribute('data-fit', !fit);
+      if (fit) {
+        requestAnimationFrame(() => {
+          stage.scrollLeft = fx * img.offsetWidth - stage.clientWidth / 2;
+          stage.scrollTop = fy * img.offsetHeight - stage.clientHeight / 2;
+        });
+      }
+    });
+    d.addEventListener('close', () => {
+      document.documentElement.classList.remove('shot-lightbox-open');
+      opener?.focus({ preventScroll: true });
+    });
+    document.body.append(d);
+    return d;
+  }
+
+  function open(button: HTMLElement): void {
+    dialog ??= build();
+    opener = button;
+    const img = dialog.querySelector<HTMLImageElement>('.shot-lightbox__img')!;
+    const stage = dialog.querySelector<HTMLElement>('.shot-lightbox__stage')!;
+    const { shotFull, shotAlt, shotWidth } = button.dataset;
+    img.dataset.pixels = shotWidth ?? '';
+    img.style.width = '';
+    // Show the thumbnail the page already has while the big file arrives.
+    const thumb = button.querySelector('img');
+    img.src = thumb?.currentSrc || shotFull || '';
+    if (shotFull) {
+      const big = new Image();
+      big.onload = () => {
+        if (dialog?.open && opener === button) img.src = shotFull;
+      };
+      big.src = shotFull;
+    }
+    img.alt = shotAlt ?? '';
+    dialog.querySelector('.shot-lightbox__caption')!.textContent = shotAlt ?? '';
+    stage.setAttribute('data-fit', '');
+    document.documentElement.classList.add('shot-lightbox-open');
+    dialog.showModal();
+    dialog.querySelector<HTMLButtonElement>('.shot-lightbox__close')!.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('click', (e) => {
+    const button = (e.target as Element | null)?.closest<HTMLElement>('.shot__open');
+    if (button) open(button);
+  });
+</script>
+
 <style>
   .shot {
     margin: 1.5rem 0;
+  }
+  .shot__open {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dp-r, 0.8rem);
+    background: none;
+    cursor: zoom-in;
+    transition:
+      transform var(--dp-slow, 260ms) var(--dp-ease, ease),
+      box-shadow var(--dp-slow, 260ms) var(--dp-ease, ease);
+  }
+  .shot__open:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--dp-shadow);
+  }
+  .shot__open:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 3px;
   }
   .shot :global(img) {
     display: block;
     width: 100%;
     height: auto;
-    border-radius: 0.75rem;
+    border-radius: var(--dp-r, 0.8rem);
     border: 1px solid var(--sl-color-hairline);
   }
   .shot :global(picture) {
     display: block;
+  }
+  .shot__hint {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: rgb(17 17 27 / 0.72);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: #edeef7;
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      opacity var(--dp-fast, 160ms) var(--dp-ease, ease),
+      transform var(--dp-fast, 160ms) var(--dp-ease, ease);
+    pointer-events: none;
+  }
+  .shot__open:hover .shot__hint,
+  .shot__open:focus-visible .shot__hint {
+    opacity: 1;
+    transform: none;
+  }
+  /* On touch screens there is no hover: keep the hint visible. */
+  @media (hover: none) {
+    .shot__hint {
+      opacity: 1;
+      transform: none;
+    }
   }
   /* The words are drawn by CSS so they are not page text: nothing is indexed. */
   .shot-missing::after {
@@ -120,14 +298,131 @@ const ratio = entry.cols && entry.rows ? `${entry.cols} / ${Math.round(entry.row
     padding: 1.5rem;
     text-align: center;
     border: 1px dashed var(--sl-color-gray-4);
-    border-radius: 0.75rem;
+    border-radius: var(--dp-r, 0.8rem);
     background: var(--sl-color-bg-nav);
     color: var(--sl-color-gray-2);
   }
   figcaption {
-    margin-top: 0.5rem;
+    margin-top: 0.6rem;
     font-size: var(--sl-text-sm);
     color: var(--sl-color-gray-3);
     text-align: center;
+  }
+
+  /* --- The lightbox (built by the script, so its rules are global). ------- */
+  :global(html.shot-lightbox-open) {
+    overflow: hidden;
+  }
+  :global(.shot-lightbox) {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #edeef7;
+  }
+  :global(.shot-lightbox[open]) {
+    display: flex;
+    flex-direction: column;
+    animation: shot-in var(--dp-slow, 260ms) var(--dp-ease, ease);
+  }
+  :global(.shot-lightbox::backdrop) {
+    background: rgb(10 10 18 / 0.82);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  :global(.shot-lightbox__stage) {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    padding: clamp(0.75rem, 3vw, 2.5rem);
+    overscroll-behavior: contain;
+  }
+  :global(.shot-lightbox__img) {
+    margin: auto;
+    max-width: none;
+    height: auto;
+    border-radius: var(--dp-r-lg, 1.1rem);
+    box-shadow: 0 30px 90px -20px rgb(0 0 0 / 0.7);
+    cursor: zoom-out;
+  }
+  :global(.shot-lightbox__stage[data-fit] .shot-lightbox__img) {
+    width: auto;
+    max-width: 100%;
+    max-height: calc(100dvh - 7rem);
+    cursor: zoom-in;
+    animation: shot-pop var(--dp-slow, 260ms) var(--dp-ease, ease);
+  }
+  :global(.shot-lightbox__bar) {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem clamp(0.75rem, 3vw, 2.5rem) 1rem;
+  }
+  :global(.shot-lightbox__caption) {
+    flex: 1;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    line-height: 1.45;
+    color: #cdd6f4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  :global(.shot-lightbox__tip) {
+    flex-shrink: 0;
+    font-size: var(--sl-text-xs);
+    color: #8b91ab;
+  }
+  :global(.shot-lightbox__close) {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.06);
+    color: #edeef7;
+    cursor: pointer;
+    transition:
+      background-color var(--dp-fast, 160ms) var(--dp-ease, ease),
+      transform var(--dp-fast, 160ms) var(--dp-ease, ease);
+  }
+  :global(.shot-lightbox__close:hover) {
+    background: rgb(255 255 255 / 0.14);
+    transform: rotate(90deg);
+  }
+  @media (max-width: 40rem) {
+    :global(.shot-lightbox__tip) {
+      display: none;
+    }
+  }
+  @keyframes shot-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes shot-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shot__open,
+    .shot__open:hover {
+      transform: none;
+      transition: none;
+    }
+    :global(.shot-lightbox[open]),
+    :global(.shot-lightbox__stage[data-fit] .shot-lightbox__img) {
+      animation: none;
+    }
   }
 </style>

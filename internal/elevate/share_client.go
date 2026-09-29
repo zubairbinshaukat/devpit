@@ -39,6 +39,10 @@ func (c *Client) Share(ctx context.Context, req ShareRequest, onLine func(text s
 				return nil
 			}
 		case <-ctx.Done():
+			// Stop the operation in the worker too, and wait (briefly) for
+			// it to end, so the stop the caller sends next is not queued
+			// behind an operation nobody is waiting for.
+			c.cancelJob(id, ch)
 			return ctx.Err()
 		}
 	}

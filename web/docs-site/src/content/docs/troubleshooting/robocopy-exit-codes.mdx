@@ -59,7 +59,7 @@ Only [Share Files](/docs/features/share-files) runs robocopy.
 It copies big folders between two PCs with live progress, automatic retry and resume.
 It reads robocopy's log, so it works in any Windows language.
 At the end it shows a clear "Done", or a list of the files that failed with a reason for each, so you do not have to read exit codes.
-It uses `/E /XJ /MT:16 /Z /R:3 /W:5`.
+It uses `/E /XJ /XO /MT:16 /Z /R:3 /W:5`. `/XO` keeps a file that is newer on the receiving PC instead of overwriting it with an older copy, and it never uses `/MIR` or `/PURGE`, so nothing on the receiving PC is ever deleted.
 
 ## The manual fix
 

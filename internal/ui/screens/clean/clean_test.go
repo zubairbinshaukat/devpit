@@ -450,6 +450,14 @@ func TestLockedItemOffersRetry(t *testing.T) {
 			t.Errorf("the summary is missing %q:\n%s", want, out)
 		}
 	}
+	// Once in the card and once as the notice under it; never a third,
+	// orphaned "Close it and press R to retry." line.
+	if n := strings.Count(out, "press R to retry"); n != 2 {
+		t.Errorf("the retry instruction appears %d times, want 2 (card and notice):\n%s", n, out)
+	}
+	if n := strings.Count(out, `api\node_modules`); n != 2 {
+		t.Errorf(`api\node_modules is named %d times, want 2 (card and notice):`+"\n%s", n, out)
+	}
 
 	h.send(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	h.settle()

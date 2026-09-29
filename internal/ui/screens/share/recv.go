@@ -481,8 +481,14 @@ func waitCopy(st *copyStream) tea.Cmd {
 func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 	m.stream = nil
 	m.out = msg.out
-	m.rcv.Disconnect(m.host, m.share)
 	m.creds = netstat.Credentials{}
+	// The connection is closed only when the copy is finished. A failed,
+	// stopped or broken copy keeps it: "r" and Resume run robocopy again
+	// without signing in, and Windows would then try this PC's own account
+	// on the other PC and fail every file with an access error.
+	if msg.err == nil && msg.out.Done {
+		m.rcv.Disconnect(m.host, m.share)
+	}
 	switch {
 	case msg.err != nil:
 		return m.fail(msg.err, errmap.PhaseCopy, func(s recvScreen) (recvScreen, tea.Cmd) {

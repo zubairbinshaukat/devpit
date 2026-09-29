@@ -570,12 +570,26 @@ func Codes() []CodeInfo {
 }
 
 // installerExitPattern finds the exit code winget prints after an installer
-// it ran fails: "Installer failed with exit code: 1603". It is English text;
-// under another display language the winget code alone is used.
-var installerExitPattern = regexp.MustCompile(`(?i)exit code:?\s*(\d{1,10})`)
+// it ran fails: "Installer failed with exit code: 1603", or, for an installer
+// that crashed, the unsigned status "exit code: 3221226505" (a relayed one
+// may be the signed "-1073740791"). The trailing \b keeps "exit code:
+// 0x80073d28" out: that one is hex and [hexPattern] reads it. It is English
+// text; under another display language the winget code alone is used.
+var installerExitPattern = regexp.MustCompile(`(?i)exit code:?\s*(-?\d{1,10})\b`)
 
 // hexPattern finds a code written as 0x followed by eight hex digits.
 var hexPattern = regexp.MustCompile(`(?i)\b0x([0-9a-f]{8})\b`)
+
+// parseExitCode reads a decimal exit code as the DWORD Windows keeps it: the
+// unsigned value, or the signed int32 spelling of the same bits.
+func parseExitCode(s string) (uint32, bool) {
+	if strings.HasPrefix(s, "-") {
+		n, err := strconv.ParseInt(s, 10, 32)
+		return uint32(int32(n)), err == nil //nolint:gosec // deliberate wrap: the int32 and uint32 forms of an exit code are the same code.
+	}
+	n, err := strconv.ParseUint(s, 10, 32)
+	return uint32(n), err == nil
+}
 
 // explainFromOutput looks for a code in winget's output when its own exit
 // code was a general failure that hides the real one: the exit code the
@@ -583,8 +597,10 @@ var hexPattern = regexp.MustCompile(`(?i)\b0x([0-9a-f]{8})\b`)
 func explainFromOutput(lines []string) (codeRow, bool) {
 	for i := len(lines) - 1; i >= 0; i-- {
 		if m := installerExitPattern.FindStringSubmatch(lines[i]); m != nil {
-			if n, err := strconv.ParseUint(m[1], 10, 32); err == nil {
-				if r, ok := lookupCode("choco", uint32(n)); ok && r.family == FamilyInstaller { // the Windows Installer rows are keyed to choco
+			if code, ok := parseExitCode(m[1]); ok {
+				// The Windows Installer rows are keyed to choco; a crash
+				// status means the same from any installer.
+				if r, ok := lookupCode("choco", code); ok && (r.family == FamilyInstaller || r.family == FamilyCrash) {
 					return r, true
 				}
 			}

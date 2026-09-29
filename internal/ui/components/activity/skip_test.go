@@ -46,7 +46,7 @@ func TestStuckRowHintsAtSkip(t *testing.T) {
 	c := ctx(100)
 	r := activity.Row{Label: "Docker Desktop", State: activity.Running, Percent: -1, Detail: "Downloading", Stuck: 3*time.Minute + 5*time.Second}
 	got := ansi.Strip(activity.RowView(c, r, 0, 100, 20))
-	if !strings.Contains(got, "no output for 3m 05s") || !strings.Contains(got, "press s to skip") {
+	if !strings.Contains(got, "no output for 3m 05s") || !strings.Contains(got, "press s twice to skip") {
 		t.Errorf("row = %q", got)
 	}
 	if strings.Contains(got, "Downloading") {
@@ -76,16 +76,59 @@ func TestNextSteps(t *testing.T) {
 		{Label: "Node", State: activity.Done},
 	}
 	block, n := activity.NextSteps(c, rs, 60)
-	if n != 2 {
-		t.Errorf("lines = %d, want 2 (heading and one step)", n)
-	}
 	plain := ansi.Strip(block)
+	lines := strings.Split(plain, "\n")
+	if n != len(lines) || n < 3 {
+		t.Errorf("lines = %d for %d drawn; a step wider than the screen must wrap:\n%s", n, len(lines), plain)
+	}
 	if !strings.Contains(plain, "What to do next") || !strings.Contains(plain, "Git: Retry: winget") {
 		t.Errorf("block = %q", plain)
 	}
-	for _, line := range strings.Split(plain, "\n") {
+	var words []string
+	for _, line := range lines[1:] {
 		if ansi.StringWidth(line) > 60 {
 			t.Errorf("line too wide: %q", line)
 		}
+		words = append(words, strings.Fields(line)...)
+	}
+	// Every character of the command is on screen, in order, and no word
+	// was split: it can be typed from what is shown.
+	want := "Git: Retry: winget upgrade --id Git.Git -e --silent --accept-package-agreements"
+	if got := strings.Join(words, " "); got != want {
+		t.Errorf("wrapped step reads %q, want %q", got, want)
+	}
+	if strings.Contains(plain, "…") {
+		t.Errorf("a step was cut: %q", plain)
+	}
+}
+
+func TestFitNextStepsDropsWholeStepsOnly(t *testing.T) {
+	c := ctx(40)
+	var rs []activity.Row
+	for _, name := range []string{"Alpha", "Bravo", "Charlie", "Delta"} {
+		rs = append(rs, activity.Row{Label: name, State: activity.Failed, Next: "Run: winget upgrade --id Contoso." + name + " -e --silent"})
+	}
+	block, n := activity.NextSteps(c, rs, 40)
+	for maxLines := 2; maxLines <= n; maxLines++ {
+		got, h := activity.FitNextSteps(c, block, n, maxLines)
+		plain := ansi.Strip(got)
+		if h > maxLines || h != len(strings.Split(plain, "\n")) {
+			t.Fatalf("max %d: height %d for\n%s", maxLines, h, plain)
+		}
+		// Each kept step is complete: its command ends in "-silent".
+		for _, name := range []string{"Alpha", "Bravo", "Charlie", "Delta"} {
+			if i := strings.Index(plain, name+":"); i >= 0 && maxLines > 3 && !strings.Contains(plain[i:], "--silent") {
+				t.Errorf("max %d: step %s is shown half:\n%s", maxLines, name, plain)
+			}
+		}
+		if maxLines < n && !strings.Contains(plain, "more") {
+			t.Errorf("max %d: nothing says steps were left out:\n%s", maxLines, plain)
+		}
+	}
+	if got, h := activity.FitNextSteps(c, block, n, 1); got != "" || h != 0 {
+		t.Errorf("no room should drop the block, got %d lines", h)
+	}
+	if got, h := activity.FitNextSteps(c, block, n, n); got != block || h != n {
+		t.Error("a block that fits must come back unchanged")
 	}
 }

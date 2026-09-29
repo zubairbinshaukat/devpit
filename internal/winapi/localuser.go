@@ -5,7 +5,9 @@ import "time"
 // CreateLocalUser makes a local Windows account that can sign in over the
 // network: a plain user with a password that never changes, expiring on the
 // given time as a safety net for the day a cleanup never runs. The password
-// goes to Windows in memory, never through a command line.
+// goes to Windows in memory, never through a command line. The account is
+// also left off the sign-in screen (Winlogon SpecialAccounts\UserList), and
+// [DeleteLocalUser] takes that entry away again.
 func CreateLocalUser(name, password string, expires time.Time) error {
 	return createLocalUser(name, password, expires)
 }

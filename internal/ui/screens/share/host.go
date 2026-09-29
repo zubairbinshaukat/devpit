@@ -524,9 +524,13 @@ func (m hostScreen) cardView(ctx uictx.Context) string {
 	body.WriteString(label("Share") + th.Base.Render(c.Share) + "\n")
 	body.WriteString(label("User") + th.Base.Render(c.User) + "\n")
 	body.WriteString(label("Password") + th.Base.Bold(true).Render(c.Password) + "\n\n")
-	body.WriteString(th.Muted.Render("On a PC without Devpit, type these two lines:") + "\n")
-	body.WriteString("  " + th.Base.Render(fit(c.NetUse, max(ctx.Width-10, 20))) + "\n")
-	body.WriteString("  " + th.Base.Render(fit(c.Robocopy, max(ctx.Width-10, 20))) + "\n\n")
+	body.WriteString(th.Muted.Render("On a PC without Devpit, type these two commands:") + "\n")
+	// The commands wrap rather than being cut: they are read off this screen
+	// and typed on the other PC, so every character has to be there.
+	room := max(ctx.Width-8, 20)
+	body.WriteString(th.Base.Render(activity.WrapCommand(c.NetUse, "  ", room)) + "\n")
+	body.WriteString(th.Base.Render(activity.WrapCommand(c.Robocopy, "  ", room)) + "\n")
+	body.WriteString(th.Muted.Render("The copy lands in a new folder where that terminal is open.") + "\n\n")
 	body.WriteString(th.Muted.Render("The login is temporary and can only read this folder."))
 	if c.SwitchedNetwork {
 		body.WriteString("\n" + th.Muted.Render("The network was switched to Private. It goes back when you stop."))

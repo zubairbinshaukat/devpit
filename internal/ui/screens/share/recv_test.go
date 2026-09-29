@@ -105,6 +105,34 @@ func TestReceiveHappyPathWithNoLoginNeeded(t *testing.T) {
 	}
 }
 
+// TestAFailedCopyKeepsTheSignInSoTryAgainWorks pins a bug: the screen closed
+// the connection to the share after every run, so "r" on the failed-files
+// screen ran robocopy with no sign-in, and on a real PC every file then
+// failed with an access error. Only a finished copy disconnects.
+func TestAFailedCopyKeepsTheSignInSoTryAgainWorks(t *testing.T) {
+	r := newRecvFake()
+	r.outcome = recv.Outcome{Message: "Some files could not be copied.", Failed: []recv.FailedFile{{Path: `\\192.168.1.5\Games\a`, Code: 32}}}
+	h := newRecvHarness(t, r)
+	toShares(h)
+	h.send(keyCode(tea.KeyEnter))
+	h.typed("bob").send(keyCode(tea.KeyTab)).typed("pw").send(keyCode(tea.KeyEnter))
+	h.send(chosen(`D:\Games`), keyCode(tea.KeyEnter))
+	if h.scr.(recvScreen).stage != recvFailed {
+		t.Fatalf("stage %d\n%s", h.scr.(recvScreen).stage, h.view())
+	}
+	if len(r.disconnect) != 0 {
+		t.Fatalf("a failed copy closed the connection: %v", r.disconnect)
+	}
+	r.outcome = recv.Outcome{Done: true, Message: "All files were copied."}
+	h.send(text("r"))
+	if r.called("run") != 2 || h.scr.(recvScreen).stage != recvDone {
+		t.Fatalf("runs %d, stage %d", r.called("run"), h.scr.(recvScreen).stage)
+	}
+	if len(r.disconnect) != 1 {
+		t.Errorf("disconnects after the finished retry = %v, want one", r.disconnect)
+	}
+}
+
 func TestAPCThatNeedsALoginToListAsksOnceAndReusesIt(t *testing.T) {
 	r := newRecvFake()
 	r.listErr = syscall.Errno(5)

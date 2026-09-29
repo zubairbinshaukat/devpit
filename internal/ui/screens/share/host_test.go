@@ -12,6 +12,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
 	"github.com/zubairbinshaukat/devpit/internal/share/host"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/activity"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/pathpicker"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
@@ -251,5 +252,31 @@ func TestSetupProgressListsTheStepsAsTheyHappen(t *testing.T) {
 	}
 	if strings.Contains(v, "Switch the network to Private") {
 		t.Error("the network step is listed although the network was not switched")
+	}
+}
+
+// A command read off the card and typed on another PC must arrive whole: it
+// wraps at spaces, and joining the lines back gives the command exactly.
+func TestTheCardsCommandsWrapAndAreNeverCut(t *testing.T) {
+	cmd := `robocopy \\192.168.1.5\Games-x7k2 ".\Games-x7k2" /E /Z /MT:16 /R:3 /W:5 /XO`
+	for _, width := range []int{30, 50, 72, 200} {
+		out := activity.WrapCommand(cmd, "  ", width)
+		var parts []string
+		for _, l := range strings.Split(out, "\n") {
+			if w := len([]rune(l)); w > width && width > 12 {
+				t.Errorf("width %d: line %q is %d wide", width, l, w)
+			}
+			parts = append(parts, strings.TrimSpace(l))
+		}
+		if got := strings.Join(parts, " "); got != cmd {
+			t.Errorf("width %d: rejoined %q, want %q", width, got, cmd)
+		}
+		if strings.Contains(out, "…") {
+			t.Errorf("width %d: the command was cut: %q", width, out)
+		}
+	}
+	h := newHostHarness(t, newFakeHoster(), new([]string)).send(chosen(`D:\Games`))
+	if v := h.view(); !strings.Contains(v, "/W:5 /XO") && !strings.Contains(v, "/XO") {
+		t.Errorf("the card lost the end of the robocopy line:\n%s", v)
 	}
 }

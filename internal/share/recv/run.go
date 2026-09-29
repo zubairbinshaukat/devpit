@@ -222,6 +222,9 @@ func (s *Session) runOnce(ctx context.Context, j job.Job, attempt int, meter *ne
 	}
 	src := netstat.UNC(j.Host, j.Share)
 	log := s.deps.Log(logPath)
+	// Robo.Copy has read the whole log by the time it returns, and every
+	// return below waits for it.
+	defer s.dropLog(logPath)
 
 	progCh := make(chan robocopy.Progress, 1)
 	type done struct {
@@ -245,7 +248,12 @@ func (s *Session) runOnce(ctx context.Context, j job.Job, attempt int, meter *ne
 
 	var cur robocopy.Progress
 	if meter != nil {
-		meter.Sample() // baseline for this run
+		// Baseline for this run. Without Rebase, "received" kept counting
+		// from the first run, so after a network drop the second run started
+		// with the first run's bytes added on top of what was already saved,
+		// and the bar jumped to nearly full.
+		meter.Rebase()
+		meter.Sample()
 	}
 	tick := time.NewTicker(s.deps.Tick)
 	defer tick.Stop()

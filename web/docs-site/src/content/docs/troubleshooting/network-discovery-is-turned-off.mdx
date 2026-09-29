@@ -1,0 +1,83 @@
+---
+title: "Network discovery is turned off. Network computers and devices are not visible"
+seoTitle: "Network discovery is turned off: fix it on Windows 11"
+description: "Fix 'Network discovery is turned off' on Windows 11, why it keeps turning off, and how to open a shared PC by its IP address without it."
+sidebar:
+  label: "Network discovery is off"
+published: 2026-09-29
+related:
+  - features/share-files
+  - troubleshooting/system-error-53-network-path-not-found
+  - troubleshooting/windows-cannot-access-0x80004005
+  - blog/share-a-folder-on-windows-11
+faq:
+  - question: "Do I need network discovery to copy files from another PC?"
+    answer: "No. Network discovery only fills the Network list in File Explorer. If you type the address of the share, for example \\\\192.168.1.20\\share, Windows connects to it directly without the list."
+  - question: "Why does network discovery keep turning itself off?"
+    answer: "Windows keeps one set of sharing settings for Private networks and one for Public networks. If your Wi-Fi is set to Public, the Public settings apply, and there network discovery is normally off. Set the network you trust to Private and turn discovery on under Private."
+  - question: "Is it safe to turn on network discovery?"
+    answer: "On your own home or office network that you trust, it is normal. On a cafe, hotel or airport Wi-Fi, leave the network as Public so your PC is not visible to strangers."
+---
+
+Windows shows this at the top of the **Network** folder in File Explorer. The full text is: "Network discovery is turned off. Network computers and devices are not visible. Please turn on network discovery in Network and Sharing Center."
+
+It means your PC is not looking for other PCs on the network, so the Network list stays empty. It does not mean the network is broken.
+
+## What it means
+
+Network discovery is a setting that decides whether your PC can find other PCs and devices on the network, and whether they can find yours. Windows keeps this setting separately for **Private** and **Public** networks.
+
+Discovery only fills the list you browse. Opening a shared folder by its address does not need it. If you type `\\192.168.1.20\share` in the File Explorer address bar, Windows goes straight to that PC.
+
+## Why it happens
+
+- **The network is set to Public.** Windows 11 marks **Public network** as "Recommended", so many networks are Public. Microsoft says that on a Public network your PC is hidden from other devices. On a Private network it is discoverable and can share files, and Microsoft says to use Private only when you know and trust the people and devices on it.
+- **Discovery is off for Private networks too.** Someone turned it off, or it was never turned on.
+- **A service it needs is not running.** Microsoft lists these services for network discovery: **DNS Client**, **Function Discovery Resource Publication**, **SSDP Discovery** and **UPnP Device Host**. Its File Explorer guide also names **Function Discovery Provider Host**.
+- **A firewall blocks it.** The Windows firewall needs the **Network discovery** feature allowed. A third-party firewall can block it too.
+
+If you turn discovery on and it switches back off after you save, Microsoft says the usual cause is one of the last two: a stopped service or a firewall.
+
+## How Devpit fixes or avoids it
+
+Devpit does not change the network discovery setting.
+
+[Share Files](/docs/features/share-files) does not need it.
+The receiving PC types the sharing PC's IP address, which is shown on the sharing PC's card, and Devpit lists the shared folders at that address.
+If the sharing PC's network is set to **Public**, Devpit asks before it switches it to **Private**, because Windows blocks file sharing on a Public network. When you stop sharing, Devpit puts it back.
+
+## The manual fix
+
+### 1. Set your own network to Private
+
+Do this only for a network you trust, such as your home Wi-Fi.
+
+1. Open **Settings**, then **Network & internet**.
+2. Choose **Wi-Fi** (or **Ethernet**), then the network you are connected to.
+3. Under **Network profile type**, choose **Private network**. The other choice is **Public network (Recommended)**.
+
+### 2. Turn on network discovery for Private networks
+
+1. Open **Settings**, **Network & internet**, **Advanced network settings**, **Advanced sharing settings**. (Or type `manage advanced sharing settings` in Start.)
+2. Under **Private networks**, turn on **Network discovery** and **File and printer sharing**.
+
+On older builds the same switches are in **Control Panel**, **Network and Internet**, **Network and Sharing Center**, **Advanced sharing settings**: select **Turn on network discovery**, then **Save changes**.
+
+### 3. If the setting does not stay on
+
+1. Press <kbd>Win</kbd>+<kbd>R</kbd>, type `services.msc` and press <kbd>Enter</kbd>.
+2. Find each of these services and check that it is running: **DNS Client**, **Function Discovery Resource Publication**, **Function Discovery Provider Host**, **SSDP Discovery**, **UPnP Device Host**. For a stopped one, open it, set **Startup type** to **Automatic**, click **Start**, then **OK**.
+3. Open **Control Panel**, **System and Security**, **Windows Defender Firewall**, then **Allow an app or feature through Windows Defender Firewall**. Click **Change settings**, tick **Network discovery** for **Private**, and click **OK**.
+4. If you use another firewall or security suite, allow network discovery there too.
+5. Turn discovery on again (step 2 above). Microsoft also says to restart the PC after you change the services.
+
+### 4. Or skip the list
+
+If you know the other PC's IP address, you do not need the list at all. Type `\\IP\sharename` in the File Explorer address bar. If that fails with "The network path was not found", see [system error 53](/docs/troubleshooting/system-error-53-network-path-not-found). If it fails with 0x80004005, see [Windows cannot access \\\\PC](/docs/troubleshooting/windows-cannot-access-0x80004005).
+
+## Sources
+
+- [Microsoft: Can't turn on Network Discovery (services and firewall)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-turn-on-network-discovery)
+- [Microsoft: Can't access shared folders from File Explorer (Function Discovery services, Advanced sharing settings)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: File sharing over a network in Windows](https://support.microsoft.com/windows/file-sharing-over-a-network-in-windows-b58704b2-f53a-4b82-7bc1-80f9994725bf)
+- [Microsoft: Essential network settings and tasks in Windows (public and private networks)](https://support.microsoft.com/windows/essential-network-settings-and-tasks-in-windows-f21a9bbc-c582-55cd-35e0-73431160a1b9)

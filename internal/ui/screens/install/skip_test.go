@@ -131,6 +131,31 @@ func TestSkipNeedsTwoPressesAndStopsOnlyThatApp(t *testing.T) {
 	}
 }
 
+// Skip pressed as the install finished: it went through, so it counts as
+// installed, and pressing s once the app is done stops nothing else.
+func TestSkipRacingTheFinishKeepsTheResult(t *testing.T) {
+	seen := make(chan context.Context, 1)
+	run := func(ctx context.Context, argv []string, _ time.Duration, _ func(string)) tools.StepResult {
+		if strings.Contains(strings.Join(argv, " "), "Pub.AppA") {
+			seen <- ctx
+			<-ctx.Done()
+			return tools.StepResult{OK: true} // exited 0 on its own in the same instant
+		}
+		return tools.StepResult{OK: true}
+	}
+	m := twoAppRun(t, run, newClock())
+	<-seen
+	m = press(t, m, 's', "s")
+	m = press(t, m, 's', "s")
+	m = pump(t, m, func(m Model) bool { return m.state == stateSummary })
+	if a := m.jobs[0]; a.State != activity.Done || a.Next != "" {
+		t.Errorf("AppA row = %+v, want installed", a)
+	}
+	if b := m.jobs[1]; b.State != activity.Done {
+		t.Errorf("AppB row = %+v, want installed", b)
+	}
+}
+
 // Another key between the two presses, or waiting too long, starts over.
 func TestSkipGateDisarmsOnOtherKeysAndExpires(t *testing.T) {
 	seen := make(chan context.Context, 1)
@@ -181,7 +206,7 @@ func TestStuckAppGetsAHintToSkip(t *testing.T) {
 	clk.advance(activity.StuckAfter + time.Second)
 	next, _ := m.Update(runBatchMsg{}, testCtx())
 	m = next.(Model)
-	if out := ansi.Strip(m.View(testCtx())); !strings.Contains(out, "no output for 3m") || !strings.Contains(out, "press s to skip") {
+	if out := ansi.Strip(m.View(testCtx())); !strings.Contains(out, "no output for 5m") || !strings.Contains(out, "press s twice to skip") {
 		t.Errorf("no hint in the view:\n%s", out)
 	}
 	next, _ = m.Update(runBatchMsg{events: []runEvent{{line: "Downloading"}}}, testCtx())

@@ -28,28 +28,38 @@ func allowedRemoveRoots() []string {
 	return roots
 }
 
-// isUnderRoot reports whether path is root itself or a descendant of it,
-// comparing case-insensitively since these are all Windows paths.
+// isUnderRoot reports whether path is a descendant of root, comparing
+// case-insensitively since these are all Windows paths. The root itself does
+// not count: deleting %WINDIR%\Temp as a whole is never a cleanup.
 func isUnderRoot(path, root string) bool {
 	p := filepath.Clean(path)
 	r := filepath.Clean(root)
-	if strings.EqualFold(p, r) {
-		return true
-	}
-	return strings.HasPrefix(strings.ToLower(p), strings.ToLower(r)+string(filepath.Separator))
+	return strings.HasPrefix(strings.ToLower(p), strings.ToLower(r)+string(filepath.Separator)) &&
+		len(p) > len(r)+1
 }
 
-// validateRemovePath refuses anything outside [allowedRemoveRoots], saying
-// why so the TUI can show a real reason instead of "failed".
-func validateRemovePath(path string) error {
+// removeRoot returns the allowed cleanup root path is under and path's
+// place inside it, or a refusal saying why so the TUI can show a real reason
+// instead of "failed".
+func removeRoot(path string) (root, rel string, err error) {
 	if path == "" {
-		return fmt.Errorf("refused: empty path")
+		return "", "", fmt.Errorf("refused: empty path")
 	}
-	for _, root := range allowedRemoveRoots() {
-		if isUnderRoot(path, root) {
-			return nil
+	for _, r := range allowedRemoveRoots() {
+		if isUnderRoot(path, r) {
+			rel, err := filepath.Rel(filepath.Clean(r), filepath.Clean(path))
+			if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+				break
+			}
+			return filepath.Clean(r), rel, nil
 		}
 	}
-	return fmt.Errorf("refused: %q is not under an allowed cleanup root "+
+	return "", "", fmt.Errorf("refused: %q is not inside an allowed cleanup root "+
 		"(%%WINDIR%%\\Temp, %%LOCALAPPDATA%%\\CrashDumps, %%PROGRAMDATA%%\\Microsoft\\Windows\\WER)", path)
+}
+
+// validateRemovePath refuses anything outside [allowedRemoveRoots].
+func validateRemovePath(path string) error {
+	_, _, err := removeRoot(path)
+	return err
 }

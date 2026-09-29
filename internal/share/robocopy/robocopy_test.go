@@ -200,6 +200,19 @@ func TestArgs(t *testing.T) {
 	if strings.Contains(got, `\ `) && strings.Contains(got, `s\ `) {
 		t.Errorf("a path kept its trailing backslash: %q", got)
 	}
+	// Nothing at the destination is ever deleted or replaced by an older
+	// file, and the source is never touched.
+	for _, args := range [][]string{robocopy.CopyArgs(`\\h\s`, `D:\x`, "L"), robocopy.DryRunArgs(`\\h\s`, `D:\x`, "L")} {
+		joined := " " + strings.ToUpper(strings.Join(args, " ")) + " "
+		for _, never := range []string{" /MIR ", " /PURGE ", " /MOV ", " /MOVE ", " /IS ", " /IT "} {
+			if strings.Contains(joined, never) {
+				t.Errorf("args %q contain %s", joined, never)
+			}
+		}
+		if !strings.Contains(joined, " /XO ") || !strings.Contains(joined, " /XJ ") {
+			t.Errorf("args %q lack /XO or /XJ", joined)
+		}
+	}
 	dry := strings.Join(robocopy.DryRunArgs(`\\h\s`, `D:\x`, `L`), " ")
 	if !strings.Contains(dry, "/L") || !strings.Contains(dry, "/R:0") || strings.Contains(dry, "/MT") {
 		t.Errorf("dry run args wrong: %q", dry)
@@ -407,7 +420,7 @@ func TestCopyReportsProgressWhileRunningAndTheSummaryAtTheEnd(t *testing.T) {
 	tool := robocopy.Tool{Runner: fr, Poll: 2 * time.Millisecond}
 
 	var updates []robocopy.Progress
-	res, err := tool.Copy(context.Background(), `\\h\s`, `D:\dst`, "log", log, func(p robocopy.Progress) { updates = append(updates, p) })
+	res, err := tool.Copy(context.Background(), `\\192.168.1.5\Games`, `D:\dst`, "log", log, func(p robocopy.Progress) { updates = append(updates, p) })
 	if err != nil {
 		t.Fatal(err)
 	}

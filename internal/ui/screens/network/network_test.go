@@ -92,6 +92,30 @@ func TestPingStreamsLinesThenSummary(t *testing.T) {
 	if !strings.Contains(done, "Sent 4, received 4") {
 		t.Fatalf("expected the summary line in the done view:\n%s", done)
 	}
+	if !strings.Contains(done, "0% loss") {
+		t.Fatalf("expected the loss figure in the done view:\n%s", done)
+	}
+	if !strings.Contains(done, "Reply from 1.1.1.1") {
+		t.Fatalf("the replies must stay on screen after the run ends:\n%s", done)
+	}
+
+	// r goes back to the host field, keeping the host for a second try.
+	scr, _ = scr.Update(tea.KeyPressMsg{Code: 'r', Text: "r"}, ctx)
+	if pm, ok := scr.(pingModel); !ok || pm.state != pingStateInput || pm.input.Value() != defaultPingHost {
+		t.Fatalf("r after a run should return to the host field with the host kept, got %#v", scr)
+	}
+}
+
+func TestLossPercent(t *testing.T) {
+	for _, tc := range []struct {
+		sent, recv, want int
+	}{
+		{4, 4, 0}, {4, 3, 25}, {4, 0, 100}, {3, 1, 66}, {0, 0, 0}, {4, 5, 0},
+	} {
+		if got := lossPercent(network.PingResult{Sent: tc.sent, Received: tc.recv}); got != tc.want {
+			t.Errorf("lossPercent(%d sent, %d received) = %d, want %d", tc.sent, tc.recv, got, tc.want)
+		}
+	}
 }
 
 // TestPublicIPOfflineDoesNotBlock asserts that an offline public-IP lookup

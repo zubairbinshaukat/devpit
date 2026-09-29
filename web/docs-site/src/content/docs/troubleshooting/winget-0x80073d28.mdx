@@ -17,6 +17,8 @@ faq:
     answer: "Open one terminal as administrator and run winget upgrade for each package by its ID. Devpit's Update Everything collects these apps and updates them together at the end with a single administrator prompt."
 ---
 
+import Shot from '@/components/Shot.astro';
+
 **0x80073D28** with the text "The package installation failed because administrator privileges are required" means the upgrade needs administrator rights and winget ran without them.
 
 ## What it means
@@ -38,6 +40,9 @@ Microsoft's WSL project has a public report with this exact text. There, `winget
 When an app fails with `0x80073D28`, Devpit does not fail it on the spot.
 The row says "needs admin rights, retrying at the end".
 After the other apps are done, Devpit tries all of these apps again together, with one administrator prompt.
+
+<Shot name="update-admin-retry" />
+
 If you decline the prompt, or the retry fails, the summary shows the command to run yourself in an administrator terminal.
 If an app has to be closed first, its row says so, for example "close Contoso App and retry".
 

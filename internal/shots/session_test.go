@@ -247,12 +247,6 @@ func (s *session) waitFor(subs ...string) {
 	})
 }
 
-// waitGone pumps until the substring has left the screen.
-func (s *session) waitGone(sub string) {
-	s.t.Helper()
-	s.waitUntil(fmt.Sprintf("%q to leave the screen", sub), func(text string) bool { return !strings.Contains(text, sub) })
-}
-
 // waitUntil pumps until cond holds for the plain frame, or fails with it.
 func (s *session) waitUntil(what string, cond func(text string) bool) {
 	s.t.Helper()

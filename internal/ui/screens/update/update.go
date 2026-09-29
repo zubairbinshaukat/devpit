@@ -636,7 +636,10 @@ func (m Model) onSkipKey() (uictx.Screen, tea.Cmd) {
 	if !fire {
 		return m, uictx.Status("warning", "Press s again to skip "+name+". Its installer is stopped partway.")
 	}
-	m.run.skip(i)
+	if !m.run.skip(i) {
+		// The update ended between the screen's last update and the key.
+		return m, uictx.Status("info", name+" has already finished.")
+	}
 	return m, uictx.Status("warning", "Skipping "+name+"…")
 }
 
@@ -1247,11 +1250,23 @@ func joinCmds(cmds [][]string) string {
 // runPlain runs one job's commands directly, reporting output lines and
 // progress, and returns its final event. ctx is the whole run's, used for
 // sending; jobCtx is this job's own, which is what stops the command.
+//
+// A command that finished cleanly counts even when a skip or Stop came in the
+// same instant: [tools.RunStepLines] never reports OK for a command it had to
+// stop, so OK means the update really went through. A stop between two
+// commands of one job stops the job there.
 func runPlain(ctx, jobCtx context.Context, run RunStepFunc, j job, idx int, events chan<- runEvent) runEvent {
 	var res tools.StepResult
-	for _, argv := range j.cmds {
+	for k, argv := range j.cmds {
+		if k > 0 && jobCtx.Err() != nil {
+			return runEvent{state: activity.Skipped, detail: "cancelled"}
+		}
 		res = run(jobCtx, argv, tools.DefaultStepTimeout, func(l tools.Line) {
-			if p, ok := tools.ParseProgress(l.Text); ok && p.Percent >= 0 {
+			// A progress redraw moves the bar. Any redraw, even one with no
+			// percentage, is the manager still talking, which is what keeps
+			// the row's stuck hint away (a Percent of -1 moves nothing else).
+			// Bare spinner frames never get here: they clean down to nothing.
+			if p, ok := tools.ParseProgress(l.Text); (ok && p.Percent >= 0) || l.Transient {
 				pc := p
 				sendEvent(ctx, events, runEvent{job: idx, progress: &pc})
 			}
@@ -1259,22 +1274,29 @@ func runPlain(ctx, jobCtx context.Context, run RunStepFunc, j job, idx int, even
 				sendEvent(ctx, events, runEvent{job: idx, line: l.Text})
 			}
 		})
+		if res.OK {
+			continue
+		}
 		if jobCtx.Err() != nil {
 			return runEvent{state: activity.Skipped, detail: "cancelled"}
 		}
-		if !res.OK {
-			break
-		}
+		break
 	}
 	return verdictEvent(j, res.ExitCode, res.LastLines)
 }
 
 // runElevated runs one job's commands through the elevated worker. Cancelling
-// jobCtx makes the client ask the worker to stop that one command.
+// jobCtx makes the client ask the worker to stop that one command. As in
+// [runPlain], a command the worker reports finished with exit code 0 counts
+// even if the skip came in the same instant: a cancelled Exec returns an
+// error, never a clean 0.
 func runElevated(ctx, jobCtx context.Context, worker elevatedClient, j job, idx int, events chan<- runEvent) runEvent {
 	code := 0
 	var last []string
-	for _, argv := range j.cmds {
+	for k, argv := range j.cmds {
+		if k > 0 && jobCtx.Err() != nil {
+			return runEvent{state: activity.Skipped, detail: "cancelled"}
+		}
 		var err error
 		code, err = worker.Exec(jobCtx, argv, tools.DefaultStepTimeout, func(_, text string) {
 			text = tools.CleanLine(text)
@@ -1287,6 +1309,9 @@ func runElevated(ctx, jobCtx context.Context, worker elevatedClient, j job, idx 
 			}
 			sendEvent(ctx, events, runEvent{job: idx, line: text})
 		})
+		if err == nil && code == 0 {
+			continue
+		}
 		if jobCtx.Err() != nil {
 			return runEvent{state: activity.Skipped, detail: "cancelled"}
 		}
@@ -1695,6 +1720,10 @@ func (m Model) body(ctx uictx.Context, height int) string {
 	return activity.View(ctx, rows, m.frame, ctx.Width, height)
 }
 
+// minSummaryRows is how many finished rows a summary keeps on screen however
+// many next steps there are to list under them.
+const minSummaryRows = 4
+
 // viewSummary is the done box over the finished rows.
 func (m Model) viewSummary(ctx uictx.Context) string {
 	rows := make([]activity.Row, len(m.jobs))
@@ -1712,15 +1741,18 @@ func (m Model) viewSummary(ctx uictx.Context) string {
 	var b strings.Builder
 	b.WriteString(activity.DoneBox(ctx, "Updated", activity.Count(apps), m.elapsed, ctx.Width))
 	b.WriteString("\n\n")
-	height := ctx.BodyHeight - 5
+	// Box (3 rows) and a blank line; then the rows, and under them the next
+	// steps, which get what the rows leave over, cut short if need be.
+	height := ctx.BodyHeight - 4
 	next, nextLines := "", 0
 	if !m.showLog {
 		next, nextLines = activity.NextSteps(ctx, rows, ctx.Width)
 		if nextLines > 0 {
+			next, nextLines = activity.FitNextSteps(ctx, next, nextLines, height-min(len(rows), minSummaryRows)-1)
 			height -= nextLines + 1
 		}
 	}
-	b.WriteString(m.body(ctx, height))
+	b.WriteString(m.body(ctx, max(1, height)))
 	if nextLines > 0 {
 		b.WriteString("\n\n")
 		b.WriteString(next)

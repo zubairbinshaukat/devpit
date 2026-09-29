@@ -21,11 +21,12 @@ type fakeWorker struct {
 
 // Exec pretends to run one command as administrator.
 func (w *fakeWorker) Exec(ctx context.Context, _ []string, _ time.Duration, onLine func(stream, text string)) (int, error) {
-	onLine("stdout", "Successfully installed")
 	if w.hold {
+		// Still starting, as an elevated winget is before its first line.
 		<-ctx.Done()
 		return -1, nil
 	}
+	onLine("stdout", "Successfully installed")
 	return 0, nil
 }
 

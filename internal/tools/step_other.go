@@ -16,3 +16,5 @@ func newProcessTracker() processTracker { return noopTracker{} }
 func (noopTracker) track(*exec.Cmd) error { return nil }
 
 func (noopTracker) kill() {}
+
+func (noopTracker) release() {}

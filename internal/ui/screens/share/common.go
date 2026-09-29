@@ -15,9 +15,11 @@ package share
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -185,8 +187,32 @@ func errorView(ctx uictx.Context, err error, phase errmap.Phase, user string) st
 	} else {
 		b.WriteString(th.Danger.Render(ctx.Icons.Fail+" Something went wrong") + "\n\n")
 	}
-	b.WriteString(ctx.Truncate(th.Muted.Render(oneLine(err.Error()))))
+	b.WriteString(ctx.Truncate(th.Muted.Render(errorDetail(err))))
 	return b.String()
+}
+
+// errorDetail is the short technical line under an explanation. For a
+// Windows error it is "System error 1219" and not the error's own text: the
+// text is Windows' long sentence in the PC's language (and a different one
+// again when the code runs anywhere but Windows), it repeats what the plain
+// words above already say, and it was cut off with an ellipsis at any usual
+// width. The number is short, the same on every PC, and is exactly what the
+// troubleshooting pages are titled, so it is what a person can search for.
+// Whatever the error was wrapped in ("copying: ") stays in front of it.
+func errorDetail(err error) string {
+	msg := oneLine(err.Error())
+	code, ok := errmap.CodeOf(err)
+	if !ok {
+		return msg
+	}
+	detail := "System error " + strconv.Itoa(code)
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		if prefix, found := strings.CutSuffix(msg, oneLine(errno.Error())); found {
+			return prefix + detail
+		}
+	}
+	return detail
 }
 
 // oneLine flattens an error text to a single line.

@@ -20,7 +20,7 @@ const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** The landing-page facts. Keep in step with web/index.html and the Go source. */
 const HEAD = `# Devpit
 
-> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and sets up Git and SSH.
+> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, sets up Git and SSH, and copies big folders between two Windows PCs on the same network.
 
 Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is ${SITE} and the documentation is at ${SITE}/docs.
 
@@ -39,6 +39,7 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 - Update Everything: runs winget, Scoop, npm and Chocolatey updates in one pass, each step can be unticked
 - Network Tools: local and public IP, ping, DNS flush
 - Git & SSH Setup: git identity, SSH key generation (never overwrites an existing key without a typed confirmation), copy public key
+- Share Files: copies a folder from one Windows PC to another on the same Wi-Fi or wired network. The sharing PC gets a read-only SMB share and a temporary login after one admin prompt (never the user's own password), shown on a card with the IP, share name, user name and password plus \`net use\` and \`robocopy\` lines for a PC without Devpit. The receiving PC checks the total size and free space first, shows live progress, retries when the network blips and resumes an interrupted copy. Stop sharing and quitting Devpit remove everything it set up; after a crash, the next launch offers the clean-up, and \`devpit share cleanup\` does it from the command line
 - Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
 
 ## Safety rules (enforced in code and tests)

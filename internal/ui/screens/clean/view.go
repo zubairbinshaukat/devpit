@@ -197,22 +197,31 @@ func (m Model) summaryView(ctx uictx.Context) string {
 		if m.retrying {
 			b.WriteString(th.Muted.Render("Retrying…"))
 		} else {
-			b.WriteString(th.Warning.Render(ctx.Icons.Warn + " " + lockedLine(m.locked)))
-			b.WriteString("\n")
-			b.WriteString(th.Base.Render("Close it and press R to retry."))
+			b.WriteString(ctx.Wrap(th.Warning.Render(ctx.Icons.Warn + " " + lockedLine(m.locked))))
 		}
 	}
 	return b.String()
 }
 
-// lockedLine names what is holding the items, in the words docs/safety.md
-// asks for: never "3 items skipped".
+// retryHint is the instruction every locked-item line ends with.
+const retryHint = "press R to retry"
+
+// lockedLine names what is holding the items and what to do, in the words
+// docs/safety.md asks for: never "3 items skipped". One locked item gets its
+// own reason, which already names the program; several get a count, since
+// the card above lists each one.
 func lockedLine(locked []cleanengine.Result) string {
+	if len(locked) > 1 {
+		return fmt.Sprintf("%d folders are open in other programs. Close them and %s.", len(locked), retryHint)
+	}
 	first := locked[0]
 	if first.Reason != "" {
-		return first.Reason
+		if strings.Contains(first.Reason, retryHint) {
+			return first.Reason
+		}
+		return first.Reason + " Close it and " + retryHint + "."
 	}
-	return "Something has " + shortPath(first.Path) + " open."
+	return "Something has " + shortPath(first.Path) + " open. Close it and " + retryHint + "."
 }
 
 // roundSeconds renders an elapsed time the way the results heading shows it.

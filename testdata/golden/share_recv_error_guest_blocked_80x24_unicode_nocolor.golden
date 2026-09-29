@@ -7,6 +7,6 @@ also insists on signed connections.
 2. Or type the user name and password of an account on the other PC.
 3. Do not turn off SMB signing to work around this. It protects your files.
 
-errno 1272
+System error 1272
 
 [keys] r try again

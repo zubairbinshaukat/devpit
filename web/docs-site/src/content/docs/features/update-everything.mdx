@@ -93,10 +93,15 @@ Only that small helper does, and only for the jobs that need it.
 
 While an app updates, you have these helps:
 
-- **Skip button.** Press <kbd>s</kbd> twice within 5 seconds to skip the app that is updating right now and move to the next one. The first press only asks you to press again. The summary shows "skipped by you" and the command to retry it. Skipping stops that app's installer part way, so the app may be left half updated.
+- **Skip button.** Press <kbd>s</kbd> twice within 5 seconds to skip the app that is updating right now and move to the next one. The first press only asks you to press again. The summary shows "skipped by you" and the command to retry it. A skipped app is never reported as updated. Skipping stops that app's installer part way, so the app may be left half updated.
+- **What Skip cannot stop.** If an installer raises its own Windows admin prompt (UAC), that elevated installer runs outside Devpit's control. Skip stops winget, but that installer may keep running. Close it by hand. Apps that finish normally keep running whatever they started, for example an app that relaunches itself after the update.
 - **Clear crash messages.** If an app's installer crashes, the row says "crashed" with the Windows code, and the summary says what to try, instead of showing a bare number.
 - **Apps that need admin.** Some apps can only be updated as administrator (Windows error `0x80073D28`). Devpit waits, then tries these apps again together at the end, with one admin prompt. The row says "needs admin rights, retrying at the end". If you decline the prompt or it still fails, the summary gives the command to run yourself in an administrator terminal. If an app must be closed first, the row says so, for example "close Contoso App and retry".
-- **Stuck-app hint.** If an app prints nothing for 3 minutes, its row says "no output for 3m" and "press s to skip".
+- **Stuck-app hint.** If an app prints nothing for 5 minutes, its row says "no output for 5m" and "press s twice to skip".
+
+A run where a few things went wrong ends like this. Each problem gets one row in plain words, and **What to do next** gives the exact step or command for it, wrapped over two lines if it is long rather than cut off:
+
+<Shot name="update-summary-problems" />
 
 ## Keys
 

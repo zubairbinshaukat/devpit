@@ -83,3 +83,28 @@ func (j *jobTracker) kill() {
 		_ = windows.CloseHandle(h)
 	}
 }
+
+// release clears the job's kill-on-close limit and then closes the handle,
+// so the processes still in the job keep running. If the limit cannot be
+// cleared the handle is kept open rather than closed, since closing it would
+// kill them; that leaks one handle, never a process. Safe to call more than
+// once, and after kill.
+func (j *jobTracker) release() {
+	j.mu.Lock()
+	h := j.handle
+	j.handle = 0
+	j.mu.Unlock()
+	if h == 0 {
+		return
+	}
+	var info windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+	if _, err := windows.SetInformationJobObject(
+		h,
+		windows.JobObjectExtendedLimitInformation,
+		uintptr(unsafe.Pointer(&info)),
+		uint32(unsafe.Sizeof(info)),
+	); err != nil {
+		return
+	}
+	_ = windows.CloseHandle(h)
+}

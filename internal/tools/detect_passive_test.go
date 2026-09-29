@@ -47,6 +47,7 @@ func TestWindowsTerminalIsFoundWithoutRunningIt(t *testing.T) {
 				tools.WithLookPath(fakeLookPath(c.found)),
 				neverRun(t), fakeEnv(c.env), tools.WithStat(c.stat),
 				tools.WithReadDir(func(string) ([]string, error) { return nil, errors.New("denied") }),
+				tools.WithReadAlias(func(string) (string, error) { return "", errors.New("denied") }),
 			)
 			got := d.Get(context.Background(), "wt")
 			if got.Found != c.want {
@@ -64,7 +65,8 @@ func TestWindowsTerminalIsFoundWithoutRunningIt(t *testing.T) {
 
 func TestWindowsTerminalVersionComesFromThePackageFolder(t *testing.T) {
 	d := tools.New(
-		tools.WithLookPath(fakeLookPath(map[string]string{"wt": "wt.exe"})),
+		tools.WithLookPath(fakeLookPath(map[string]string{"wt": `C:\Users\a\AppData\Local\Microsoft\WindowsApps\wt.exe`})),
+		tools.WithReadAlias(func(string) (string, error) { return "", errors.New("denied") }),
 		neverRun(t),
 		fakeEnv(map[string]string{"ProgramFiles": `C:\Program Files`}),
 		tools.WithReadDir(func(string) ([]string, error) {
@@ -73,12 +75,83 @@ func TestWindowsTerminalVersionComesFromThePackageFolder(t *testing.T) {
 				"Microsoft.WindowsTerminal_1.9.1942.0_x64__8wekyb3d8bbwe",
 				"Microsoft.WindowsTerminal_1.21.3231.0_x64__8wekyb3d8bbwe",
 				"Microsoft.WindowsTerminal_1.21.3231.0_neutral_split.language-en__8wekyb3d8bbwe",
+				// The bundle beside the real package on a Windows 11 machine:
+				// its "version" is not the app's and must not win.
+				"Microsoft.WindowsTerminal_3001.21.3231.0_neutral_~_8wekyb3d8bbwe",
 				"Other.App_9.9.9.9_x64__abc",
 			}, nil
 		}),
 	)
 	if got := d.Get(context.Background(), "wt").Version; got != "1.21.3231.0" {
-		t.Errorf("Version = %q, want 1.21.3231.0 (highest stable package, not Preview)", got)
+		t.Errorf("Version = %q, want 1.21.3231.0 (highest stable package, not Preview or the bundle)", got)
+	}
+}
+
+// The alias's own target is the exact package in use, so it wins over the
+// folder listing, and it is read from the alias PATH found.
+func TestWindowsTerminalVersionComesFromTheAlias(t *testing.T) {
+	const alias = `C:\Users\a\AppData\Local\Microsoft\WindowsApps\wt.exe`
+	var read []string
+	d := tools.New(
+		tools.WithLookPath(fakeLookPath(map[string]string{"wt": alias})),
+		neverRun(t),
+		fakeEnv(map[string]string{"ProgramFiles": `C:\Program Files`}),
+		tools.WithReadAlias(func(p string) (string, error) {
+			read = append(read, p)
+			return `C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.11911.0_x64__8wekyb3d8bbwe\wt.exe`, nil
+		}),
+		tools.WithReadDir(func(string) ([]string, error) {
+			return []string{"Microsoft.WindowsTerminal_1.9.1942.0_x64__8wekyb3d8bbwe"}, nil
+		}),
+	)
+	got := d.Get(context.Background(), "wt")
+	if got.Version != "1.24.11911.0" {
+		t.Errorf("Version = %q, want 1.24.11911.0 from the alias", got.Version)
+	}
+	if len(read) != 1 || read[0] != alias {
+		t.Errorf("alias reads = %q, want [%q]", read, alias)
+	}
+}
+
+// A wt.exe that is not the Store's (Scoop's, a portable copy) takes its
+// version from its own path only, never from the Store's packages.
+func TestNonStoreWindowsTerminalIgnoresStorePackages(t *testing.T) {
+	cases := map[string]string{
+		`C:\Users\a\scoop\apps\windows-terminal\current\wt.exe`:                                     "",
+		`C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.22.1.0_x64__8wekyb3d8bbwe\wt.exe`: "1.22.1.0",
+	}
+	for path, want := range cases {
+		d := tools.New(
+			tools.WithLookPath(fakeLookPath(map[string]string{"wt": path})),
+			neverRun(t),
+			fakeEnv(map[string]string{"LOCALAPPDATA": `C:\Users\a\AppData\Local`, "ProgramFiles": `C:\Program Files`}),
+			tools.WithReadAlias(func(string) (string, error) {
+				return `C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.1.0_x64__8wekyb3d8bbwe\wt.exe`, nil
+			}),
+			tools.WithReadDir(func(string) ([]string, error) {
+				return []string{"Microsoft.WindowsTerminal_1.24.1.0_x64__8wekyb3d8bbwe"}, nil
+			}),
+		)
+		if got := d.Get(context.Background(), "wt"); !got.Found || got.Version != want {
+			t.Errorf("%s: wt = %+v, want version %q", path, got, want)
+		}
+	}
+}
+
+// An alias that cannot be read falls back to the folder listing.
+func TestWindowsTerminalAliasUnreadableFallsBack(t *testing.T) {
+	d := tools.New(
+		tools.WithLookPath(fakeLookPath(nil)),
+		neverRun(t),
+		fakeEnv(map[string]string{"LOCALAPPDATA": `C:\Users\a\AppData\Local`, "ProgramFiles": `C:\Program Files`}),
+		tools.WithStat(func(string) error { return nil }),
+		tools.WithReadAlias(func(string) (string, error) { return "", errors.New("not a reparse point") }),
+		tools.WithReadDir(func(string) ([]string, error) {
+			return []string{"Microsoft.WindowsTerminal_1.23.1.0_x64__8wekyb3d8bbwe"}, nil
+		}),
+	)
+	if got := d.Get(context.Background(), "wt"); !got.Found || got.Version != "1.23.1.0" {
+		t.Errorf("wt = %+v, want found, version 1.23.1.0 from the folder", got)
 	}
 }
 

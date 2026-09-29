@@ -33,6 +33,8 @@ desktop.ini
 
 # Local-only tooling
 .task/
+# ANSI frames from `task docs:shots` (the images themselves are committed)
+/.shots/
 
 # Local agent instructions
 CLAUDE.md

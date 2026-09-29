@@ -103,16 +103,286 @@ kbd {
   white-space: nowrap;
 }
 
-/* Sidebar current page reads clearly in both themes. */
-[aria-current='page'] {
-  font-weight: 600;
+/* ==========================================================================
+ * Soft UI: one set of radii, one easing curve, tinted surfaces instead of hard
+ * blocks. Every rule below overrides Starlight's own, which live in the
+ * starlight.core / starlight.components layers, so no !important is needed.
+ * ======================================================================== */
+
+:root {
+  --dp-r-xs: 0.375rem;
+  --dp-r-sm: 0.55rem;
+  --dp-r: 0.8rem;
+  --dp-r-lg: 1.1rem;
+  --dp-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dp-fast: 160ms;
+  --dp-slow: 260ms;
+  /* The accent as a soft wash for hover and "you are here". */
+  --dp-tint: color-mix(in oklab, var(--sl-color-accent-high) 9%, transparent);
+  --dp-tint-strong: color-mix(in oklab, var(--sl-color-accent-high) 15%, transparent);
+  --dp-ring: 0 0 0 3px color-mix(in oklab, var(--sl-color-accent-high) 32%, transparent);
+  --dp-surface: color-mix(in oklab, var(--sl-color-gray-6) 55%, transparent);
+  --dp-border: var(--sl-color-hairline-light);
+  --dp-shadow: 0 1px 2px rgb(0 0 0 / 0.14), 0 10px 28px -14px rgb(0 0 0 / 0.5);
+  --dp-thumb: color-mix(in oklab, var(--sl-color-gray-3) 45%, transparent);
+  --dp-thumb-hover: color-mix(in oklab, var(--sl-color-accent-high) 70%, transparent);
+}
+:root[data-theme='light'] {
+  --dp-tint: color-mix(in oklab, var(--sl-color-accent) 9%, transparent);
+  --dp-tint-strong: color-mix(in oklab, var(--sl-color-accent) 14%, transparent);
+  --dp-ring: 0 0 0 3px color-mix(in oklab, var(--sl-color-accent) 28%, transparent);
+  --dp-surface: color-mix(in oklab, var(--sl-color-gray-6) 70%, transparent);
+  --dp-shadow: 0 1px 2px rgb(76 79 105 / 0.08), 0 10px 28px -14px rgb(76 79 105 / 0.28);
+  --dp-thumb: color-mix(in oklab, var(--sl-color-gray-4) 70%, transparent);
+  --dp-thumb-hover: color-mix(in oklab, var(--sl-color-accent) 70%, transparent);
 }
 
-/* Tables: quiet, readable, never overflow the column. */
+html {
+  scroll-behavior: smooth;
+}
+.sl-markdown-content :is(h2, h3, h4)[id] {
+  scroll-margin-top: calc(var(--sl-nav-height) + 1.5rem);
+}
+::selection {
+  background: color-mix(in oklab, var(--sl-color-accent-high) 30%, transparent);
+}
+:focus-visible {
+  outline: 2px solid var(--sl-color-text-accent);
+  outline-offset: 2px;
+}
+
+/* --- Scrollbars: thin, rounded, tinted with the accent on hover. ----------- */
+/* WebKit and Chromium draw these. Chromium 121+ would ignore them if the
+ * standard scrollbar-color were set too, so that one is kept for Firefox. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-color: var(--dp-thumb);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--dp-thumb-hover);
+}
+.sidebar-pane::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar,
+.expressive-code pre::-webkit-scrollbar,
+.sl-markdown-content table::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dp-thumb) transparent;
+  }
+}
+
+/* --- Header: a frosted bar the page slides under. -------------------------- */
+.header {
+  background-color: color-mix(in oklab, var(--sl-color-bg-nav) 82%, transparent);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+}
+
+/* The search box: a soft rounded field. */
+@media (min-width: 50rem) {
+  site-search button[data-open-modal] {
+    border-color: var(--dp-border);
+    border-radius: var(--dp-r);
+    background-color: var(--dp-surface);
+    transition:
+      border-color var(--dp-fast) var(--dp-ease),
+      box-shadow var(--dp-fast) var(--dp-ease),
+      background-color var(--dp-fast) var(--dp-ease);
+  }
+  site-search button[data-open-modal]:hover {
+    border-color: color-mix(in oklab, var(--sl-color-accent-high) 45%, var(--dp-border));
+    box-shadow: var(--dp-ring);
+  }
+  site-search dialog {
+    border-radius: var(--dp-r-lg);
+    border-color: var(--dp-border);
+    box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.55);
+  }
+}
+site-search button > kbd {
+  border-radius: var(--dp-r-xs);
+}
+#starlight__search {
+  --pagefind-ui-border-radius: 12px;
+}
+#starlight__search .pagefind-ui__result-link,
+#starlight__search .pagefind-ui__result-title {
+  border-radius: var(--dp-r-sm);
+}
+
+/* --- Sidebar: rounded pills, a tinted "you are here". ----------------------- */
+.sidebar-content a,
+.sidebar-content summary {
+  border-radius: var(--dp-r-sm);
+  transition:
+    background-color var(--dp-fast) var(--dp-ease),
+    color var(--dp-fast) var(--dp-ease);
+}
+.sidebar-content a:hover,
+.sidebar-content summary:hover {
+  background-color: var(--dp-tint);
+  color: var(--sl-color-white);
+}
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+  font-weight: 600;
+  color: var(--sl-color-accent-high);
+  background-color: var(--dp-tint-strong);
+}
+.sidebar-content ul ul li {
+  border-inline-start-color: color-mix(in oklab, var(--sl-color-hairline-light) 70%, transparent);
+}
+
+/* On blog pages the sidebar starts with the way back to the docs. */
+.sidebar-content a.dp-sidebar-back {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  color: var(--sl-color-white);
+  border: 1px solid var(--dp-border);
+  background-color: var(--dp-surface);
+}
+.sidebar-content a.dp-sidebar-back::before {
+  content: '←';
+  transition: transform var(--dp-fast) var(--dp-ease);
+}
+.sidebar-content a.dp-sidebar-back:hover::before {
+  transform: translateX(-3px);
+}
+
+/* --- "On this page": the current heading gets the same soft pill. ---------- */
+starlight-toc a {
+  border-radius: var(--dp-r-xs);
+  transition:
+    background-color var(--dp-fast) var(--dp-ease),
+    color var(--dp-fast) var(--dp-ease);
+}
+starlight-toc a:hover {
+  background-color: var(--dp-tint);
+}
+starlight-toc a[aria-current='true'] {
+  color: var(--sl-color-accent-high);
+  background-color: var(--dp-tint);
+  font-weight: 500;
+}
+
+/* --- Content surfaces. ------------------------------------------------------ */
+.sl-markdown-content :not(pre) > code {
+  border-radius: var(--dp-r-xs);
+  padding: 0.12em 0.4em;
+}
+.sl-markdown-content img {
+  border-radius: var(--dp-r);
+}
+.sl-markdown-content details {
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-r);
+  padding: 0.6rem 1rem;
+  background: var(--dp-surface);
+}
+.starlight-aside {
+  border-radius: var(--dp-r);
+  border-inline-start-width: 3px;
+}
+.card {
+  border-radius: var(--dp-r-lg);
+  border-color: var(--dp-border);
+  transition:
+    border-color var(--dp-fast) var(--dp-ease),
+    transform var(--dp-slow) var(--dp-ease),
+    box-shadow var(--dp-slow) var(--dp-ease);
+}
+.card .icon {
+  border-radius: var(--dp-r-sm);
+}
+.sl-link-card,
+.pagination-links a {
+  border-radius: var(--dp-r-lg);
+  border-color: var(--dp-border);
+  box-shadow: none;
+  transition:
+    border-color var(--dp-fast) var(--dp-ease),
+    background-color var(--dp-fast) var(--dp-ease),
+    transform var(--dp-slow) var(--dp-ease),
+    box-shadow var(--dp-slow) var(--dp-ease);
+}
+.card:hover,
+.sl-link-card:hover,
+.pagination-links a:hover {
+  border-color: color-mix(in oklab, var(--sl-color-accent-high) 40%, var(--dp-border));
+  background-color: var(--dp-tint);
+  transform: translateY(-2px);
+  box-shadow: var(--dp-shadow);
+}
+
+/* Blog tags as soft chips. */
+:root .sl-blog-tags-list .sl-blog-tag {
+  border-color: var(--dp-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem 0.28rem;
+  background: var(--dp-surface);
+  transition:
+    border-color var(--dp-fast) var(--dp-ease),
+    background-color var(--dp-fast) var(--dp-ease);
+}
+:root .sl-blog-tags-list .sl-blog-tag:hover {
+  border-color: color-mix(in oklab, var(--sl-color-accent-high) 45%, var(--dp-border));
+  background: var(--dp-tint);
+}
+
+/* Theme picker and other native selects. */
+starlight-theme-select select,
+starlight-lang-select select {
+  border-radius: var(--dp-r-sm);
+}
+
+/* Tables: a rounded, quiet card that scrolls sideways on a phone instead of
+ * widening the page. fit-content makes the box hug the rows exactly, so the
+ * rounded border never runs past the last column; a wide table is capped at
+ * the column and wraps its cells, and only scrolls if it still cannot fit. */
 .sl-markdown-content table {
   display: block;
-  overflow-x: auto;
+  width: fit-content;
   max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-r);
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.sl-markdown-content :is(th, td) {
+  border-bottom: 1px solid var(--dp-border);
+}
+.sl-markdown-content :is(th:first-child, td:first-child) {
+  padding-inline-start: 1rem;
+}
+.sl-markdown-content :is(th:last-child, td:last-child) {
+  padding-inline-end: 1rem;
+}
+.sl-markdown-content th {
+  background: var(--dp-surface);
+}
+.sl-markdown-content tr:last-child td {
+  border-bottom: 0;
 }
 
 /* Docs home cards: a little more air. */
@@ -153,5 +423,16 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+  .card:hover,
+  .sl-link-card:hover,
+  .pagination-links a:hover {
+    transform: none;
   }
 }

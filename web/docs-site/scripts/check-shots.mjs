@@ -7,8 +7,8 @@
 //   - every <Shot name> used in a page exists in a manifest (error)
 //   - manifest entries no page uses are reported (warning)
 //   - shots without an image file yet are listed (warning); DOCS_REQUIRE_SHOTS=1
-//     makes them errors. The images are delivered separately and unpacked into
-//     src/assets/screens/.
+//     makes them errors. The images are rendered by `task docs:shots` into
+//     src/assets/screens/ and committed.
 import fs from 'node:fs';
 import path from 'node:path';
 

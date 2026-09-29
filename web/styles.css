@@ -187,6 +187,15 @@ main, .nav, .maker, .foot { position: relative; z-index: 1; }
 .copy.is-done .ico--ok { opacity: 1; transform: none; }
 .install__alt { margin: 14px 0 0; font-size: 13.5px; color: var(--ink-3); }
 .install__alt code { color: var(--ink-2); background: none; border: 0; padding: 0; }
+.hero__docs {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 7px 14px;
+  border: 1px solid var(--hair-2); border-radius: 999px; background: rgba(255,255,255,.04);
+  color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none;
+  transition: border-color .2s, background-color .2s, color .2s;
+}
+.hero__docs span { transition: transform .2s; }
+.hero__docs:hover { border-color: rgba(var(--glow), .45); background: rgba(var(--glow), .08); color: var(--flare-1); }
+.hero__docs:hover span { transform: translateX(3px); }
 
 /* ---------- black hole anchors ---------- */
 .hole-anchor { display: none; height: var(--hole); width: 100%; pointer-events: none; }

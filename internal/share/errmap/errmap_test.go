@@ -155,3 +155,16 @@ func TestCodeOfFindsAnErrnoInAWrappedError(t *testing.T) {
 		t.Errorf("CodeOf = %d, %v", c, ok)
 	}
 }
+
+// TestTheSigningRequiredGuestErrorIsExplained: on Windows 11 24H2 with SMB
+// signing required, `net use` to a PC that only allows guests prints "System
+// error 3227320323 has occurred." (0xC05D0003), not 1272.
+func TestTheSigningRequiredGuestErrorIsExplained(t *testing.T) {
+	code, ok := errmap.CodeFromText("System error 3227320323 has occurred.\r\n")
+	if !ok || code != 3227320323 {
+		t.Fatalf("CodeFromText = %d %v", code, ok)
+	}
+	if e, ok := errmap.Lookup(code, errmap.PhaseConnect); !ok || e.ID != "guest-signing" {
+		t.Errorf("Lookup(%d) = %q %v", code, e.ID, ok)
+	}
+}

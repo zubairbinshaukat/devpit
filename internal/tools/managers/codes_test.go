@@ -131,6 +131,68 @@ func TestInstallerCodes(t *testing.T) {
 	}
 }
 
+// The lines winget really prints (microsoft/WSL#41645): the MSIX error comes
+// as hex after "exit code:", which must not be read as the decimal "0".
+func TestWingetInstallerExitLine(t *testing.T) {
+	cases := []struct {
+		line string
+		kind managers.VerdictKind
+		text string
+	}{
+		{"Installer failed with exit code: 0x80073d28 : The package installation failed because administrator privileges are required.", managers.VerdictNeedsAdmin, "needs admin rights"},
+		{"Installer failed with exit code: 0x80073d02 : The package could not be installed because resources it modifies are currently in use.", managers.VerdictInUse, "in use, close Contoso App and retry"},
+		// An installer that crashed: the unsigned status, and the signed
+		// spelling of the same DWORD.
+		{"Installer failed with exit code: 3221226505", managers.VerdictCrashed, "crashed (0xC0000409)"},
+		{"Installer failed with exit code: -1073741819", managers.VerdictCrashed, "crashed (0xC0000005)"},
+		{"Installer failed with exit code: 3221225781", managers.VerdictFailed, "could not start (0xC0000135)"},
+		{"Installer failed with exit code: 1603", managers.VerdictFailed, "installer failed (1603)"},
+	}
+	for _, c := range cases {
+		// 0x8A150006 is winget's "running ShellExecute failed", the code it
+		// exits with when the installer it ran failed.
+		v := managers.ExplainApp("winget", "Contoso App", hresult(0x8A150006), []string{"Starting package install...", c.line})
+		if v.Kind != c.kind || v.Text != c.text {
+			t.Errorf("%q = {%v %q}, want {%v %q}", c.line, v.Kind, v.Text, c.kind, c.text)
+		}
+	}
+	// A number that is no code keeps winget's own.
+	v := managers.Explain("winget", hresult(0x8A150006), []string{"Installer failed with exit code: 5"})
+	if v.Text != "error 0x8A150006" {
+		t.Errorf("unknown installer code = %+v", v)
+	}
+}
+
+// Each NTSTATUS a crashing process exits with reads as what it is: the
+// values and names are ntstatus.h's (MS-ERREF 2.3.1).
+func TestNTSTATUSMapping(t *testing.T) {
+	cases := map[uint32]struct {
+		kind  managers.VerdictKind
+		label string
+	}{
+		0xC0000005: {managers.VerdictCrashed, "crashed"},
+		0xC0000409: {managers.VerdictCrashed, "crashed"},
+		0xC0000374: {managers.VerdictCrashed, "crashed"},
+		0xC00000FD: {managers.VerdictCrashed, "crashed"},
+		0xC0000135: {managers.VerdictFailed, "could not start"},
+		0xC000007B: {managers.VerdictFailed, "could not start"},
+		0xC0000017: {managers.VerdictFailed, "ran out of memory"},
+		0xC000013A: {managers.VerdictCancelled, "stopped early"},
+	}
+	for code, want := range cases {
+		for _, exit := range []int{int(code), hresult(code)} {
+			v := managers.Explain("scoop", exit, nil)
+			if v.Kind != want.kind || v.Text != want.label+" ("+hexOf(code)+")" || v.Next == "" {
+				t.Errorf("exit %d = {%v %q %q}, want %v %q", exit, v.Kind, v.Text, v.Next, want.kind, want.label)
+			}
+		}
+	}
+	// An unmapped status still reads as hex, never as a negative number.
+	if v := managers.Explain("npm", hresult(0xC0000999), nil); v.Text != "error 0xC0000999" {
+		t.Errorf("unmapped status = %q", v.Text)
+	}
+}
+
 func TestRetryFor(t *testing.T) {
 	byName := map[string]managers.Manager{}
 	for _, m := range managers.All() {
@@ -141,10 +203,10 @@ func TestRetryFor(t *testing.T) {
 		t.Errorf("winget = %+v", r)
 	}
 	if rc := managers.RetryFor(byName["scoop"], "git", false, false); rc.Command != "scoop update git" {
-		t.Errorf("scoop = %+v", r)
+		t.Errorf("scoop = %+v", rc)
 	}
 	if rc := managers.RetryFor(byName["choco"], "git", false, false); rc.Command != "choco upgrade git -y" || !strings.Contains(rc.Note, "administrator") {
-		t.Errorf("choco = %+v", r)
+		t.Errorf("choco = %+v", rc)
 	}
 	r = managers.RetryFor(byName["npm"], "pnpm", false, false)
 	if r.Command != "npm install -g pnpm@latest" || !strings.Contains(r.Note, "install it again") || !strings.Contains(r.Note, "npm install -g pnpm") {

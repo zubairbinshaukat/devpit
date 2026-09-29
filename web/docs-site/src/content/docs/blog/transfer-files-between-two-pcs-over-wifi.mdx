@@ -1,0 +1,188 @@
+---
+title: "Transfer files between two PCs over Wi-Fi (Windows 11)"
+description: "Every way to copy files from one PC to another on the same Wi-Fi in Windows 11, compared: shared folder, Nearby sharing, LocalSend, cable, USB and cloud."
+date: 2026-09-29
+authors: [zubair]
+tags: [file transfer, file sharing, windows]
+excerpt: "The ways to move files between two computers on the same network, with steps for each and a table to pick the right one for your situation."
+related:
+  - features/share-files
+  - blog/share-a-folder-on-windows-11
+  - blog/localsend-vs-quick-share-vs-syncthing
+  - blog/move-100gb-between-computers
+faq:
+  - question: "Can I transfer files between two laptops without the internet?"
+    answer: "Yes. A shared folder, Nearby sharing, LocalSend and a network cable all work inside your own network. The two PCs only need to reach each other through the same router or a cable. Cloud storage is the one method that needs the internet."
+  - question: "Do both PCs have to be on the same Wi-Fi network?"
+    answer: "For the local methods, yes, or at least on the same home network through the same router. A guest Wi-Fi network or a VPN often keeps devices apart on purpose. If the PCs cannot see each other, connect both to the main network first."
+  - question: "What is the fastest way to move files from one PC to another?"
+    answer: "Usually a cable, either both PCs plugged into the router or one cable between them, because it is steady and does not share airtime like Wi-Fi. A fast external SSD can also be quick, but you copy twice. Measure your own speed with a small test copy."
+  - question: "Is it safe to share a folder on my Wi-Fi?"
+    answer: "On your own trusted network, with a real account and a password and read-only access, it is the normal way Windows shares files. Do not use guest access, share only the folder you need, and stop sharing when you are done."
+---
+
+import Shot from '@/components/Shot.astro';
+
+You have two Windows PCs at home or in the office, on the same Wi-Fi. You want to move files from one to the other. Maybe a few documents, maybe a 100 GB game folder.
+
+Windows gives you several ways to do this, and free apps add more. They are good at different things. This guide compares them, gives the steps for each, and ends with a table so you can pick the right one in ten seconds.
+
+## Pick by situation
+
+| Your situation | Best choice | Why |
+| --- | --- | --- |
+| A few files, two Windows PCs in the same room | **Nearby sharing** | Built into Windows, no setup |
+| A big folder (tens of GB or more), two Windows PCs | **Shared folder + robocopy**, or **Devpit Share Files** | Handles drops and resumes |
+| Files to or from a phone, or a Mac or Linux PC | **LocalSend** | Same free app on every system |
+| An Android phone and a Windows PC | **Quick Share for Windows** | Made by Google for this |
+| The same folder on both PCs, kept up to date | **Syncthing** | Continuous sync |
+| The biggest transfer, fastest | **A network cable** | Steady, no Wi-Fi drops |
+| No network between the PCs at all | **USB drive or external SSD** | Works anywhere |
+| The PCs are in different places | **OneDrive or Google Drive** | Works over the internet |
+
+Now the details.
+
+## Method 1: a shared folder (built into Windows)
+
+Every Windows PC can share a folder with other PCs on the network. It uses Windows file sharing, also called SMB. Nothing to install.
+
+**The short version:**
+
+1. On the PC with the files, set the network to **Private**: **Settings**, **Network & internet**, **Wi-Fi**, your network, **Network profile type**.
+2. Turn on **File and printer sharing** for Private networks: **Settings**, **Network & internet**, **Advanced network settings**, **Advanced sharing settings**.
+3. Right-click the folder, **Properties**, **Sharing**, **Advanced Sharing**, tick **Share this folder**, and in **Permissions** give **Read** to an account that has a password.
+4. Find that PC's IP address with `ipconfig`.
+5. On the other PC, type `\\192.168.1.20\ShareName` (with your IP and share name) in File Explorer's address bar and sign in.
+
+The full walk-through, with the permission details that cause most errors, is in [share a folder on Windows 11 with another PC](/docs/blog/share-a-folder-on-windows-11).
+
+**Good:** built in, works with File Explorer, fine for any size.
+**Watch out:** dragging a huge folder in File Explorer cannot resume if the Wi-Fi drops. For a big copy, use robocopy (next section).
+
+### Copy a big folder over the share with robocopy
+
+Robocopy is built into Windows. It retries, logs, and can pick up where it left off. On the receiving PC:
+
+```text
+robocopy \\192.168.1.20\Games D:\Games /E /Z /R:5 /W:10 /LOG:C:\copy.log /TEE
+```
+
+If the copy stops, run the same command again. It skips files that are already done. See [resume an interrupted file copy](/docs/blog/resume-interrupted-file-copy-windows) for all the options, and [robocopy exit codes](/docs/troubleshooting/robocopy-exit-codes) to read the result.
+
+## Method 2: Devpit Share Files (the shared folder, set up for you)
+
+[Share Files](/docs/features/share-files) is a screen in Devpit, a free and open-source Windows terminal app. It does Method 1 for you and adds progress, retry and resume. It is made for one job: big folders between two Windows PCs on the same network.
+
+**On the PC that shares:**
+
+1. Open Devpit, choose **Share Files**, then **Share a folder**, and pick the folder.
+2. Approve one Windows admin prompt.
+3. Devpit asks before it switches a Public network to Private, turns on the firewall rule for file sharing if it is off, creates a temporary login, and shares the folder **read-only**.
+4. A card shows the IP, share name, user name and password.
+
+<Shot name="share-card" />
+
+**On the PC that receives:**
+
+1. Open Devpit, **Share Files**, **Copy from a shared folder**.
+2. Type the IP from the card, pick the folder, sign in, choose where to save.
+3. Devpit measures the exact size and checks free space, then copies with a live progress bar, speed and time left.
+
+If the Wi-Fi drops, Devpit waits and carries on by itself. If you close it, the **Resume** entry continues where it stopped.
+
+The receiving PC does not need Devpit. The card also shows a `net use` line and a `robocopy` line for any Windows PC. When you stop sharing, Devpit removes everything it set up, and the temporary login expires by itself after 48 hours if anything is left.
+
+**Good:** big folders, flaky Wi-Fi, no commands to type.
+**Not for:** phones, Macs or Linux, or sending over the internet.
+
+## Method 3: Nearby sharing (built into Windows)
+
+Nearby sharing sends files between two Windows 10 or 11 PCs that are close to each other.
+
+1. On **both** PCs, open **Settings**, **System**, **Nearby sharing**, and choose **My devices only** (same Microsoft account) or **Everyone nearby**.
+2. On the sending PC, select a file in File Explorer and click **Share** in the toolbar.
+3. Pick the other PC's name.
+4. On the other PC, click **Save** or **Save & open** in the notification.
+
+Microsoft says it uses Wi-Fi when the sending PC runs the latest Windows 11 and the other PC is on the same Private Wi-Fi network; otherwise it uses Bluetooth, and "Bluetooth file transfers are much slower". It needs Bluetooth 4.0 or later with Low Energy.
+
+**Good:** a few files, no setup.
+**Watch out:** not made for large folders.
+
+## Method 4: LocalSend (free app, any device)
+
+LocalSend is a free, open-source app for Windows, macOS, Linux, Android and iOS. It sends files over HTTPS on your local network and needs no account or internet.
+
+1. Install LocalSend on both devices from its official site, `localsend.org`, or your app store.
+2. Put both on the same network. On Windows, set the network to Private.
+3. On the sending device, pick the files and choose the other device from the list.
+4. Accept on the receiving device.
+
+If devices do not appear, LocalSend's README says the router's "AP isolation" setting can block discovery. You can also type the other device's IP address.
+
+**Good:** phones and mixed devices.
+**Watch out:** its docs do not describe resuming a stopped transfer, so for a very large folder over weak Wi-Fi, prefer a method that resumes.
+
+For how it compares with Quick Share, Syncthing and others, read [LocalSend vs Quick Share vs Syncthing](/docs/blog/localsend-vs-quick-share-vs-syncthing).
+
+## Method 5: a network cable
+
+Wi-Fi is convenient, but a cable is steadier. Plug both PCs into the router with Ethernet cables, and use any method above. The files then do not travel over the air at all.
+
+No free router port? You can connect the two PCs to each other with one cable. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
+
+## Method 6: a USB drive or external SSD
+
+Copy onto the drive, carry it over, copy off. No network needed.
+
+- You copy twice, so add both times.
+- A fast external SSD on a fast USB port can be quick. A cheap USB stick can be slow.
+- FAT32 cannot hold a single file over 4 GiB, Microsoft says. Many sticks come formatted as FAT32. Format as exFAT or NTFS for big files (formatting erases the drive).
+
+## Method 7: cloud storage
+
+OneDrive and Google Drive work when the PCs are not on the same network. Upload on one, download on the other.
+
+- It needs the internet, and your upload speed usually sets the time.
+- Free space is small for big transfers: Microsoft lists 5 GB for a free Microsoft account, and Google lists 15 GB shared across Gmail, Drive and Photos.
+- OneDrive's limit is 250 GB per file.
+
+## Other options
+
+- **FTP or SFTP server**: useful for devices that speak FTP, such as phone file managers. See [set up a local FTP server on Windows 11](/docs/blog/set-up-ftp-server-windows-11).
+- **A quick web server**: `python -m http.server` lets any browser download from a folder. Plain HTTP, no password, for a short time only. See [SMB vs FTP vs HTTP](/docs/blog/smb-vs-ftp-vs-http-local-network).
+- **Syncthing**: for keeping folders in sync, not a one-off copy.
+- **croc**: a command-line tool that also works across the internet and can resume.
+
+## How long will it take?
+
+Time is the size divided by your real speed. A 50 GB folder at a real 40 MB/s is 50,000 ÷ 40 = 1,250 seconds, about 21 minutes. That is arithmetic with an example speed, not a promise: your real speed depends on the Wi-Fi signal, the disks and the number of files. Copy a small test folder first and time it. The full explanation is in [move 100 GB between PCs](/docs/blog/move-100gb-between-computers).
+
+## If the PCs cannot see each other
+
+| What you see | Read |
+| --- | --- |
+| "The network path was not found", 0x80070035 | [System error 53](/docs/troubleshooting/system-error-53-network-path-not-found) |
+| "Windows cannot access", 0x80004005 | [0x80004005](/docs/troubleshooting/windows-cannot-access-0x80004005) |
+| "Network discovery is turned off" | [Network discovery](/docs/troubleshooting/network-discovery-is-turned-off) |
+| "You do not have permission to access" | [No permission](/docs/troubleshooting/you-do-not-have-permission-to-access) |
+| "...block unauthenticated guest access" | [Guest access blocked](/docs/troubleshooting/guest-access-blocked-windows-11-24h2) |
+| A copy stopped with "network name is no longer available" | [Error 64](/docs/troubleshooting/specified-network-name-no-longer-available) |
+
+Also check that neither PC is on a guest Wi-Fi or a VPN, which often keep devices apart.
+
+## Sources
+
+- [Microsoft: File sharing over a network in Windows](https://support.microsoft.com/windows/file-sharing-over-a-network-in-windows-b58704b2-f53a-4b82-7bc1-80f9994725bf)
+- [Microsoft: Essential network settings and tasks in Windows](https://support.microsoft.com/windows/essential-network-settings-and-tasks-in-windows-f21a9bbc-c582-55cd-35e0-73431160a1b9)
+- [Microsoft: Share things with nearby devices in Windows](https://support.microsoft.com/en-us/windows/experience/connectivity-networking/share-things-with-nearby-devices-in-windows)
+- [Microsoft: Fix problems with Nearby sharing in Windows](https://support.microsoft.com/en-us/windows/fix-problems-with-nearby-sharing-in-windows-e6f5db3a-48c3-04f6-13d6-84db6f821455)
+- [Microsoft: robocopy](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft: File system functionality comparison (FAT32 4 GiB)](https://learn.microsoft.com/windows/win32/fileio/filesystem-functionality-comparison)
+- [Microsoft: Restrictions and limitations in OneDrive and SharePoint](https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa)
+- [Microsoft: Microsoft storage quotas](https://support.microsoft.com/en-US/onedrive/microsoft-storage-quotas)
+- [Google: Google Account storage](https://support.google.com/googleone/answer/9312312)
+- [LocalSend website](https://localsend.org/) and [README](https://github.com/localsend/localsend)
+- [Google: Quick Share for Windows](https://support.google.com/android/answer/13801258?hl=en)
+- [Syncthing](https://syncthing.net/)
+- [croc README](https://github.com/schollz/croc)

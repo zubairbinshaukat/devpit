@@ -30,12 +30,16 @@ func (DefaultExecutor) DeleteUser(name string) error { return winapi.DeleteLocal
 // UserSID implements [UserManager].
 func (DefaultExecutor) UserSID(name string) (string, error) { return winapi.LocalUserSID(name) }
 
-// handleShare runs one share operation and answers with a done event. The
-// operation's progress lines go back as line events on the "info" stream.
-func handleShare(ctx context.Context, lw *lineWriter, ss *shareSession, req Request) {
+// SIDAccount implements [sidResolver].
+func (DefaultExecutor) SIDAccount(sid string) (string, bool, error) { return lookupSIDAccount(sid) }
+
+// handleShare runs one share operation under ctx (cancelled by a
+// [KindCancel] for it, by its time limit, or by shutdown). The operation's
+// progress lines go back as line events on the "info" stream; the done event
+// is returned.
+func handleShare(ctx context.Context, lw *lineWriter, ss *shareSession, req Request) Event {
 	if req.Share == nil {
-		_ = lw.writeJSON(Event{ID: req.ID, Event: EventDone, ExitCode: -1, Err: "refused: share job without a share request"})
-		return
+		return Event{ID: req.ID, Event: EventDone, ExitCode: -1, Err: "refused: share job without a share request"}
 	}
 	emit := func(stream, text string) {
 		_ = lw.writeJSON(Event{ID: req.ID, Event: EventLine, Stream: stream, Text: text})
@@ -43,7 +47,14 @@ func handleShare(ctx context.Context, lw *lineWriter, ss *shareSession, req Requ
 	done := Event{ID: req.ID, Event: EventDone}
 	if err := ss.run(ctx, *req.Share, emit); err != nil {
 		done.ExitCode = -1
-		done.Err = err.Error()
+		switch {
+		case errors.Is(ctx.Err(), context.DeadlineExceeded):
+			done.Err = "share " + string(req.Share.Op) + " timed out: " + err.Error()
+		case ctx.Err() != nil:
+			done.Err = "cancelled"
+		default:
+			done.Err = err.Error()
+		}
 	}
-	_ = lw.writeJSON(done)
+	return done
 }

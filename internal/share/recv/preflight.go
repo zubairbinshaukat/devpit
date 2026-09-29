@@ -69,6 +69,7 @@ func (s *Session) Preflight(ctx context.Context, host, share, dest string) (Chec
 		return Check{}, err
 	}
 	plan, err := s.deps.Robo.DryRun(ctx, src, dest, logPath, s.deps.Log(logPath))
+	s.dropLog(logPath)
 	if err != nil {
 		return Check{}, ExplainPreflight(err)
 	}
@@ -97,10 +98,13 @@ func warnings(c Check) []Warning {
 			"There is nothing new to copy. Everything is already at the destination, or the shared folder is empty.", true,
 		})
 	}
-	if c.FreeBytes > 0 && uint64(max(p.Bytes, 0)) > c.FreeBytes { //nolint:gosec // Bytes is never negative
+	// Each file takes whole clusters on disk, so many small files need more
+	// room than their bytes add up to.
+	need := max(p.Bytes, p.DiskBytes, 0)
+	if c.FreeBytes > 0 && uint64(need) > c.FreeBytes { //nolint:gosec // need is never negative
 		out = append(out, Warning{WarnNoSpace, fmt.Sprintf(
 			"This needs %s. The destination has only %s free. Free some space or choose another disk.",
-			FormatBytes(p.Bytes), FormatBytes(int64(c.FreeBytes))), true}) //nolint:gosec // free space fits int64
+			FormatBytes(need), FormatBytes(int64(c.FreeBytes))), true}) //nolint:gosec // free space fits int64
 	}
 	if strings.EqualFold(c.FileSystem, "FAT32") && p.OverFAT32Count > 0 {
 		out = append(out, Warning{WarnFAT32, fmt.Sprintf(

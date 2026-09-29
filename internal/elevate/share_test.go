@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"io/fs"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -25,6 +26,10 @@ type shareFake struct {
 	fwOut     []string // stdout of the firewall-on script
 	aceOut    []string // stdout of the share script
 	failMatch string   // a command line containing this fails once
+	fwFail    bool     // the firewall script prints its rules, then fails
+	failCode  int      // the exit code of a failMatch failure; 0 means 1
+	others    int      // Devpit shares up besides this session's
+	v2Out     []string // the share script's FW= lines (24H2's second SMB rule)
 	failed    bool
 	deleted   []string
 }
@@ -61,16 +66,27 @@ func (f *shareFake) Exec(_ context.Context, argv []string, onLine func(stream, t
 	f.argvs = append(f.argvs, argv)
 	if f.failMatch != "" && !f.failed && strings.Contains(text, f.failMatch) {
 		f.failed = true
+		if f.failCode != 0 {
+			return f.failCode, nil
+		}
 		return 1, nil
 	}
 	switch {
+	case strings.Contains(text, "OTHERS="):
+		onLine("stdout", "OTHERS="+strconv.Itoa(f.others))
+	case strings.Contains(text, "New-SmbShare"):
+		for _, l := range f.v2Out {
+			onLine("stdout", l)
+		}
+		for _, l := range f.aceOut {
+			onLine("stdout", l)
+		}
 	case strings.Contains(text, "Get-NetFirewallRule"):
 		for _, l := range f.fwOut {
 			onLine("stdout", l)
 		}
-	case strings.Contains(text, "New-SmbShare"):
-		for _, l := range f.aceOut {
-			onLine("stdout", l)
+		if f.fwFail {
+			return 1, nil
 		}
 	}
 	return 0, nil
@@ -90,6 +106,7 @@ func (f *shareFake) DeleteUser(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.users, name)
+	delete(f.sids, name) // a deleted account's SID maps to nobody
 	f.deleted = append(f.deleted, name)
 	return nil
 }
@@ -98,6 +115,18 @@ func (f *shareFake) UserSID(name string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.sids[name], nil
+}
+
+// SIDAccount says which fake account holds sid, if any.
+func (f *shareFake) SIDAccount(sid string) (string, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for name, s := range f.sids {
+		if s == sid {
+			return name, true, nil
+		}
+	}
+	return "", false, nil
 }
 
 func (f *shareFake) commands() []string {
@@ -132,6 +161,7 @@ func shareEnv(t *testing.T) {
 func newSession(f *shareFake) *shareSession {
 	s := newShareSession(f)
 	s.stat = func(string) (fs.FileInfo, error) { return dirInfo{}, nil }
+	s.resolve = func(p string) (string, error) { return p, nil }
 	return s
 }
 
@@ -159,7 +189,8 @@ func TestShareValidate(t *testing.T) {
 		{"share name with a quote", func(r *ShareRequest) { r.Name = "x'; calc; '" }, false},
 		{"share name with a space", func(r *ShareRequest) { r.Name = "my share" }, false},
 		{"empty share name", func(r *ShareRequest) { r.Name = "" }, false},
-		{"path with a quote", func(r *ShareRequest) { r.Path = `D:\it's` }, false},
+		{"path with an apostrophe", func(r *ShareRequest) { r.Path = `D:\Bob's Games` }, true},
+		{"path with a double quote", func(r *ShareRequest) { r.Path = `D:\say "hi"` }, false},
 		{"path is UNC", func(r *ShareRequest) { r.Path = `\\host\share` }, false},
 		{"path is relative", func(r *ShareRequest) { r.Path = `Games` }, false},
 		{"path climbs out", func(r *ShareRequest) { r.Path = `D:\Games\..\..\Windows` }, false},
@@ -168,7 +199,7 @@ func TestShareValidate(t *testing.T) {
 		{"path is under Windows", func(r *ShareRequest) { r.Path = `C:\Windows\System32` }, false},
 		{"path is Program Files", func(r *ShareRequest) { r.Path = `c:\program files\App` }, false},
 		{"path is the system drive", func(r *ShareRequest) { r.Path = `C:\` }, false},
-		{"another drive root is fine", func(r *ShareRequest) { r.Path = `D:\` }, true},
+		{"another drive root", func(r *ShareRequest) { r.Path = `D:\` }, false},
 		{"path has spaces and unicode", func(r *ShareRequest) { r.Path = `D:\Mes Photos\été 写真` }, true},
 	}
 	for _, tt := range tests {
@@ -272,8 +303,10 @@ func TestFullLifecycleAndTheOrderOfUndoing(t *testing.T) {
 		"Set-NetConnectionProfile -InterfaceIndex 7 -NetworkCategory Private",
 		"@FirewallAPI.dll,-28502",
 		"FPS-SMB-In-TCP",
-		"New-SmbShare -Name 'Games-x7k2' -Path 'D:\\Games' -ReadAccess $u",
-		`icacls.exe D:\Games /grant devpit-abcd:(OI)(CI)RX`,
+		"New-SmbShare -Name $n -Path $p -ReadAccess $u -Description $d",
+		"$n=" + psString("Games-x7k2"),
+		"$p=" + psString(`D:\Games`),
+		`icacls.exe D:\Games /grant *S-1-5-21-1-2-3-1004:(OI)(CI)RX`,
 	} {
 		if !strings.Contains(create, want) {
 			t.Errorf("no command contained %q:\n%s", want, create)
@@ -289,7 +322,8 @@ func TestFullLifecycleAndTheOrderOfUndoing(t *testing.T) {
 	}
 	undo := f.commands()[before:]
 	wantOrder := []string{
-		"Remove-SmbShare", "/remove:g *S-1-5-21-1-2-3-1004", "Set-NetFirewallRule -Name 'FPS-SMB-In-TCP' -Enabled False",
+		"Remove-SmbShare", "/remove:g *S-1-5-21-1-2-3-1004", "OTHERS=",
+		"Set-NetFirewallRule -Name 'FPS-SMB-In-TCP' -Enabled False",
 		"Set-NetConnectionProfile -InterfaceIndex 7 -NetworkCategory Public",
 	}
 	if len(undo) != len(wantOrder) {
@@ -311,15 +345,6 @@ func TestFullLifecycleAndTheOrderOfUndoing(t *testing.T) {
 	if _, err := run(t, s, ShareRequest{Op: ShareOpStop}); err != nil || len(f.commands()) != n {
 		t.Errorf("a second stop ran commands or failed: %v", err)
 	}
-}
-
-func contains(list []string, s string) bool {
-	for _, l := range list {
-		if l == s {
-			return true
-		}
-	}
-	return false
 }
 
 func TestThePasswordIsNeverOnACommandLine(t *testing.T) {
@@ -351,6 +376,9 @@ func TestAShareWithAnUnexpectedAccessEntryIsRefusedAndStaysTrackedForRemoval(t *
 	f := newShareFake()
 	f.aceOut = []string{`ACE=PC\devpit-abcd|Read|Allow`, `ACE=Everyone|Read|Allow`}
 	s := newSession(f)
+	if _, err := run(t, s, ShareRequest{Op: ShareOpAccount, User: "devpit-abcd", Password: goodPassword}); err != nil {
+		t.Fatal(err)
+	}
 	_, err := run(t, s, ShareRequest{Op: ShareOpShare, User: "devpit-abcd", Path: `D:\Games`, Name: "Games-x7k2"})
 	if err == nil || !strings.Contains(err.Error(), "unexpected access entry") {
 		t.Fatalf("err = %v", err)
