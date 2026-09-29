@@ -22,8 +22,14 @@ const (
 	// small set of admin-only cleanup roots; see [validateRemovePath].
 	KindRemove Kind = "remove"
 	// KindShutdown asks the worker to stop serving and exit its loop. It
-	// gets no reply; the connection simply ends.
+	// gets no reply; the connection simply ends. Every job still running
+	// is cancelled first.
 	KindShutdown Kind = "shutdown"
+	// KindCancel stops one job that is already running, named by
+	// [Request.Target], and nothing else. A cancel that names anything
+	// that is not a job in flight is refused, so the message can never do
+	// more than end work the TUI itself started.
+	KindCancel Kind = "cancel"
 )
 
 // Request is one job sent from the TUI to the worker, encoded as a single
@@ -42,6 +48,10 @@ type Request struct {
 	// TimeoutSec bounds how long an exec job may run. Zero means no
 	// timeout beyond the caller's context.
 	TimeoutSec int `json:"timeout_sec,omitempty"`
+	// Target is the [Request.ID] of the job to stop, for KindCancel.
+	Target string `json:"target,omitempty"`
+	// Share is the typed argument of a KindShare request. See share.go.
+	Share *ShareRequest `json:"share,omitempty"`
 }
 
 // EventType names the kind of message the worker streams back to the TUI.

@@ -1,5 +1,6 @@
  DEVPIT  vdev  ·  Network Tools                                                      node …   git …
-  Clean    Ports    Apps    Update    Network    Git    Settings                        tab ⇄ · 1–7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share               tab ⇄ · 1–8
 ─────────────────────────────────────━━━━━━━━━──────────────────────────────────────────────────────
 IP, connectivity and DNS helpers.
 
@@ -11,7 +12,6 @@ IP, connectivity and DNS helpers.
 
     Flush DNS cache
     Clear the resolver cache
-
 
 
 

@@ -106,6 +106,11 @@ type Model struct {
 	// disk or open a real dialog.
 	stat     func(string) (os.FileInfo, error)
 	browseFn func(start string) (string, error)
+
+	// pickPrompt and typePrompt replace the two questions the picker asks,
+	// for a caller that is not choosing a folder to scan. Empty keeps the
+	// scan wording.
+	pickPrompt, typePrompt string
 }
 
 // New returns a picker over the folders in cfg.
@@ -132,6 +137,15 @@ func (m Model) WithBrowse(fn func(start string) (string, error)) Model {
 	if fn != nil {
 		m.browseFn = fn
 	}
+	return m
+}
+
+// WithPrompts replaces the two lines the picker asks with: the question above
+// the list and the instruction above the typed path. An empty string keeps
+// the default for that line. It exists so the same picker can choose a folder
+// to share or to save into, not only one to scan.
+func (m Model) WithPrompts(pick, typ string) Model {
+	m.pickPrompt, m.typePrompt = pick, typ
 	return m
 }
 
@@ -308,11 +322,11 @@ func (m Model) View(ctx uictx.Context) string {
 	var b strings.Builder
 
 	if m.typing {
-		b.WriteString(th.Muted.Render("Type the folder to scan, then press Enter. Esc goes back to the list."))
+		b.WriteString(th.Muted.Render(orDefault(m.typePrompt, "Type the folder to scan, then press Enter. Esc goes back to the list.")))
 		b.WriteString("\n\n")
 		b.WriteString(themedInput(m.input, th).View())
 	} else {
-		b.WriteString(th.Muted.Render("Which folder holds your projects?"))
+		b.WriteString(th.Muted.Render(orDefault(m.pickPrompt, "Which folder holds your projects?")))
 		b.WriteString("\n\n")
 		b.WriteString(m.menu.View(ctx))
 	}
@@ -378,4 +392,12 @@ func IsUNC(path string) bool {
 		return false
 	}
 	return (p[0] == '\\' || p[0] == '/') && (p[1] == '\\' || p[1] == '/')
+}
+
+// orDefault returns s, or def when s is empty.
+func orDefault(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
 }

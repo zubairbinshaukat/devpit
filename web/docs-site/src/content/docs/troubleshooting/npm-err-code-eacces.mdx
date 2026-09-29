@@ -1,0 +1,64 @@
+---
+title: "npm ERR! code EACCES: permission denied"
+description: "Fix npm ERR! code EACCES on Windows: check the npm prefix folder, change it to a folder you own, and see how Devpit shows a failed global npm update."
+sidebar:
+  label: "npm EACCES"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/eperm-operation-not-permitted-rmdir
+faq:
+  - question: "Should I run npm as administrator to fix EACCES?"
+    answer: "It can make one command pass, but it is not a good habit. Files created as administrator can cause more permission problems later. Prefer a global folder that your own user account owns."
+  - question: "Where does npm install global packages on Windows?"
+    answer: "By default the npm prefix on Windows is %AppData%\\npm. Global packages go into a node_modules folder under the prefix, and their commands are linked directly into the prefix folder, so the prefix must be on your PATH."
+---
+
+**npm ERR! code EACCES** means npm was denied permission to read, write or create something in a folder.
+
+## What it means
+
+`EACCES` is a system error. Node describes it as "an attempt was made to access a file in a way forbidden by its file access permissions". The error normally names the path it could not use. Read that path first. It is the whole clue.
+
+## Why it happens
+
+On Windows the most common causes are:
+
+- A global install (`npm install -g`) whose npm prefix folder is one your user cannot write to, for example a folder that needs administrator rights.
+- A project folder that is in a protected place, or owned by another user or by an administrator session.
+- Another program that holds the file. That usually shows as EPERM or EBUSY, see [EPERM: operation not permitted](/docs/troubleshooting/eperm-operation-not-permitted-rmdir).
+
+By default, npm's global folder (the `prefix`) on Windows is `%AppData%\npm`, a folder in your user profile. If yours points somewhere else, check it.
+
+## How Devpit fixes or avoids it
+
+[Update Everything](/docs/features/update-everything) can run `npm update -g` as one of its steps. Devpit runs it as your normal user and does not raise its own rights, so a global folder that needs administrator rights will fail. That step then shows as failed in the summary with the last line npm printed, so you can see the path npm complained about. Devpit does not change your npm settings.
+
+## The manual fix
+
+1. Find your global folder:
+
+```powershell
+npm config get prefix
+```
+
+2. Look at the path. If it is `%AppData%\npm` (for example `C:\Users\you\AppData\Roaming\npm`) it should be writable. Then read the path named in the error, because the problem is somewhere else.
+
+3. If it points to a protected folder, set it to a folder you own. `npm config set` saves the value:
+
+```powershell
+npm config set prefix "$env:APPDATA\npm"
+```
+
+4. On Windows npm links the commands of global packages directly into the prefix folder. Make sure that folder is in your `PATH`, then open a new terminal.
+
+5. Run the install again.
+
+Do not fix it by running everything as administrator unless you are only testing. If the error is about a project folder, move the project to a folder in your user profile.
+
+## Sources
+
+- [Node.js: Common system errors (EACCES)](https://nodejs.org/api/errors.html#common-system-errors)
+- [npm docs: folders (prefix, global installs and executables on Windows)](https://docs.npmjs.com/cli/configuring-npm/folders)
+- [npm docs: npm config (get, set)](https://docs.npmjs.com/cli/commands/npm-config)
+- [npm docs: Resolving EACCES permissions errors when installing packages globally](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally/)

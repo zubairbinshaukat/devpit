@@ -1,0 +1,12 @@
+✗ A Microsoft account needs its full name
+
+This looks like a Microsoft account e-mail. Windows wants it as
+MicrosoftAccount\you@example.com.
+
+1. Type MicrosoftAccount\ before the e-mail, for example
+MicrosoftAccount\you@example.com.
+2. Use the account password. A PIN or fingerprint does not work here.
+
+errno 1326
+
+[keys] r try again

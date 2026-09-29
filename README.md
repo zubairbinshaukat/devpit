@@ -88,10 +88,11 @@ Other ways:
 | Free Up Disk Space | One scan finds `node_modules`, build folders, package caches, Docker leftovers, old Scoop versions and Windows temp, labels each by risk, and deletes only what you tick |
 | Fix Stuck Ports & Apps | Frees a busy port in two keystrokes; lists busy dev ports and stuck Node processes, with a kill-tree option for npm, pnpm, yarn and node |
 | Install Developer Apps | Installs from a catalog through Scoop, winget or Chocolatey |
-| Update Everything | Updates through every package manager it finds, in one pass |
+| Update Everything | Updates through every package manager it finds, in one pass. Press `s` twice to skip the app that is updating; apps that need admin rights are retried once at the end with one admin prompt |
 | Network Tools | Local and public IP, ping, DNS flush |
 | Git & SSH Setup | Git identity and SSH key generation, copy the public key |
 | Devpit Settings | Theme, icon tier, Nerd Font install, never-touch list, dev port list |
+| Share Files | Moves a big folder between two PCs on the same network with live progress, automatic retry and Resume. The sharing PC gets one admin prompt and a temporary read-only login that is removed when sharing stops. The receiving PC checks the exact size and free space first. No commands to type, and it works in any Windows language |
 
 ## Safety
 

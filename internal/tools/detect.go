@@ -4,7 +4,14 @@
 // Detection never runs at package init and never runs at all until something
 // asks for it: [Detector.Get] and [Detector.All] look a tool up lazily, run
 // its "--version" (or equivalent) probe with a short timeout, and memoize the
-// result for the lifetime of the Detector. [Detector.All] fans the lookups
+// result for the lifetime of the Detector.
+//
+// A tool that opens a window when started is never started to be probed. That
+// is Windows Terminal, whose "wt --version" pops a Help box with a warning
+// beep, and the Microsoft Store's "python" and "pip" stubs, which open the
+// Store. Those are found by looking at the file system and the environment
+// only (see detect_wt.go); a test pins that the run function is never called
+// for them. [Detector.All] fans the lookups
 // out across a bounded pool of goroutines so a cold "detect everything" call
 // costs roughly one probe's wall time, not fifteen.
 //
@@ -15,6 +22,7 @@ package tools
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"regexp"
 	"sync"
@@ -58,6 +66,15 @@ type toolSpec struct {
 	name        string
 	exe         string
 	versionArgs []string
+	// neverRun marks a tool that must not be started just to read its
+	// version, because starting it can show a window or make a sound. It
+	// is found with [Detector.detectPassive] instead.
+	neverRun bool
+	// storeStub marks a tool whose PATH entry may be a Microsoft Store
+	// stub: an alias in the WindowsApps folder that opens the Store when
+	// the app is not installed. Running it to see whether it is real is
+	// the very thing to avoid, so such a hit counts as not found.
+	storeStub bool
 }
 
 // specs lists every tool Devpit knows how to detect, in the order
@@ -71,13 +88,13 @@ var specs = []toolSpec{
 	{name: "npm", exe: "npm", versionArgs: []string{"--version"}},
 	{name: "pnpm", exe: "pnpm", versionArgs: []string{"--version"}},
 	{name: "yarn", exe: "yarn", versionArgs: []string{"--version"}},
-	{name: "pip", exe: "pip", versionArgs: []string{"--version"}},
-	{name: "python", exe: "python", versionArgs: []string{"--version"}},
+	{name: "pip", exe: "pip", versionArgs: []string{"--version"}, storeStub: true},
+	{name: "python", exe: "python", versionArgs: []string{"--version"}, storeStub: true},
 	{name: "cargo", exe: "cargo", versionArgs: []string{"--version"}},
 	{name: "go", exe: "go", versionArgs: []string{"version"}},
 	{name: "git", exe: "git", versionArgs: []string{"--version"}},
 	{name: "code", exe: "code", versionArgs: []string{"--version"}},
-	{name: "wt", exe: "wt", versionArgs: []string{"--version"}},
+	{name: "wt", exe: "wt", neverRun: true},
 }
 
 // Names returns the stable, ordered list of tool names Devpit detects.
@@ -113,6 +130,26 @@ func WithRun(f RunFunc) Option {
 	return func(d *Detector) { d.run = f }
 }
 
+// WithEnv overrides how environment variables are read (WT_SESSION,
+// LOCALAPPDATA, ProgramFiles). Tests use this so detection never depends on
+// the machine running them.
+func WithEnv(f func(key string) string) Option {
+	return func(d *Detector) { d.getenv = f }
+}
+
+// WithStat overrides how a file's existence is checked when a tool is found
+// without running it. Tests use this to avoid the real file system.
+func WithStat(f func(path string) error) Option {
+	return func(d *Detector) { d.stat = f }
+}
+
+// WithReadDir overrides how a folder's entry names are listed, which is how
+// the Windows Terminal version is read from its package folder without
+// starting it. Tests use this to avoid the real file system.
+func WithReadDir(f func(dir string) ([]string, error)) Option {
+	return func(d *Detector) { d.readDir = f }
+}
+
 // WithPoolSize bounds how many probes [Detector.All] runs concurrently. n
 // less than 1 is ignored.
 func WithPoolSize(n int) Option {
@@ -128,6 +165,9 @@ func WithPoolSize(n int) Option {
 type Detector struct {
 	lookPath LookPathFunc
 	run      RunFunc
+	getenv   func(key string) string
+	stat     func(path string) error
+	readDir  func(dir string) ([]string, error)
 	poolSize int
 	entries  map[string]*entry
 }
@@ -138,6 +178,9 @@ func New(opts ...Option) *Detector {
 	d := &Detector{
 		lookPath: exec.LookPath,
 		run:      runCombinedOutput,
+		getenv:   os.Getenv,
+		stat:     statFile,
+		readDir:  readDirNames,
 		poolSize: defaultPoolSize,
 	}
 	for _, opt := range opts {
@@ -187,10 +230,16 @@ func (d *Detector) All(ctx context.Context) []Tool {
 
 // detectOne runs the actual LookPath-plus-version probe for one tool spec.
 func (d *Detector) detectOne(ctx context.Context, spec toolSpec) Tool {
+	if spec.neverRun {
+		return d.detectPassive(spec)
+	}
 	tool := Tool{Name: spec.name, Exe: spec.exe}
 
 	path, err := d.lookPath(spec.exe)
 	if err != nil {
+		return tool
+	}
+	if spec.storeStub && isStoreStub(path) {
 		return tool
 	}
 	tool.Path = path

@@ -1,0 +1,11 @@
+That PC wants a sign-in before it lists its folders.
+Use the user name and password from the sharing PC's card.
+A Microsoft account signs in as MicrosoftAccount\you@example.com, with its
+password, not a PIN.
+
+User      › your user name
+Password  › password
+
+The password is used once to sign in. Devpit does not save it.
+
+[keys] tab next field  ·  enter sign in

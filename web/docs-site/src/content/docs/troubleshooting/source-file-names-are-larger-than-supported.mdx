@@ -1,0 +1,81 @@
+---
+title: "The source file name(s) are larger than is supported by the file system"
+seoTitle: "The source file name(s) are larger than is supported"
+description: "Windows can't delete or move a folder because the path is too long. Learn about the 260 character limit, LongPathsEnabled, rd /s /q and the robocopy /MIR trick."
+sidebar:
+  label: "Path too long (260)"
+published: 2026-09-29
+related:
+  - features/free-up-disk-space
+  - troubleshooting/eperm-operation-not-permitted-rmdir
+  - troubleshooting/robocopy-exit-codes
+faq:
+  - question: "What is the maximum path length on Windows?"
+    answer: "In the classic Windows API the limit is MAX_PATH, which is 260 characters including the drive letter and a final null character. Paths in the extended form that starts with \\\\?\\ can be about 32,767 characters."
+  - question: "Does turning on LongPathsEnabled fix it for every program?"
+    answer: "No. Microsoft says the registry value only affects applications that have opted in with a longPathAware entry in their manifest. Some programs will still hit the 260 character limit."
+  - question: "Is the robocopy empty folder trick safe?"
+    answer: "It is safe if you type the folders in the right order. The first folder is the empty source and the second is the folder you want to empty. If you swap them you copy files instead of deleting them, so read the command twice."
+---
+
+Windows adds "Try moving to a location which has a shorter path name, or try renaming to shorter name(s) before attempting this operation." This is Windows saying a path is too long to work with.
+
+## What it means
+
+Windows has an old limit called `MAX_PATH`. It is 260 characters for a full path. That count includes the drive letter, the colon, the backslashes, the name parts and one hidden ending character.
+
+A folder like `node_modules` nests packages inside packages. The path can pass 260 characters easily, and then File Explorer and many programs cannot open, move or delete the files inside.
+
+## Why it happens
+
+- Deep folders, for example `node_modules` inside `node_modules` inside a project that already sits in a long path.
+- Cloning a repo with long file names into a folder that itself has a long name. Microsoft names this exact case in its own guide.
+- A program that was written before long paths were supported.
+
+Windows 10 version 1607 and later can remove the limit, but two things must be true. The registry value `LongPathsEnabled` must be `1`, and the program must declare that it supports long paths. Many do not, so turning the setting on is not a full fix.
+
+## How Devpit fixes or avoids it
+
+[Free Up Disk Space](/docs/features/free-up-disk-space) removes folders with its own code, not with Explorer. If a delete fails because the path is over the limit, Devpit tries again with the extended-length form of the path, the one that starts with `\\?\`. That form tells Windows to skip the 260 character check.
+
+If something still cannot be removed, Devpit does not hide it. It puts the folder in the summary with a reason so you can act.
+
+## The manual fix
+
+Try these from the simplest to the most technical.
+
+**1. Shorten the path.** Rename a parent folder to a shorter name, or move the folder up to something like `C:\p`. Then delete it.
+
+**2. Delete it with `rmdir`.** `/s` removes the whole tree and `/q` skips the confirmation:
+
+```text
+rd /s /q "C:\path\to\node_modules"
+```
+
+`rd` is the short name of `rmdir`. Check the path first, because `/q` does not ask.
+
+**3. Turn on long paths.** Run this in PowerShell as administrator, then restart Windows if programs still fail. Microsoft says a restart might be needed because some processes started before the key was set:
+
+```powershell
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+  -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
+
+**4. Empty the folder with robocopy.** `/MIR` mirrors a source into a destination and deletes destination files that are not in the source. If the source is an empty folder, everything in the destination is deleted:
+
+```text
+mkdir C:\empty
+robocopy C:\empty "C:\path\to\node_modules" /MIR
+rmdir "C:\path\to\node_modules"
+rmdir C:\empty
+```
+
+The first path is the empty source and the second is the folder to empty. If you swap them, robocopy copies instead of deleting. Microsoft's pages describe `/MIR` but do not describe this delete trick by name. It is a widely used use of that documented behaviour. When robocopy ends, its exit code tells you how it went: see [robocopy exit codes](/docs/troubleshooting/robocopy-exit-codes).
+
+## Sources
+
+- [Microsoft: Maximum path length limitation](https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation)
+- [Microsoft: rmdir](https://learn.microsoft.com/windows-server/administration/windows-commands/rmdir)
+- [Microsoft: robocopy (/MIR, /PURGE)](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft Q&A: the error text and the shorter path advice](https://learn.microsoft.com/en-us/answers/questions/2441993/the-source-file-name-s-are-larger-than-is-supporte)
+- [Jeff Geerling: deleting a directory with robocopy when the source path is too long](https://www.jeffgeerling.com/blog/2016/deleting-directory-windows-10-source-path-too-long-using-robocopy/)

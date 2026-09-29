@@ -13,9 +13,10 @@ import (
 func newVersionCmd() *cobra.Command {
 	var short bool
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print the Devpit version",
-		Args:  cobra.NoArgs,
+		Use:     "version",
+		Short:   "Print the Devpit version",
+		Example: "devpit version\ndevpit version --short",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if short {
 				fmt.Fprintln(cmd.OutOrStdout(), version.Short())

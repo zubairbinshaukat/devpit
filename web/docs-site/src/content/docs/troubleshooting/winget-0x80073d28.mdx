@@ -1,0 +1,68 @@
+---
+title: "winget error 0x80073D28: needs administrator rights"
+description: "What winget error 0x80073D28 means when an upgrade fails, why some apps need administrator rights, and how to update them."
+sidebar:
+  label: "winget 0x80073D28"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/winget-0x8a150101
+  - troubleshooting/winget-upgrade-all-not-upgrading
+faq:
+  - question: "Is winget 0x80073D28 dangerous?"
+    answer: "No. It is a permission message. The package installer needs administrator rights, and winget did not get them. Nothing is damaged and you can try again as administrator."
+  - question: "Why did winget not show a UAC prompt?"
+    answer: "Winget normally asks for elevation when a package needs it. Microsoft's WSL project has a public report where winget upgrade Microsoft.WSL failed with 0x80073d28 instead of showing the prompt, so the prompt does not always appear."
+  - question: "How do I update several apps that need administrator rights?"
+    answer: "Open one terminal as administrator and run winget upgrade for each package by its ID. Devpit's Update Everything collects these apps and updates them together at the end with a single administrator prompt."
+---
+
+**0x80073D28** with the text "The package installation failed because administrator privileges are required" means the upgrade needs administrator rights and winget ran without them.
+
+## What it means
+
+This is not one of winget's own `0x8A15....` codes, and it does not appear in winget's table of return codes. The message that goes with it is clear: administrator privileges are required.
+
+Microsoft's WSL project has a public report with this exact text. There, `winget upgrade Microsoft.WSL` was run in a normal PowerShell window. Winget should ask for elevation (a UAC prompt), but the upgrade stopped early with 0x80073d28 instead.
+
+## Why it happens
+
+- The package's installer needs administrator rights, and your terminal is a normal one.
+- Winget did not raise a UAC prompt, or the prompt was closed.
+- Some apps, such as a desktop app that installs a background service, can only be updated as administrator. Windows documents this as `ERROR_PACKAGED_SERVICE_REQUIRES_ADMIN_PRIVILEGES`.
+
+## How Devpit fixes or avoids it
+
+[Update Everything](/docs/features/update-everything) runs your updates as a normal user. Devpit itself never runs as administrator.
+
+When an app fails with `0x80073D28`, Devpit does not fail it on the spot.
+The row says "needs admin rights, retrying at the end".
+After the other apps are done, Devpit tries all of these apps again together, with one administrator prompt.
+If you decline the prompt, or the retry fails, the summary shows the command to run yourself in an administrator terminal.
+If an app has to be closed first, its row says so, for example "close Contoso App and retry".
+
+## The manual fix
+
+1. Close the app you want to update.
+2. Open **Windows Terminal** or PowerShell as administrator: right-click it and choose **Run as administrator**.
+3. List what can be upgraded:
+
+```powershell
+winget upgrade
+```
+
+4. Upgrade the package by its ID. `--id` selects the package and `-e` means an exact match:
+
+```powershell
+winget upgrade --id Publisher.PackageName -e
+```
+
+Replace `Publisher.PackageName` with the ID from the list.
+
+5. If it says the application is running, see [winget 0x8A150101](/docs/troubleshooting/winget-0x8a150101).
+
+## Sources
+
+- [Microsoft WSL issue #41645: winget upgrade Microsoft.WSL fails with 0x80073d28](https://github.com/microsoft/wsl/issues/41645)
+- [winget return codes (0x80073D28 is not in the table)](https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
+- [Microsoft: winget upgrade command (--id, -e)](https://learn.microsoft.com/windows/package-manager/winget/upgrade)

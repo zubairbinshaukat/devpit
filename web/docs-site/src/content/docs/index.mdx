@@ -1,0 +1,123 @@
+---
+title: Devpit documentation
+description: Learn how to install Devpit, the free Windows terminal app that frees disk space, fixes stuck ports and updates your developer tools from one menu.
+template: splash
+published: 2026-09-29
+hero:
+  tagline: A pit stop for your dev machine. Free disk space, fix stuck ports and keep your tools up to date from one terminal menu.
+  actions:
+    - text: Get started
+      link: /docs/getting-started
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/zubairbinshaukat/devpit
+      icon: external
+      variant: minimal
+faq:
+  - question: "What is Devpit?"
+    answer: "Devpit is a free, open-source terminal app for Windows. One menu frees disk space from developer junk such as node_modules and caches, fixes stuck ports, installs and updates developer tools, and sets up Git and SSH."
+  - question: "How do I install Devpit?"
+    answer: "In PowerShell run irm https://devpit.zubyr.dev/install | iex, or add the zubyr Scoop bucket and run scoop install devpit. You can also download the zip from GitHub. No administrator rights are needed."
+  - question: "Which versions of Windows does Devpit support?"
+    answer: "Windows 10 and Windows 11, on x64 and ARM64. Linux and macOS are planned."
+  - question: "Is Devpit free?"
+    answer: "Yes. Devpit is free and open source under the MIT licence. There is no account, and usage stats are off unless you turn them on."
+  - question: "Where do I start?"
+    answer: "Read Getting started to install Devpit and take the first-launch tour. Then open Free up disk space, which is the feature most people come for."
+related:
+  - getting-started
+  - features
+  - troubleshooting
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Devpit is a free terminal app for Windows 10 and 11.
+It is small, fast and open source.
+These pages show you how to use it, one step at a time.
+
+## Install in one line
+
+Open PowerShell and run:
+
+```powershell
+irm https://devpit.zubyr.dev/install | iex
+```
+
+Then type `devpit`.
+No administrator rights needed.
+[Other ways to install](/docs/getting-started) include Scoop and a plain zip file.
+
+## What do you want to do?
+
+<CardGrid>
+  <LinkCard
+    title="Free up disk space"
+    description="Find node_modules, build folders and caches. See the size. Delete only what you tick."
+    href="/docs/features/free-up-disk-space"
+  />
+  <LinkCard
+    title="Fix a stuck port"
+    description="Port 3000 already in use? See who holds it and stop it after you confirm."
+    href="/docs/features/fix-stuck-ports"
+  />
+  <LinkCard
+    title="Install developer apps"
+    description="Pick from a short list. Devpit installs through Scoop, winget or Chocolatey."
+    href="/docs/features/install-developer-apps"
+  />
+  <LinkCard
+    title="Update everything"
+    description="One pass through winget, Scoop, Chocolatey and npm. Untick what you want to keep."
+    href="/docs/features/update-everything"
+  />
+  <LinkCard
+    title="Network tools"
+    description="Local and public IP, ping and DNS flush."
+    href="/docs/features/network-tools"
+  />
+  <LinkCard
+    title="Git and SSH setup"
+    description="Set your Git name and email. Make an SSH key and copy the public half."
+    href="/docs/features/git-and-ssh"
+  />
+  <LinkCard
+    title="Share files"
+    description="Copy a big folder between two PCs on your network, with resume."
+    href="/docs/features/share-files"
+  />
+  <LinkCard
+    title="Settings"
+    description="Themes, icons, the never-touch list, dev ports and usage stats."
+    href="/docs/features/settings"
+  />
+</CardGrid>
+
+## Why you can trust it
+
+<CardGrid>
+  <Card title="Nothing goes without a preview" icon="approve-check">
+    You always see the list first. Nothing is deleted until you confirm, and the default answer is **No**.
+  </Card>
+  <Card title="Risk labels on everything" icon="warning">
+    **Safe**, **Review** or **Careful**. Careful items need a typed word and go to the Recycle Bin.
+  </Card>
+  <Card title="Nothing is sent by default" icon="padlock">
+    Usage stats are off until you turn them on, and they never include file names or paths.
+  </Card>
+  <Card title="Open source" icon="github">
+    MIT licence. Releases have checksums and a build attestation. Read every rule in the [safety and privacy](/docs/safety-and-privacy) page.
+  </Card>
+</CardGrid>
+
+## Reference
+
+<CardGrid>
+  <LinkCard title="Keyboard and mouse" description="Every shortcut in one place." href="/docs/keyboard-and-mouse" />
+  <LinkCard title="Command line" description="Every devpit command and flag." href="/docs/command-line" />
+  <LinkCard title="Troubleshooting" description="Plain-words fixes for real problems." href="/docs/troubleshooting" />
+  <LinkCard title="What's new" description="What changed in each release." href="/docs/whats-new" />
+</CardGrid>
+
+Made by [Zubair bin Shaukat](https://zubyr.dev) in Lahore.
+Devpit is open source. [Report a problem or suggest something](https://github.com/zubairbinshaukat/devpit/issues).

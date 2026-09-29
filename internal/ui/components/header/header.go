@@ -1,7 +1,7 @@
 // Package header draws the bar at the top of every screen: the app-name badge,
 // version and breadcrumb on the first row with the machine's vital signs as
-// small labelled pills at its right edge, the section tabs on the second row,
-// and a rule under both.
+// small labelled pills at its right edge, the section tabs two rows below it
+// (one blank row between, so the header breathes), and a rule under both.
 //
 // The tab row only exists inside a section. The home screen is itself the
 // list of sections, so a tab bar above it would say everything twice; there
@@ -39,15 +39,18 @@ const (
 )
 
 // Rows is how many lines the header occupies with its tab bar: the badge
-// row, the tab row and the rule under them. RowsCompact is the header
-// without tabs, on the home and first-run screens.
+// row, one blank row of air, the tab row and the rule under them.
+// RowsCompact is the header without tabs, on the home and first-run
+// screens.
 const (
-	Rows        = 3
+	Rows        = 4
 	RowsCompact = 2
 )
 
 // TabRow is the terminal row the tabs are drawn on, for hit-testing clicks.
-const TabRow = 1
+// It sits under the blank row that separates the tabs from the badge row, so
+// a click on that gap opens nothing.
+const TabRow = 2
 
 // tabPad is the blank column before the first tab; tabGap is the air between
 // two tabs. Two columns keep neighbouring labels from reading as one phrase.
@@ -179,7 +182,7 @@ func (m Model) View(ctx uictx.Context) string {
 		return badgeRow + "\n" + m.rule(th, ctx.Width, ascii)
 	}
 	tabRow := fit(ctx.Width, m.tabs(ctx), th.Muted.Render(tabHint(ascii)), ascii)
-	return badgeRow + "\n" + tabRow + "\n" + m.rule(th, ctx.Width, ascii)
+	return badgeRow + "\n\n" + tabRow + "\n" + m.rule(th, ctx.Width, ascii)
 }
 
 // tabs draws the section bar. The open section sits on the selection band in
@@ -282,9 +285,9 @@ func (m Model) Next(step int) (Tab, bool) {
 // tabHint is the muted reminder at the right of the tab row.
 func tabHint(ascii bool) string {
 	if ascii {
-		return "tab <-> - 1-7 "
+		return "tab <-> - 1-8 "
 	}
-	return "tab ⇄ · 1–7 "
+	return "tab ⇄ · 1–8 "
 }
 
 // pills draws the machine's vital signs: the toolchain versions Devpit found,

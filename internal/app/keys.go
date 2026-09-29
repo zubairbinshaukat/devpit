@@ -19,7 +19,7 @@ type GlobalKeyMap struct {
 	// root model yields whenever the screen's help lists the same key.
 	NextTab key.Binding
 	PrevTab key.Binding
-	// Jump is 1-7 on the home screen. It is listed here so the help overlay
+	// Jump is 1-8 on the home screen. It is listed here so the help overlay
 	// shows it; the home screen handles the keys itself, because a digit
 	// typed into a form elsewhere must stay a digit.
 	Jump key.Binding
@@ -54,7 +54,7 @@ func DefaultGlobalKeyMap() GlobalKeyMap {
 		),
 		Jump: key.NewBinding(
 			key.WithKeys("1", "2", "3", "4", "5", "6", "7"),
-			key.WithHelp("1-7", "open section (home)"),
+			key.WithHelp("1-8", "open section (home)"),
 		),
 	}
 }

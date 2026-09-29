@@ -1,0 +1,9 @@
+Setting up sharing
+Windows asks for permission once. Allow it to continue.
+
+ ⠋ Allow sharing in the firewall   Waiting for the admin prompt
+ · Create a temporary login                                              queued
+ · Let that login read the folder                                        queued
+ · Share the folder read-only                                            queued
+
+[keys]

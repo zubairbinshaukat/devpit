@@ -1,0 +1,88 @@
+---
+title: Check your IP, ping a host and flush DNS on Windows
+description: See your local and public IP address, ping a host to test your connection, and clear the Windows DNS cache from one Devpit menu.
+sidebar:
+  label: Network tools
+  order: 5
+published: 2026-09-29
+related:
+  - features/share-files
+  - troubleshooting
+  - safety-and-privacy
+faq:
+  - question: "Which website does Devpit ask for my public IP?"
+    answer: "Devpit asks api.ipify.org first and ifconfig.me second, and gives up after five seconds. Only the plain web request is sent. This lookup only happens when you open My IP addresses."
+  - question: "What does flushing the DNS cache do?"
+    answer: "It clears the list of website names that Windows remembered. Windows looks them up again the next time. Nothing else on your PC changes. Devpit runs the ipconfig /flushdns command and asks you first."
+  - question: "Why does the ping stop after four replies?"
+    answer: "Devpit sends four echo requests, the same as ping -n 4, and then shows a summary with sent, received and the minimum, average and maximum time."
+  - question: "Which host does Ping use if I leave the box empty?"
+    answer: "1.1.1.1, the public DNS service run by Cloudflare. Type any host name or IP address to test something else."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Three small tools for checking your connection.
+Open them from the main menu with <kbd>5</kbd>, or choose **Network Tools**.
+
+<Shot name="network-menu" />
+
+## My IP addresses
+
+1. Choose **My IP addresses**.
+2. Devpit lists your **local interfaces**, for example Wi-Fi or Ethernet, with their IPv4 and IPv6 addresses. Interfaces that are down, and the loopback address, are left out.
+3. Under **Public IP** it shows the address the internet sees. It says "Looking up…" first, and "Offline" if it cannot reach a lookup service.
+
+<Shot name="network-ip" />
+
+The local list appears at once.
+The public address takes a moment because Devpit has to ask a website for it.
+That is the only part of this screen that uses the internet.
+
+Use the local address when another PC on your Wi-Fi needs to reach yours.
+Use the public address when you need to tell a service where you connect from.
+
+## Ping a host
+
+1. Choose **Ping a host**.
+2. Type a host name or IP address, for example `github.com`. Leave it empty to use `1.1.1.1`.
+3. Press <kbd>Enter</kbd>.
+4. The replies stream in as they arrive. After four requests you see a summary: packets sent and received, and the minimum, average and maximum time.
+
+<Shot name="network-ping" />
+
+A reply time of a few milliseconds means a healthy connection.
+"Request timed out" on every line means nothing came back.
+If a host does not answer but other hosts do, that host may block ping.
+
+## Flush DNS cache
+
+1. Choose **Flush DNS cache**.
+2. Read the question: "Flush the DNS resolver cache?" It clears cached lookups. Nothing else on your PC changes. The default answer is **No**.
+3. Press <kbd>y</kbd>.
+4. Devpit runs `ipconfig /flushdns` and shows its answer, for example "Successfully flushed the DNS Resolver Cache."
+
+Flush the DNS cache when a website moved to a new address and your PC still goes to the old one.
+
+:::note
+On some PCs Windows only allows this command from a terminal opened as administrator.
+If Devpit shows an error, open a terminal as administrator, run `devpit`, and try again.
+:::
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move in the menu |
+| <kbd>Enter</kbd> | Open a tool, send the ping, or go back when it is done |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer the flush question (No is the default) |
+| <kbd>Esc</kbd> | Go back |
+
+See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.
+
+## Privacy
+
+These tools run on your PC.
+Devpit sends nothing about you to its own server.
+The public IP lookup is a normal web request to a lookup service, and only happens when you open that screen.
+See [Safety and privacy](/docs/safety-and-privacy) for everything Devpit connects to.

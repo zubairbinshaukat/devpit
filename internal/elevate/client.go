@@ -226,7 +226,36 @@ func (c *Client) Exec(ctx context.Context, argv []string, timeout time.Duration,
 				return ev.ExitCode, nil
 			}
 		case <-ctx.Done():
+			c.cancelJob(id, ch)
 			return 0, ctx.Err()
+		}
+	}
+}
+
+// cancelWait bounds how long [Client.Exec] waits, after ctx is cancelled, for
+// the worker to say the cancelled command has ended. Waiting is what keeps
+// the next command from queuing behind one that is still dying; the bound is
+// what keeps a stuck worker from holding the caller.
+const cancelWait = 5 * time.Second
+
+// cancelJob asks the worker to stop the command id, then waits briefly for
+// that command's "done" event on ch, so the worker is idle again when the
+// caller moves on. It is what turns cancelling one command's context into
+// stopping that command's process tree, and only that command's.
+func (c *Client) cancelJob(id string, ch chan Event) {
+	if err := c.send(Request{ID: newID(), Kind: KindCancel, Target: id}); err != nil {
+		return
+	}
+	timer := time.NewTimer(cancelWait)
+	defer timer.Stop()
+	for {
+		select {
+		case ev, ok := <-ch:
+			if !ok || ev.Event == EventDone {
+				return
+			}
+		case <-timer.C:
+			return
 		}
 	}
 }

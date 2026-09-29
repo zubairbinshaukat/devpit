@@ -8,7 +8,16 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
+
+	"github.com/zubairbinshaukat/devpit/internal/winapi"
 )
+
+// waitDelay bounds how long cmd.Wait waits for the output pipes to close
+// after the command is cancelled. It is the backstop for a descendant that
+// outlived the job object (or a machine where no job could be made) and
+// still holds the pipe open.
+const waitDelay = 3 * time.Second
 
 // Executor runs the two job kinds the worker accepts. [DefaultExecutor] is
 // what cmd/devpit/worker.go gives to [Serve]; tests inject a fake so the
@@ -46,6 +55,18 @@ func (DefaultExecutor) Exec(ctx context.Context, argv []string, onLine func(stre
 	// to run (e.g. choco upgrade all -y); running an arbitrary command is
 	// this job's whole purpose, gated by the caller choosing to elevate.
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// Cancelling ctx (a cancel request, a timeout, shutdown) must end the
+	// whole tree, not just the command Devpit named: choco starts the
+	// vendor's setup, which is the process that actually holds the files.
+	// The job object does that on Windows; elsewhere it is a no-op and
+	// killing the direct child is all there is.
+	job, _ := winapi.NewJob() // nil on failure; a nil job is safe below
+	defer job.Kill()
+	cmd.Cancel = func() error {
+		job.Kill()
+		return cmd.Process.Kill()
+	}
+	cmd.WaitDelay = waitDelay
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return -1, err
@@ -57,6 +78,7 @@ func (DefaultExecutor) Exec(ctx context.Context, argv []string, onLine func(stre
 	if err := cmd.Start(); err != nil {
 		return -1, err
 	}
+	_ = job.Assign(cmd.Process.Pid) // best effort, like the plain steps
 
 	lines := make(chan execLine)
 	scanDone := make(chan struct{}, 2)

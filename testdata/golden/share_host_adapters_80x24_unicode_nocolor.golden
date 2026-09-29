@@ -1,0 +1,9 @@
+This PC has more than one network connection. Which one is the other PC on?
+
+▌ ▸ Wi-Fi  192.168.1.20
+▌   Other PCs reach this one at 192.168.1.20. Windows uses it for the internet.
+
+    Ethernet  10.0.0.5
+    Other PCs reach this one at 10.0.0.5
+
+[keys] ↑↓ move  ·  enter select

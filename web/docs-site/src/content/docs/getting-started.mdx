@@ -1,0 +1,250 @@
+---
+title: Get started with Devpit on Windows
+description: Install Devpit with one PowerShell line, Scoop or a zip file, then take the first-launch tour and set up the icon font.
+sidebar:
+  label: Getting started
+  order: 1
+published: 2026-09-29
+related:
+  - features/free-up-disk-space
+  - keyboard-and-mouse
+  - safety-and-privacy
+faq:
+  - question: "Do I need administrator rights to install Devpit?"
+    answer: "No. The installer puts devpit.exe in your own user folder, adds that folder to your user PATH and installs the icon font for your user only. Windows only asks for admin later, for the few jobs that need it, such as Chocolatey updates."
+  - question: "Is it safe to run the install one-liner?"
+    answer: "The script is short and readable at devpit.zubyr.dev/install. It downloads the latest release from GitHub, checks the SHA256 checksum against the checksums.txt file published with that release, and installs nothing if the checksum does not match."
+  - question: "How do I install Devpit without the icon font?"
+    answer: "Run the installer through a script block and pass -NoFont. The exact command is in the install steps on this page. You can add the font later from Settings, Icon font."
+  - question: "Windows SmartScreen warns about Devpit. Is that normal?"
+    answer: "Yes, for now. Devpit is not code-signed yet, so SmartScreen may say the publisher is unknown. You can check the download yourself with the SHA256 checksum and the build attestation on the GitHub release page."
+  - question: "Where does Devpit keep its settings?"
+    answer: "In one file, %APPDATA%\\devpit\\config.toml. Caches and logs are in %LOCALAPPDATA%\\devpit. Nothing in either folder is uploaded."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Devpit is a free terminal app for Windows 10 and 11.
+It runs on x64 and ARM64.
+This page takes you from nothing to your first scan.
+
+## Install Devpit
+
+Pick one way. The first one is the easiest.
+
+### Option 1: the PowerShell one-liner
+
+1. Open **Windows Terminal** or **PowerShell**.
+2. Paste this line and press <kbd>Enter</kbd>.
+
+   ```powershell
+   irm https://devpit.zubyr.dev/install | iex
+   ```
+
+3. Wait for the five steps to finish. The installer:
+   1. finds the latest release on GitHub,
+   2. downloads the zip for your PC (x64 or ARM64),
+   3. checks its SHA256 checksum,
+   4. puts `devpit.exe` in `%LOCALAPPDATA%\Programs\devpit`,
+   5. installs the [icon font](#the-icon-font).
+4. The installer adds that folder to your user PATH. Open a new terminal window, or run the path it prints.
+5. Type `devpit` and press <kbd>Enter</kbd>.
+
+You do not need administrator rights.
+The installer never asks for them.
+
+To skip the icon font, pass `-NoFont`.
+The `iex` command cannot take flags, so use a script block:
+
+```powershell
+& ([scriptblock]::Create((irm https://devpit.zubyr.dev/install))) -NoFont
+```
+
+If Devpit is already installed, the installer asks what to do.
+Type `U` to update, `R` to remove, or `C` to cancel.
+
+### Option 2: Scoop
+
+Scoop keeps Devpit up to date for you.
+
+1. Add the bucket once:
+
+   ```powershell
+   scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket
+   ```
+
+2. Install:
+
+   ```powershell
+   scoop install devpit
+   ```
+
+3. Type `devpit`.
+
+Scoop does not install the icon font. Run `devpit font install` afterwards, or use Settings. See [the icon font](#the-icon-font).
+
+### Option 3: the zip file
+
+1. Open the [latest release on GitHub](https://github.com/zubairbinshaukat/devpit/releases/latest).
+2. Download the zip that matches your PC:
+   - `devpit_<version>_windows_amd64.zip` for most PCs (x64)
+   - `devpit_<version>_windows_arm64.zip` for ARM PCs
+3. Unzip it. Inside is `devpit.exe`.
+4. Put `devpit.exe` in a folder you like, for example `C:\Tools`.
+5. To run it from anywhere, add that folder to your PATH.
+
+You can also build it yourself. Devpit needs Go 1.26 or newer and no C compiler:
+
+```powershell
+git clone https://github.com/zubairbinshaukat/devpit
+cd devpit
+go build -o devpit.exe .
+```
+
+### Check your download (optional)
+
+Each release has a `checksums.txt` file.
+To check a zip by hand:
+
+```powershell
+Get-FileHash .\devpit_0.2.0_windows_amd64.zip -Algorithm SHA256
+```
+
+The hash must match the line for that file in `checksums.txt`.
+Releases also carry a build attestation.
+If you use the GitHub CLI you can check it:
+
+```powershell
+gh attestation verify .\devpit_0.2.0_windows_amd64.zip --repo zubairbinshaukat/devpit
+```
+
+:::note[SmartScreen]
+Devpit is not code-signed yet.
+Windows SmartScreen may say the publisher is unknown the first time you run it.
+The checks above show that the file is the one GitHub built.
+:::
+
+## First launch
+
+Type `devpit` in a terminal.
+Use a window at least 80 columns wide and 24 rows tall.
+Windows Terminal works best.
+
+The first time, a short wizard asks four things.
+Press <kbd>Enter</kbd> to go forward and <kbd>Esc</kbd> to go back.
+Nothing is saved until the last step, so you can stop and start again.
+
+1. **Welcome.** Shows what Devpit is and three promises: nothing is deleted without a preview and a confirmation, the default answer is always No, and nothing leaves your PC unless you turn usage stats on.
+2. **Icons.** Shows a few icons and asks "Do these look like icons?". Answer Yes only if you see icons and not boxes. If the installer put the font in, this starts on Yes. Terminals that can only show plain characters skip this step.
+3. **Theme.** Pick a look. The screen repaints as you move, so you choose by looking. There are seven: auto, dark, light, aqua, blue, rose and mono.
+4. **Privacy.** Usage stats. It starts on No. Read [Safety and privacy](/docs/safety-and-privacy) to see exactly what would be sent.
+
+<Shot name="firstrun-welcome" />
+
+After the wizard you see the main menu.
+
+<Shot name="home-menu" />
+
+The menu has eight sections:
+
+| Key | Section | Guide |
+| --- | --- | --- |
+| <kbd>1</kbd> | Free Up Disk Space | [Free up disk space](/docs/features/free-up-disk-space) |
+| <kbd>2</kbd> | Fix Stuck Ports & Apps | [Fix stuck ports and apps](/docs/features/fix-stuck-ports) |
+| <kbd>3</kbd> | Install Developer Apps | [Install developer apps](/docs/features/install-developer-apps) |
+| <kbd>4</kbd> | Update Everything | [Update everything](/docs/features/update-everything) |
+| <kbd>5</kbd> | Network Tools | [Network tools](/docs/features/network-tools) |
+| <kbd>6</kbd> | Git & SSH Setup | [Git and SSH setup](/docs/features/git-and-ssh) |
+| <kbd>7</kbd> | Devpit Settings | [Settings](/docs/features/settings) |
+| <kbd>8</kbd> | Share Files | [Share files](/docs/features/share-files) |
+
+Move with <kbd>↑</kbd> and <kbd>↓</kbd>, press <kbd>Enter</kbd> to open a section, and press <kbd>Esc</kbd> to go back.
+Press <kbd>?</kbd> on any screen to see its keys.
+Press <kbd>q</kbd> on the main menu to quit.
+The mouse works too.
+See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.
+
+## Your first clean-up
+
+1. On the main menu press <kbd>1</kbd>.
+2. Choose **Project Junk**.
+3. Pick the folder where your projects live.
+4. Wait for the scan. Devpit lists what it found, with sizes.
+5. Look at the list. Untick anything you want to keep.
+6. Press <kbd>d</kbd>, read the question, and answer.
+
+Nothing is deleted until you confirm.
+The default answer is No.
+The full steps are in [Free up disk space](/docs/features/free-up-disk-space).
+
+## The icon font
+
+Devpit can draw small icons for folders, Git and Node.
+Windows Terminal does not ship a font with those icons, so Devpit uses a helper font.
+Without it, Devpit still works and shows plain shapes and letters.
+
+**What it is.**
+The font is **Symbols Nerd Font Mono**, from the Nerd Fonts project.
+It contains only icons, no letters.
+Devpit downloads a fixed version from GitHub and checks its checksum before it installs anything.
+
+**What installing does.**
+
+1. Installs the font for your user only. It needs no admin rights.
+2. Adds it to Windows Terminal as a fallback font. Your own font stays the main font.
+3. Saves a copy of your Windows Terminal `settings.json` first, next to it, with the ending `.devpit-bak`.
+
+After installing, close all Windows Terminal windows and open one again.
+
+**Install it.** Any one of these:
+
+- The installer does it for you, unless you used `-NoFont`.
+- Run `devpit font install`.
+- Open Devpit, go to **Settings**, and choose **Icon font**.
+
+**Check it.**
+
+```powershell
+devpit font status
+```
+
+**Remove it.**
+
+```powershell
+devpit font remove
+```
+
+This removes the font and puts your old Windows Terminal settings back.
+The uninstall choice in the installer does this too.
+
+If your icons still look like boxes, see [Troubleshooting](/docs/troubleshooting).
+You can always turn icons off in Settings and use the plain shapes.
+
+## Update Devpit
+
+Devpit checks GitHub once a day for a newer version.
+When there is one, a small `update` label appears in the header.
+Nothing is downloaded or replaced for you.
+
+To update:
+
+- **Installed with the one-liner:** run the same line again and type `U`.
+- **Installed with Scoop:** run `scoop update devpit`.
+
+**Settings**, then **About Devpit**, shows the right command for your install.
+You can turn the check off in Settings.
+See [What's new](/docs/whats-new) for what each release changed.
+
+## Uninstall Devpit
+
+- **Installed with the one-liner:** run the install line again and type `R`. It removes Devpit, the icon font and its PATH entry. Your settings are left alone.
+- **Installed with Scoop:** run `scoop uninstall devpit`.
+- **Zip file:** delete `devpit.exe`.
+
+Settings stay in `%APPDATA%\devpit`. Delete that folder if you want them gone too.
+
+## Next steps
+
+- [Free up disk space](/docs/features/free-up-disk-space): the feature most people come for.
+- [Safety and privacy](/docs/safety-and-privacy): how deleting is protected.
+- [All features](/docs/features): one short guide for each section.

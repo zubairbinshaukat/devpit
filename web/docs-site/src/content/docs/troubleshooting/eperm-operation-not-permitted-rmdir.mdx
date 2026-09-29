@@ -1,0 +1,72 @@
+---
+title: "EPERM: operation not permitted, rmdir (node_modules)"
+description: "Fix EPERM and EBUSY errors when deleting node_modules on Windows: find the program that holds the files, close it, and delete the folder safely."
+sidebar:
+  label: "EPERM / EBUSY node_modules"
+published: 2026-09-29
+related:
+  - features/free-up-disk-space
+  - troubleshooting/source-file-names-are-larger-than-supported
+  - troubleshooting/eaddrinuse-address-already-in-use-3000
+faq:
+  - question: "Is it safe to delete node_modules?"
+    answer: "Yes. node_modules only holds installed dependencies. You can rebuild it from package.json and your lockfile with npm install, pnpm install or yarn. Keep the lockfile and package.json."
+  - question: "What is the difference between EPERM and EBUSY?"
+    answer: "Node describes EPERM as an operation that is not permitted, which often needs more rights. The libuv library describes EBUSY as a resource that is busy or locked. On Windows, deleting node_modules usually fails with one of them when another program still has a file open."
+  - question: "Does Devpit close the program that locks the folder?"
+    answer: "No. Devpit never ends the program that holds a file open. It names the program when Windows can tell, and asks you to close it and press R to retry."
+---
+
+**Error: EPERM: operation not permitted, rmdir** (or **EBUSY: resource busy or locked**) means Windows refused to remove a file or folder inside `node_modules`, most often because something still has it open.
+
+## What it means
+
+Both are system error codes that Node passes on. Node's error page says `EPERM` is "an attempt was made to perform an operation that requires elevated privileges". The libuv library, which Node uses for file work, describes `EPERM` as "operation not permitted" and `EBUSY` as "resource busy or locked". The error also names the failing call in its `syscall` property, here `rmdir`.
+
+The Windows error behind a lock is "The process cannot access the file because it is being used by another process" (system error 32).
+
+## Why it happens
+
+`node_modules` holds thousands of files. If one of them is in use, the whole delete stops. Typical holders:
+
+- A dev server or `node` process that is still running in the folder.
+- An editor or terminal that has its current folder inside the project.
+- A build tool, watcher or language server that keeps a file open.
+- A file that is read-only, or a path that is too long (see [the path too long page](/docs/troubleshooting/source-file-names-are-larger-than-supported)).
+
+## How Devpit fixes or avoids it
+
+[Free Up Disk Space](/docs/features/free-up-disk-space) deletes `node_modules` for you and is built for this case.
+
+- It lists a `node_modules` folder as junk when a `package.json` sits beside it. One without a `package.json` is shown as unverified and is never ticked for you. You always see a preview first, and the default answer is No.
+- Before it removes anything, it renames the folder to a name ending in `.devpit-` and random letters. If a program holds a file, the rename fails before a single byte is deleted, so you never get a half-emptied folder.
+- When that happens, the summary names the program when Windows can tell, for example: "Couldn't delete api\node_modules — it's open in Code.exe. Close it and press R to retry." If Windows cannot name a program, it says another program has it open.
+- Devpit never ends the program that holds the file. You close it and press <kbd>R</kbd>.
+- It removes the folder's contents in parallel, and it retries very long paths in the extended `\\?\` form.
+- If a run is stopped in the middle, the renamed folder is finished on the next start or from **Settings**, **Resume**. Devpit only finishes folders that carry its own marker file, never one that merely looks similar.
+
+## The manual fix
+
+1. Stop the dev server. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal that runs it.
+2. Close the editor window for that project, and any terminal whose folder is inside it.
+3. Move your terminal out of the project, then delete the folder with `rmdir`. `/s` deletes the whole tree and `/q` skips the confirmation:
+
+```text
+cd ..
+rmdir /s /q my-project\node_modules
+```
+
+4. If it still fails, restart Windows and run the same command before you open anything else.
+5. Rebuild later with `npm install` in the project folder.
+
+`/q` deletes without asking. Check the path before you press Enter.
+
+If the message talks about a long name instead, follow [the path too long page](/docs/troubleshooting/source-file-names-are-larger-than-supported).
+
+## Sources
+
+- [Node.js: Common system errors (EPERM) and error.syscall](https://nodejs.org/api/errors.html#common-system-errors)
+- [libuv: Error constants (UV_EBUSY, UV_EPERM)](https://docs.libuv.org/en/v1.x/errors.html)
+- [Microsoft: System error codes 0 to 499 (ERROR_SHARING_VIOLATION, 32)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--0-499-)
+- [Microsoft: rmdir](https://learn.microsoft.com/windows-server/administration/windows-commands/rmdir)
+- [Devpit safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md)

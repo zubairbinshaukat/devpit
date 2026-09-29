@@ -1,0 +1,21 @@
+
+		   1048576	\\192.168.1.5\Games\a.bin
+		        12	\\192.168.1.5\Games\İstanbul\b.txt
+29.09.2026 10:15:02 HATA 112 (0x00000070) Dosya Kopyalanıyor D:\Hedef\c.bin
+Diskte yeterli alan yok.
+
+5 saniye bekleniyor... Yeniden deneniyor...
+
+		   2097152	\\192.168.1.5\Games\c2.bin
+------------------------------------------------------------------------------
+
+               Toplam   Kopyalanan  Atlanan  Uyuşmayan  BAŞARISIZ  Fazla
+   Dizinler :         3         2         1         0         0         0
+   Dosyalar :         4         3         0         0         1         0
+       Bayt :   3145740   3145740         0         0         0         0
+    Süreler :   0:00:05   0:00:03                       0:00:00   0:00:02
+
+
+      Hız :             1048576 Bytes/sec.
+      Hız :              60.000 MegaBytes/min.
+     Bitiş : Salı, 29 Eylül 2026 10:15:07

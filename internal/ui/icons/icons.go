@@ -159,6 +159,7 @@ func Nerd() Set {
 			"network":  "", // nf-fa-globe
 			"gitssh":   "", // nf-dev-git_branch
 			"settings": "", // nf-fa-cog
+			"share":    "", // nf-fa-share_alt
 		},
 		extensions: nerdExtensions,
 	}
@@ -198,6 +199,7 @@ func Unicode() Set {
 			"network":  "◎",
 			"gitssh":   "◈",
 			"settings": "≡",
+			"share":    "⇄",
 		},
 	}
 }
@@ -239,7 +241,7 @@ var brailleSpinner = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "
 
 // sectionOrder is the home menu order, so Glyphs lists section glyphs in a
 // stable order.
-var sectionOrder = []string{"clean", "ports", "install", "update", "network", "gitssh", "settings"}
+var sectionOrder = []string{"clean", "ports", "install", "update", "network", "gitssh", "settings", "share"}
 
 // Section returns the glyph for a home section id, or "" when the tier has
 // none for it.

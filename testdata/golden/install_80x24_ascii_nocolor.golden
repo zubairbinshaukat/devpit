@@ -1,5 +1,6 @@
  DEVPIT  vdev  -  Install Developer Apps                     node ...   git ...
-  Clean    Ports    Apps    Update    Network    Git    Settings  tab <-> - 1-7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share
 -------------------======-------------------------------------------------------
 Manager: scoop
 
@@ -19,6 +20,5 @@ Manager: scoop
       [ ] oh-my-posh
       [ ] starship
  VCS
-      [ ] Git
 --------------------------------------------------------------------------------
 esc back  -  ^v move  -  space toggle  -  enter install  -  ? help

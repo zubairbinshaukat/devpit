@@ -1,0 +1,157 @@
+/*
+ * Devpit docs theme.
+ *
+ * Colours come from the app itself (internal/ui/theme/theme.go: Catppuccin
+ * Mocha for dark, Latte for light, with the aqua accent) and from the landing
+ * page (web/styles.css: glacier aqua #6FD3E8, Geist / Instrument Serif /
+ * JetBrains Mono). Starlight reads only the --sl-* tokens below; everything
+ * else in this file is small polish.
+ */
+
+:root {
+  --sl-font: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --dp-serif: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --sl-content-width: 46rem;
+}
+
+/* Dark (default): Catppuccin Mocha neutrals, glacier-aqua accent. */
+:root,
+:root[data-theme='dark'] {
+  --sl-color-white: #edeef7;
+  --sl-color-gray-1: #cdd6f4;
+  --sl-color-gray-2: #b4bcd8;
+  --sl-color-gray-3: #8b91ab;
+  --sl-color-gray-4: #585b70;
+  --sl-color-gray-5: #313244;
+  --sl-color-gray-6: #1e1e2e;
+  --sl-color-black: #11111b;
+  --sl-color-accent-low: #0f3540;
+  --sl-color-accent: #1a9db8;
+  --sl-color-accent-high: #7fdbca;
+  --sl-color-bg-nav: #151521;
+  --sl-color-bg-sidebar: #151521;
+  --sl-color-hairline-light: #313244;
+  --sl-color-hairline: #24253a;
+  --sl-color-green: #a6e3a1;
+  --sl-color-orange: #fab387;
+  --sl-color-red: #f38ba8;
+  --sl-color-blue: #89b4fa;
+  --sl-color-purple: #cba6f7;
+}
+
+/* Light: Catppuccin Latte neutrals, teal accent. */
+:root[data-theme='light'] {
+  --sl-color-white: #232634;
+  --sl-color-gray-1: #3a3d55;
+  --sl-color-gray-2: #4c4f69;
+  --sl-color-gray-3: #5f6278;
+  --sl-color-gray-4: #9ca0b0;
+  --sl-color-gray-5: #ccd0da;
+  --sl-color-gray-6: #e6e9ef;
+  --sl-color-gray-7: #eff1f5;
+  --sl-color-black: #eff1f5;
+  --sl-color-accent-low: #c7ecef;
+  --sl-color-accent: #0a6e78;
+  --sl-color-accent-high: #075a62;
+  --sl-color-bg-nav: #f7f8fb;
+  --sl-color-bg-sidebar: #f7f8fb;
+  --sl-color-hairline-light: #ccd0da;
+  --sl-color-hairline: #dcdfe6;
+  --sl-color-green: #40a02b;
+  --sl-color-orange: #b95a0a;
+  --sl-color-red: #d20f39;
+  --sl-color-blue: #1e66f5;
+  --sl-color-purple: #8839ef;
+}
+
+/* Headings share the landing page's tight, confident Geist. */
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.02em;
+}
+h1 {
+  font-weight: 650;
+}
+
+/* The one serif accent, exactly like the landing headline: <em> in a title or hero. */
+.hero h1 em,
+.content-panel h1 em {
+  font-family: var(--dp-serif);
+  font-style: italic;
+  font-weight: 400;
+  padding-right: 0.06em;
+  color: var(--sl-color-accent-high);
+}
+
+/* Keys, as drawn in the app's footer hints. */
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.45em;
+  text-align: center;
+  font-family: var(--sl-font-mono);
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--sl-color-white);
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--sl-color-gray-5);
+  border-bottom-width: 2px;
+  border-radius: 0.35rem;
+  white-space: nowrap;
+}
+
+/* Sidebar current page reads clearly in both themes. */
+[aria-current='page'] {
+  font-weight: 600;
+}
+
+/* Tables: quiet, readable, never overflow the column. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Docs home cards: a little more air. */
+.card-grid {
+  gap: 1rem;
+}
+
+/* Long inline commands must wrap on phones instead of scrolling the page. */
+.sl-markdown-content :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
+/* The landing page's soft glacier light, on the docs home only (dark theme). */
+:root[data-theme='dark'][data-has-hero] .page {
+  background:
+    radial-gradient(60% 45% at 50% -10%, rgba(111, 211, 232, 0.16), transparent 70%),
+    var(--sl-color-bg);
+}
+:root[data-theme='dark'] .hero h1 {
+  background: linear-gradient(180deg, #ffffff 30%, #b9b9c6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Phones: keep the site title readable by dropping the keyboard hint in the search button. */
+@media (max-width: 50rem) {
+  site-search kbd {
+    display: none;
+  }
+}
+@media (max-width: 26rem) {
+  .site-title {
+    font-size: var(--sl-text-base);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

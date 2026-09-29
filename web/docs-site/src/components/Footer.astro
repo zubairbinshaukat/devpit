@@ -1,0 +1,100 @@
+---
+// Starlight's footer plus a "Related" block at the end of the page.
+// The list comes from the `related` frontmatter array (see routeData.ts).
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const related = Astro.locals.devpitRelated ?? [];
+// The same array feeds the FAQPage JSON-LD in routeData.ts, so the visible
+// text and the markup can never disagree.
+const faq = Astro.locals.starlightRoute.entry.data.faq ?? [];
+---
+
+{
+  faq.length > 0 && (
+    <section class="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Common questions</h2>
+      {faq.map((qa) => (
+        <div class="qa">
+          <h3>{qa.question}</h3>
+          <p>{qa.answer}</p>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+{
+  related.length > 0 && (
+    <nav class="related" aria-labelledby="related-heading">
+      <h2 id="related-heading">Related</h2>
+      <ul>
+        {related.map((r) => (
+          <li>
+            <a href={r.href}>{r.title}</a>
+            {r.description && <span>{r.description}</span>}
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+<Default {...Astro.props}><slot /></Default>
+
+<style>
+  .faq {
+    margin-top: 3rem;
+  }
+  .faq h2 {
+    margin: 0 0 1rem;
+    font-size: var(--sl-text-h3);
+    color: var(--sl-color-white);
+  }
+  .qa {
+    padding: 1rem 0;
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+  .qa h3 {
+    margin: 0 0 0.35rem;
+    font-size: var(--sl-text-lg);
+    color: var(--sl-color-white);
+  }
+  .qa p {
+    margin: 0;
+    color: var(--sl-color-gray-1);
+  }
+  .related {
+    margin-top: 3rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg-nav);
+  }
+  h2 {
+    margin: 0 0 0.75rem;
+    font-size: var(--sl-text-h5);
+    color: var(--sl-color-white);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.6rem;
+  }
+  li {
+    display: grid;
+    gap: 0.1rem;
+  }
+  a {
+    font-weight: 600;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  span {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+</style>

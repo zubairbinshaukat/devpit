@@ -20,6 +20,7 @@ const (
 	cleanSentinel    = "Pick what to look through"
 	portsSentinel    = "Free a busy port or stop a stuck process"
 	settingsSentinel = "Changes save as soon as you make them"
+	shareSentinel    = "Move big folders between two PCs on the same Wi-Fi"
 )
 
 func tab() tea.KeyPressMsg      { return tea.KeyPressMsg{Code: tea.KeyTab} }
@@ -49,7 +50,7 @@ func TestTabWalksTheSections(t *testing.T) {
 		t.Fatalf("Shift+Tab did not go back a section:\n%s", view(m))
 	}
 	m = drive(m, shiftTab())
-	if !strings.Contains(view(m), settingsSentinel) {
+	if !strings.Contains(view(m), shareSentinel) {
 		t.Fatalf("Shift+Tab from the first section did not wrap to the last:\n%s", view(m))
 	}
 	// Esc still returns home from a section opened by tab.

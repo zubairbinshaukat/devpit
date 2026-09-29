@@ -1,0 +1,152 @@
+---
+title: Copy big folders between two PCs on your network
+description: Move large folders such as a game between two Windows PCs on the same Wi-Fi or office network, with live progress, automatic retry and resume.
+sidebar:
+  label: Share files
+  order: 8
+published: 2026-09-29
+related:
+  - features/network-tools
+  - safety-and-privacy
+  - troubleshooting
+faq:
+  - question: "How fast is the copy?"
+    answer: "The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed and the time left while it copies, so measure it on your own network."
+  - question: "What if the Wi-Fi drops halfway?"
+    answer: "Devpit waits until the other PC answers again and carries on by itself, as long as Devpit stays open. If you stopped the copy or closed Devpit, open Share Files and choose the resume entry. Finished files are skipped and half-copied files carry on."
+  - question: "Does the other PC need Devpit?"
+    answer: "No. The sharing PC shows the address, share name, user name and password, plus a net use line and a robocopy line for someone who does not have Devpit. Copying works whether or not the other PC has Devpit."
+  - question: "Does Devpit use my Windows password to share?"
+    answer: "No. Devpit creates a temporary login just for this share, so your own Windows password is never used. Stop sharing removes it. If it is ever left behind, it expires by itself after 48 hours."
+  - question: "What does Devpit change in the firewall?"
+    answer: "It turns on the File and Printer Sharing rule for incoming SMB, named FPS-SMB-In-TCP, only if that rule is off. When you stop sharing it turns off only the rule it turned on."
+---
+
+import Shot from '@/components/Shot.astro';
+
+You want to move a big folder, for example a game, from one PC to another.
+Both PCs are on the same Wi-Fi or office network.
+Share Files does this with live progress, automatic retry and resume, and no commands to type.
+
+Open it from the main menu with <kbd>8</kbd>, or click the **Share** tab.
+
+There are two sides:
+
+- The PC that **shares** the folder.
+- The PC that **receives** the copy.
+
+## On the PC that shares: Share a folder
+
+1. Open Devpit and choose **Share Files**, then **Share a folder**.
+2. Pick the folder to share.
+3. If the PC has more than one network connection, pick the one the other PC is on.
+4. If that network is set to **Public**, Devpit asks if it may switch it to **Private**. Windows blocks file sharing on a Public network. Devpit puts it back when you stop sharing.
+5. Approve the Windows admin prompt. Devpit asks **once**.
+6. Devpit sets up the firewall rule, a temporary login, and a **read-only** share of the folder. You see each step.
+7. A card shows what the other PC needs:
+   - the **address** (IP),
+   - the **share** name,
+   - the **user** name,
+   - the **password**,
+   - two lines for a PC without Devpit: a `net use` line and a `robocopy` line.
+
+<Shot name="share-card" />
+
+The card has these keys:
+
+| Key | What it does |
+| --- | --- |
+| <kbd>c</kbd> | Copy the `net use` line |
+| <kbd>r</kbd> | Copy the `robocopy` line |
+| <kbd>p</kbd> | Copy the password |
+| <kbd>s</kbd> or <kbd>Esc</kbd> | Stop sharing (asks first) |
+
+8. Leave Devpit open while the other PC copies. Devpit keeps this PC awake, because a PC that sleeps stops sharing.
+9. When you are done, stop sharing. Devpit removes what it set up: the shared folder, the temporary login, the firewall rule it turned on, and the network change.
+
+Devpit also does this when you quit it with <kbd>Ctrl</kbd>+<kbd>C</kbd>.
+
+### If Devpit or the PC stopped while sharing
+
+A crash or a power cut can leave the share behind.
+The next time you open **Share Files**, it offers **Clean up an old share**.
+You can also run this in a terminal:
+
+```powershell
+devpit share cleanup
+```
+
+Windows asks for permission once.
+If nothing is left, it says "Nothing to clean up."
+The temporary login also expires by itself after 48 hours.
+
+## On the PC that receives: Copy from a shared folder
+
+1. Open Devpit and choose **Share Files**, then **Copy from a shared folder**.
+2. Type the IP address of the other PC. It is on the sharing PC's card.
+3. Pick a shared folder from the list. If the other PC wants a sign-in before it lists its folders, Devpit asks first.
+4. Sign in with the user name and password from the card.
+5. Choose where to save the files.
+6. Devpit measures the folder first. Nothing is copied yet. A big folder can take a minute.
+7. You see the **exact size**, the number of files and the **free space** on the destination. Devpit warns you before it starts if:
+   - there is not enough free space,
+   - the destination is FAT32 and a file is bigger than 4 GB,
+   - there is nothing new to copy,
+   - some paths will be longer than 260 characters (this one only warns).
+8. Press <kbd>Enter</kbd> to start.
+
+Devpit does not save the password. It is used once to sign in.
+
+<Shot name="share-progress" />
+
+While it copies you see:
+
+- a progress bar and how much is done, for example 47 GB of 80 GB,
+- the speed and the time left,
+- how many files are done, and how long it has run,
+- the files finished most recently,
+- a notice when the network hiccups and Devpit tries a file again.
+
+Devpit runs `robocopy` for you, with up to 16 files at once.
+
+## If the copy stops: Resume
+
+If the other PC stops answering, Devpit waits and tries again with a growing pause.
+When the PC answers, it carries on by itself.
+This works as long as Devpit stays open.
+
+You can also stop it yourself with <kbd>Esc</kbd>.
+Closing Devpit in the middle also leaves the copy to resume.
+
+1. Open Devpit and choose **Share Files**.
+2. Choose **Resume the copy from** the other PC. It shows how much is already copied.
+3. Press <kbd>Enter</kbd> to resume, or <kbd>d</kbd> to throw the saved copy away.
+4. If Windows has forgotten the sign-in, Devpit asks for the password again. The user name is already filled in.
+
+Finished files are skipped, and half-copied files carry on.
+
+## When it ends
+
+You see one of two things:
+
+- a clear **Done** message with the size and time, or
+- a **list of the files that failed**, with the reason and what to do. Press <kbd>r</kbd> to try them again.
+
+If the same files keep failing for three rounds in a row and nothing new is copied, Devpit stops and shows that list.
+
+## Good to know
+
+- The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed while it copies.
+- It works in any Windows language.
+- It works whether or not the other PC has Devpit.
+- Both PCs must be on the same network. Sending over the internet is not part of this feature.
+
+## Safety
+
+- The share is **read-only**. The other PC cannot change or delete your files.
+- The sharing PC uses a temporary login named like `devpit-x7k2`, created for this share only. It can only read the shared folder. Its password is new every time and is never your own.
+- The login expires after 48 hours even if nothing removes it.
+- Devpit turns on only the firewall rule `FPS-SMB-In-TCP`, and only if it was off. When you stop, it turns off only what it turned on. If Windows names that rule differently, Devpit turns on the File and Printer Sharing group instead.
+- **Stop sharing** removes the share, the login, the firewall rule and the network change. Quitting Devpit does the same.
+- Share only the folder you mean to. Anyone on your network who has the password can read it while it is shared.
+- Devpit refuses to share Windows folders, Program Files, the shared program data folder, or the whole system drive.

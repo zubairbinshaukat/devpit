@@ -1,0 +1,138 @@
+---
+title: Fix "port 3000 is already in use" on Windows
+description: Free a busy port such as 3000 or 5173 in two keystrokes, list busy dev ports, and stop stuck Node processes safely with Devpit.
+sidebar:
+  label: Fix stuck ports and apps
+  order: 2
+published: 2026-09-29
+related:
+  - features/settings
+  - safety-and-privacy
+  - troubleshooting
+faq:
+  - question: "How do I fix port 3000 is already in use on Windows?"
+    answer: "Open Devpit, choose Fix Stuck Ports and Apps, choose Kill a port, type 3000 and press Enter. Devpit shows which app holds the port. Press y to stop it. Then start your dev server again."
+  - question: "Can Devpit kill any process?"
+    answer: "No. Devpit refuses to stop PID 0 and 4, Windows services, and other programs that live in the Windows System32 folder. It shows the reason instead of a tick box. The shell programs cmd, PowerShell and conhost are the exception, because dev tools start them all the time."
+  - question: "What does Kill process tree do?"
+    answer: "A dev server is often started by another program such as npm, pnpm, yarn, node, cmd or PowerShell. If you kill only the server, its parent can start it again. Kill process tree also stops the parent and everything it started."
+  - question: "Devpit says it needs admin. What now?"
+    answer: "Windows refused to let Devpit stop that process because it runs with higher rights. Devpit does not raise its own rights for this. Close the app in its own window, or run Devpit from a terminal that was opened as administrator."
+  - question: "Which ports does Busy dev ports check?"
+    answer: "3000 to 3010, 4200, 5000, 5173, 5174, 8000, 8080, 8081, 8888, 9000 and the Expo range 19000 to 19006. You can change the list in Settings."
+---
+
+import Shot from '@/components/Shot.astro';
+
+You start your dev server and see:
+
+```text
+Error: listen EADDRINUSE: address already in use :::3000
+```
+
+Something else is using the port.
+Often it is an old copy of the same server that never closed.
+Devpit finds it and stops it, after you say yes.
+
+Open it from the main menu with <kbd>2</kbd>, or choose **Fix Stuck Ports & Apps**.
+The section has three tools.
+
+<Shot name="ports-menu" />
+
+## Kill a port
+
+Use this when you know the port number.
+
+1. Choose **Kill a port**.
+2. Type the port number, for example `3000`. Digits only, from 1 to 65535.
+3. Press <kbd>Enter</kbd>.
+4. Devpit shows who is listening: the protocol, address, PID and program name.
+
+   <Shot name="ports-kill-port" />
+
+5. Read the question, for example "Kill node.exe (PID 12345) on port 3000?". The default answer is **No**.
+6. Press <kbd>y</kbd> to stop it.
+7. Devpit waits up to two seconds and then tells you "Port 3000 is free", or that it is still busy.
+
+If nobody is using the port, Devpit says "Port 3000 is already free".
+Then the error came from something else, such as a firewall or a typo in your config.
+
+### Kill the whole process tree
+
+Dev servers are often started by another program.
+If Devpit sees that the parent is `npm`, `pnpm`, `yarn`, `node`, `cmd` or PowerShell, it shows an extra option:
+
+```text
+[t] Kill process tree (also stops 2 other process(es) started by npm.exe)
+```
+
+Press <kbd>t</kbd> to switch it on before you answer.
+This stops the parent and everything it started.
+Use it when the server keeps coming back after you kill it.
+
+## Busy dev ports
+
+Use this when you do not know which port is stuck.
+
+1. Choose **Busy dev ports**.
+2. Devpit checks every port on your dev list and shows the ones in use, with the PID, program and parent program.
+3. Move with <kbd>↑</kbd> <kbd>↓</kbd> and mark rows with <kbd>Space</kbd>.
+4. Press <kbd>k</kbd> to kill the marked ones. Answer the question.
+5. Press <kbd>r</kbd> to refresh the list.
+
+<Shot name="ports-busy" />
+
+The default list is 3000 to 3010, 4200, 5000, 5173, 5174, 8000, 8080, 8081, 8888, 9000 and 19000 to 19006 (the Expo range).
+You can change it in [Settings](/docs/features/settings).
+
+## Node processes
+
+Use this to find stuck `node`, `npm`, `pnpm` and `yarn` programs that may not hold a port at all.
+
+1. Choose **Node processes**.
+2. Mark the ones to stop with <kbd>Space</kbd>.
+3. Press <kbd>k</kbd> and answer the question.
+
+## What Devpit will never stop
+
+Some processes are protected.
+Devpit shows a reason instead of a tick box and you cannot select them:
+
+- PID 0 and PID 4 (the Windows System process),
+- Windows services,
+- every other program that lives in `C:\Windows\System32`.
+
+The shells `cmd.exe`, `powershell.exe` and `conhost.exe` are the exception.
+They are not services, and dev tools start them constantly, so Devpit lets you stop them, mostly as part of a process tree.
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move |
+| <kbd>Enter</kbd> | Choose a tool, or check the port you typed |
+| <kbd>Space</kbd> | Mark or unmark a row |
+| <kbd>k</kbd> | Kill the marked rows |
+| <kbd>t</kbd> | Turn "kill process tree" on or off, when it is offered |
+| <kbd>r</kbd> | Refresh the list |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer the question (No is the default) |
+| <kbd>Esc</kbd> | Go back |
+
+You can click rows and use the mouse wheel too.
+See [Keyboard and mouse](/docs/keyboard-and-mouse).
+
+## If Devpit says "needs admin"
+
+Windows only lets you stop a program that runs with the same or lower rights than you.
+If the program was started as administrator, Devpit shows "needs admin" and does not stop it.
+Devpit does not raise its own rights for this.
+
+1. Close the app the normal way, in its own window, or
+2. Open a terminal as administrator, run `devpit` there, and try again.
+
+## Safety
+
+Nothing is stopped without your confirmation, and the default answer is No.
+Devpit stops only the processes you picked.
+Stopping a program ends it right away, so save your work first.
+Dev servers can usually just be started again.

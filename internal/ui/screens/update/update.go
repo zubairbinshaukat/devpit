@@ -15,6 +15,16 @@
 //     with the reason in plain words.
 //  5. Finish on a summary card, with the full raw log one key away.
 //
+// While an app updates, s (pressed twice, to confirm) skips it: only that
+// app's process tree is stopped, the run moves on, and the summary says
+// "skipped by you" with the command to retry it. An app that says nothing for
+// [activity.StuckAfter] gets a hint on its row to do exactly that.
+//
+// An app that can only be updated as administrator (an MSIX app that installs
+// a service, error 0x80073D28) is not failed on the spot. Its row waits, and
+// once the rest of the run is done those apps are tried again together
+// through the elevated worker: one UAC prompt for all of them.
+//
 // When a manager's answer cannot be read (a localized message Devpit does not
 // know, a format change), that manager falls back to one "update everything"
 // row that runs its old upgrade-all commands, so nothing is lost.
@@ -166,6 +176,9 @@ type job struct {
 	label   string
 	cmds    [][]string
 	row     activity.Row
+	// retry is how to run this job by hand, for the summary of a skipped
+	// or failed one.
+	retry managers.Retry
 }
 
 // keyMap is the screen's own key bindings, on top of the global ones.
@@ -177,6 +190,7 @@ type keyMap struct {
 	None   key.Binding
 	Select key.Binding
 	Stop   key.Binding
+	Skip   key.Binding
 	Log    key.Binding
 	Done   key.Binding
 }
@@ -190,6 +204,7 @@ func defaultKeys() keyMap {
 		None:   key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "none")),
 		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "update")),
 		Stop:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "stop")),
+		Skip:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "skip app")),
 		Log:    key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "log")),
 		Done:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "done")),
 	}
@@ -207,11 +222,64 @@ type runHandle struct {
 
 	mu     sync.Mutex
 	client elevatedClient
+	// job is the index of the job in flight, or -1, and cancelJob stops
+	// just that job's process tree. skipped is set when the stop came from
+	// [runHandle.skip] rather than from the whole run being cancelled.
+	job       int
+	cancelJob context.CancelFunc
+	skipped   bool
 }
 
 // newRunHandle returns a handle wired to cancel.
 func newRunHandle(cancel context.CancelFunc) *runHandle {
-	return &runHandle{cancel: cancel}
+	return &runHandle{cancel: cancel, job: -1}
+}
+
+// beginJob records the job now running and the func that stops only it.
+func (h *runHandle) beginJob(i int, cancel context.CancelFunc) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	h.job, h.cancelJob, h.skipped = i, cancel, false
+	h.mu.Unlock()
+}
+
+// endJob forgets the job in flight, releases its context, and reports
+// whether the user skipped it.
+func (h *runHandle) endJob() (skipped bool) {
+	if h == nil {
+		return false
+	}
+	h.mu.Lock()
+	cancel, skipped := h.cancelJob, h.skipped
+	h.job, h.cancelJob, h.skipped = -1, nil, false
+	h.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return skipped
+}
+
+// skip stops job i, and only job i, if it is the one in flight. It reports
+// whether there was anything to stop. It never blocks: it cancels the job's
+// context, which kills its process tree (or, for an elevated job, makes the
+// worker cancel that one command); the run goroutine then moves on.
+func (h *runHandle) skip(i int) bool {
+	if h == nil {
+		return false
+	}
+	h.mu.Lock()
+	cancel := h.cancelJob
+	ok := h.job == i && cancel != nil
+	if ok {
+		h.skipped = true
+	}
+	h.mu.Unlock()
+	if ok {
+		cancel()
+	}
+	return ok
 }
 
 // setClient records the elevated worker client once a run connects to one,
@@ -313,6 +381,11 @@ type Model struct {
 	elapsed  time.Duration
 	log      []string
 	showLog  bool
+
+	// gate is the press-twice rule of the skip key.
+	gate activity.SkipGate
+	// outAt is when each job last said anything, for the stuck hint.
+	outAt []time.Time
 }
 
 // Busy implements uictx.BusyReporter: an update run is in flight, which is
@@ -396,12 +469,32 @@ func (m Model) ShortHelp() []key.Binding {
 	case stateConfirm:
 		return m.confirm.Keys.ShortHelp()
 	case stateRunning:
-		return []key.Binding{m.keys.Stop, m.keys.Log}
+		return []key.Binding{m.skipBinding(), m.keys.Stop, m.keys.Log}
 	case stateSummary:
 		return []key.Binding{m.keys.Done, m.keys.Log}
 	default:
 		return nil
 	}
+}
+
+// skipBinding is the skip key's hint, which asks for the second press once
+// the first has been made.
+func (m Model) skipBinding() key.Binding {
+	b := m.keys.Skip
+	if i := m.runningJob(); i >= 0 && m.gate.Armed(i, m.now()) {
+		b.SetHelp("s", "press s again to skip")
+	}
+	return b
+}
+
+// runningJob is the index of the job in flight, or -1.
+func (m Model) runningJob() int {
+	for i, j := range m.jobs {
+		if j.row.State == activity.Running {
+			return i
+		}
+	}
+	return -1
 }
 
 // FullHelp implements uictx.Screen.
@@ -412,7 +505,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	case stateConfirm:
 		return m.confirm.Keys.FullHelp()
 	case stateRunning:
-		return [][]key.Binding{{m.keys.Stop, m.keys.Log}}
+		return [][]key.Binding{{m.keys.Skip, m.keys.Stop, m.keys.Log}}
 	case stateSummary:
 		return [][]key.Binding{{m.keys.Done, m.keys.Log}}
 	default:
@@ -447,6 +540,14 @@ type runEvent struct {
 	detail   string
 	elapsed  time.Duration
 	allDone  bool
+	// next is what to do about a job that did not finish cleanly.
+	next string
+	// kind is the verdict's kind, for the run goroutine's own decisions
+	// (an admin-only job is retried); the model does not read it.
+	kind managers.VerdictKind
+	// deferred marks a job put back to wait for the elevated retry at the
+	// end of the run.
+	deferred bool
 }
 
 // runBatchMsg is one tick's worth of drained [runEvent]s.
@@ -504,14 +605,39 @@ func (m Model) updateRunning(msg tea.Msg) (uictx.Screen, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
+	if !key.Matches(km, m.keys.Skip) {
+		// Any other key means the user changed their mind about skipping.
+		m.gate = m.gate.Disarm()
+	}
 	switch {
 	case key.Matches(km, m.keys.Log):
 		m.showLog = !m.showLog
+	case key.Matches(km, m.keys.Skip):
+		return m.onSkipKey()
 	case key.Matches(km, m.keys.Stop):
 		m.run.stop()
 		return m, uictx.Status("warning", "Stopping: the app in flight is cut short, the rest are skipped…")
 	}
 	return m, nil
+}
+
+// onSkipKey is the skip key. The first press arms the gate and says so; the
+// second press, inside [activity.SkipWindow], stops the app in flight and
+// that app only. Skipping cuts an installer off partway, so it is never one
+// keystroke.
+func (m Model) onSkipKey() (uictx.Screen, tea.Cmd) {
+	i := m.runningJob()
+	if i < 0 {
+		return m, uictx.Status("warning", "Nothing is updating right now.")
+	}
+	name := m.jobs[i].label
+	var fire bool
+	m.gate, fire = m.gate.Press(i, m.now())
+	if !fire {
+		return m, uictx.Status("warning", "Press s again to skip "+name+". Its installer is stopped partway.")
+	}
+	m.run.skip(i)
+	return m, uictx.Status("warning", "Skipping "+name+"…")
 }
 
 // updateSummary handles the finished run: Enter goes back, l shows the log.
@@ -827,6 +953,9 @@ func (m Model) confirmDetail(picked []int) string {
 		example := strings.Join(p.manager.UpgradeCmd(p.out.ID), " ")
 		lines = append(lines, fmt.Sprintf("%s (%s): %s", name, plural(n, "app", "apps"), example))
 	}
+	if seen["winget"] {
+		lines = append(lines, "An app that needs admin rights is tried again at the end, with one admin prompt.")
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -842,6 +971,8 @@ func (m Model) onAnswered(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 	m.showLog = false
 	m.runStart = m.now()
 	m.events = make(chan runEvent, 256)
+	m.gate = activity.SkipGate{}
+	m.outAt = make([]time.Time, len(m.jobs))
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	m.run = newRunHandle(cancel)
@@ -873,6 +1004,7 @@ func (m Model) buildJobs(picked []int) []job {
 				j.cmds = [][]string{p.manager.UpgradeCmd(p.out.ID)}
 				ids = append(ids, p.out.ID)
 			}
+			j.retry = managers.RetryFor(p.manager, p.out.ID, false, p.all)
 			jobs = append(jobs, j)
 		}
 		if mgr == nil || len(ids) == 0 {
@@ -882,7 +1014,7 @@ func (m Model) buildJobs(picked []int) []job {
 			label := "Clear old " + name + " versions"
 			jobs = append(jobs, job{pkg: -1, manager: mgr, label: label, cmds: cmds, row: activity.Row{
 				Label: label, State: activity.Queued, Percent: -1,
-			}})
+			}, retry: managers.Retry{Command: joinCmds(cmds)}})
 		}
 	}
 	return jobs
@@ -904,13 +1036,22 @@ func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
 		switch {
 		case ev.started:
 			r.State = activity.Running
+			if ev.detail != "" {
+				r.Detail = ev.detail
+			}
+			m.outAt[ev.job] = m.now()
+		case ev.deferred:
+			r.State, r.Detail, r.Elapsed, r.Percent, r.Stuck = activity.Queued, ev.detail, ev.elapsed, -1, 0
 		case ev.finished:
-			r.State, r.Detail, r.Elapsed, r.Percent = ev.state, ev.detail, ev.elapsed, -1
+			r.State, r.Detail, r.Elapsed, r.Percent, r.Stuck = ev.state, ev.detail, ev.elapsed, -1, 0
+			r.Next = ev.next
 		case ev.progress != nil:
+			m.outAt[ev.job] = m.now()
 			if ev.progress.Percent >= 0 {
 				r.Percent = ev.progress.Percent
 			}
 		case ev.line != "":
+			m.outAt[ev.job] = m.now()
 			r.Detail = ev.line
 			m.log = append(m.log, "["+m.jobs[ev.job].label+"] "+ev.line)
 			if len(m.log) > maxLogLines {
@@ -921,10 +1062,21 @@ func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
 			r.Elapsed = ev.elapsed
 		}
 	}
-	// A running row's clock ticks even while its manager is silent.
+	// A running row's clock ticks even while its manager is silent, and a
+	// row that has been silent for long enough says so.
+	now := m.now()
 	for i := range m.jobs {
-		if m.jobs[i].row.State == activity.Running {
-			m.jobs[i].row.Elapsed += tickEvery
+		r := &m.jobs[i].row
+		if r.State != activity.Running {
+			continue
+		}
+		r.Elapsed += tickEvery
+		if m.outAt[i].IsZero() {
+			m.outAt[i] = now
+		}
+		r.Stuck = 0
+		if silent := now.Sub(m.outAt[i]); silent >= activity.StuckAfter {
+			r.Stuck = silent
 		}
 	}
 	if finished {
@@ -953,6 +1105,12 @@ func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
 // cancellation partway through marks the job that was running "cancelled",
 // marks every job after it "cancelled" without starting it, and still
 // reaches the summary rather than leaving the screen stuck on "running".
+//
+// Each job also runs under a context of its own, held by handle, which is
+// what the skip key cancels: that stops the one job's process tree and the
+// loop goes on with the next job. A job that could only have worked with
+// administrator rights is not failed; it waits, and after the last job the
+// waiting ones are run again together through one elevated worker.
 func runJobs(ctx context.Context, run RunStepFunc, launch LaunchElevatedFunc, now func() time.Time, jobs []job, events chan<- runEvent, handle *runHandle) {
 	defer close(events)
 	var worker elevatedClient
@@ -963,7 +1121,16 @@ func runJobs(ctx context.Context, run RunStepFunc, launch LaunchElevatedFunc, no
 			_ = worker.Close()
 		}
 	}()
+	connect := func() {
+		if worker == nil && workerErr == nil {
+			worker, workerErr = launch(ctx)
+			if workerErr == nil {
+				handle.setClient(worker)
+			}
+		}
+	}
 
+	var waiting []int
 	for i, j := range jobs {
 		if ctx.Err() != nil {
 			cancelFrom(ctx, events, i, len(jobs))
@@ -972,38 +1139,118 @@ func runJobs(ctx context.Context, run RunStepFunc, launch LaunchElevatedFunc, no
 		sendEvent(ctx, events, runEvent{job: i, started: true})
 		start := now()
 
+		jobCtx, cancelJob := context.WithCancel(ctx)
+		handle.beginJob(i, cancelJob)
 		var fin runEvent
 		if j.manager.NeedsElevation() {
-			if worker == nil && workerErr == nil {
-				worker, workerErr = launch(ctx)
-				if workerErr == nil {
-					handle.setClient(worker)
-				}
-			}
+			connect()
 			if workerErr != nil {
 				fin = elevationFailure(workerErr)
+				fin.next = adminRetryNext(j)
 			} else {
-				fin = runElevated(ctx, worker, j, i, events)
+				fin = runElevated(ctx, jobCtx, worker, j, i, events)
 			}
 		} else {
-			fin = runPlain(ctx, run, j, i, events)
+			fin = runPlain(ctx, jobCtx, run, j, i, events)
 		}
-		fin.job, fin.finished, fin.elapsed = i, true, now().Sub(start)
+		skipped := handle.endJob()
+		fin = settle(ctx, fin, skipped, j)
+		fin.job, fin.elapsed = i, now().Sub(start)
+
+		if canRetryAsAdmin(fin, j) && ctx.Err() == nil {
+			waiting = append(waiting, i)
+			fin.deferred = true
+			fin.detail = "needs admin rights, retrying at the end"
+			sendEvent(ctx, events, fin)
+			continue
+		}
+		fin.finished = true
 		sendEvent(ctx, events, fin)
 		if ctx.Err() != nil {
 			cancelFrom(ctx, events, i+1, len(jobs))
+			cancelList(ctx, events, waiting)
+			waiting = nil
 			break
+		}
+	}
+
+	if len(waiting) > 0 && ctx.Err() == nil {
+		connect()
+		for _, i := range waiting {
+			if ctx.Err() != nil {
+				cancelList(ctx, events, []int{i})
+				continue
+			}
+			j := jobs[i]
+			var fin runEvent
+			start := now()
+			if workerErr != nil {
+				fin = elevationFailure(workerErr)
+			} else {
+				sendEvent(ctx, events, runEvent{job: i, started: true, detail: "retrying as administrator"})
+				jobCtx, cancelJob := context.WithCancel(ctx)
+				handle.beginJob(i, cancelJob)
+				fin = runElevated(ctx, jobCtx, worker, j, i, events)
+				fin = settle(ctx, fin, handle.endJob(), j)
+			}
+			if fin.state == activity.Failed || (fin.state == activity.Skipped && fin.next == "") {
+				fin.next = adminRetryNext(j)
+			}
+			fin.job, fin.finished, fin.elapsed = i, true, now().Sub(start)
+			sendEvent(ctx, events, fin)
 		}
 	}
 	sendEvent(ctx, events, runEvent{allDone: true})
 }
 
+// adminRetryNext is the next step for an app that needs administrator rights
+// and did not get them: run it by hand from an administrator terminal.
+func adminRetryNext(j job) string {
+	return "Open Windows Terminal as administrator and run: " + j.retry.String()
+}
+
+// settle turns a job that ended because the user skipped it into the
+// "skipped by you" outcome, with how to retry it. A job that ended some other
+// way, or a skip that lost the race with the job finishing, is left alone.
+func settle(ctx context.Context, fin runEvent, skipped bool, j job) runEvent {
+	if skipped && ctx.Err() == nil && fin.state == activity.Skipped && fin.detail == "cancelled" {
+		return runEvent{state: activity.Skipped, detail: "skipped by you", next: "To retry, run: " + j.retry.String()}
+	}
+	return fin
+}
+
+// canRetryAsAdmin reports whether a finished job should wait for the
+// elevated retry: it failed because it needs administrator rights, it is an
+// app rather than housekeeping, and its manager is not one that already runs
+// through the elevated worker.
+func canRetryAsAdmin(fin runEvent, j job) bool {
+	return fin.state == activity.Failed && fin.kind == managers.VerdictNeedsAdmin &&
+		j.pkg >= 0 && !j.manager.NeedsElevation()
+}
+
+// cancelList marks the jobs at idx cancelled without running them.
+func cancelList(ctx context.Context, events chan<- runEvent, idx []int) {
+	for _, i := range idx {
+		sendEvent(ctx, events, runEvent{job: i, finished: true, state: activity.Skipped, detail: "cancelled"})
+	}
+}
+
+// joinCmds is a list of commands as one line, for showing how to run them.
+func joinCmds(cmds [][]string) string {
+	lines := make([]string, len(cmds))
+	for i, c := range cmds {
+		lines[i] = strings.Join(c, " ")
+	}
+	return strings.Join(lines, " && ")
+}
+
 // runPlain runs one job's commands directly, reporting output lines and
-// progress, and returns its final event.
-func runPlain(ctx context.Context, run RunStepFunc, j job, idx int, events chan<- runEvent) runEvent {
+// progress, and returns its final event. ctx is the whole run's, used for
+// sending; jobCtx is this job's own, which is what stops the command.
+func runPlain(ctx, jobCtx context.Context, run RunStepFunc, j job, idx int, events chan<- runEvent) runEvent {
 	var res tools.StepResult
 	for _, argv := range j.cmds {
-		res = run(ctx, argv, tools.DefaultStepTimeout, func(l tools.Line) {
+		res = run(jobCtx, argv, tools.DefaultStepTimeout, func(l tools.Line) {
 			if p, ok := tools.ParseProgress(l.Text); ok && p.Percent >= 0 {
 				pc := p
 				sendEvent(ctx, events, runEvent{job: idx, progress: &pc})
@@ -1012,23 +1259,24 @@ func runPlain(ctx context.Context, run RunStepFunc, j job, idx int, events chan<
 				sendEvent(ctx, events, runEvent{job: idx, line: l.Text})
 			}
 		})
-		if ctx.Err() != nil {
+		if jobCtx.Err() != nil {
 			return runEvent{state: activity.Skipped, detail: "cancelled"}
 		}
 		if !res.OK {
 			break
 		}
 	}
-	return verdictEvent(j.manager.Name(), res.ExitCode, res.LastLines)
+	return verdictEvent(j, res.ExitCode, res.LastLines)
 }
 
-// runElevated runs one job's commands through the elevated worker.
-func runElevated(ctx context.Context, worker elevatedClient, j job, idx int, events chan<- runEvent) runEvent {
+// runElevated runs one job's commands through the elevated worker. Cancelling
+// jobCtx makes the client ask the worker to stop that one command.
+func runElevated(ctx, jobCtx context.Context, worker elevatedClient, j job, idx int, events chan<- runEvent) runEvent {
 	code := 0
 	var last []string
 	for _, argv := range j.cmds {
 		var err error
-		code, err = worker.Exec(ctx, argv, tools.DefaultStepTimeout, func(_, text string) {
+		code, err = worker.Exec(jobCtx, argv, tools.DefaultStepTimeout, func(_, text string) {
 			text = tools.CleanLine(text)
 			if text == "" {
 				return
@@ -1039,7 +1287,7 @@ func runElevated(ctx context.Context, worker elevatedClient, j job, idx int, eve
 			}
 			sendEvent(ctx, events, runEvent{job: idx, line: text})
 		})
-		if ctx.Err() != nil {
+		if jobCtx.Err() != nil {
 			return runEvent{state: activity.Skipped, detail: "cancelled"}
 		}
 		if err != nil {
@@ -1053,7 +1301,7 @@ func runElevated(ctx context.Context, worker elevatedClient, j job, idx int, eve
 			break
 		}
 	}
-	return verdictEvent(j.manager.Name(), code, last)
+	return verdictEvent(j, code, last)
 }
 
 // elevationFailure is the final event for a job whose admin helper could
@@ -1071,9 +1319,19 @@ func elevationFailure(err error) runEvent {
 }
 
 // verdictEvent turns a finished command into the row's final state, in the
-// plain words [managers.Explain] chooses.
-func verdictEvent(manager string, code int, last []string) runEvent {
-	v := managers.Explain(manager, code, last)
+// plain words [managers.ExplainApp] chooses, with its next step.
+func verdictEvent(j job, code int, last []string) runEvent {
+	v := managers.ExplainApp(j.manager.Name(), j.label, code, last)
+	ev := verdictState(v, last)
+	ev.kind = v.Kind
+	if ev.state != activity.Done {
+		ev.next = v.Next
+	}
+	return ev
+}
+
+// verdictState maps a verdict to the row state and text.
+func verdictState(v managers.Verdict, last []string) runEvent {
 	switch v.Kind {
 	case managers.VerdictOK:
 		return runEvent{state: activity.Done}
@@ -1454,6 +1712,18 @@ func (m Model) viewSummary(ctx uictx.Context) string {
 	var b strings.Builder
 	b.WriteString(activity.DoneBox(ctx, "Updated", activity.Count(apps), m.elapsed, ctx.Width))
 	b.WriteString("\n\n")
-	b.WriteString(m.body(ctx, ctx.BodyHeight-5))
+	height := ctx.BodyHeight - 5
+	next, nextLines := "", 0
+	if !m.showLog {
+		next, nextLines = activity.NextSteps(ctx, rows, ctx.Width)
+		if nextLines > 0 {
+			height -= nextLines + 1
+		}
+	}
+	b.WriteString(m.body(ctx, height))
+	if nextLines > 0 {
+		b.WriteString("\n\n")
+		b.WriteString(next)
+	}
 	return b.String()
 }

@@ -48,9 +48,10 @@ func pushed(t *testing.T, m uictx.Screen, cmd tea.Cmd, ctx uictx.Context) uictx.
 func TestMastheadCarriesTheByline(t *testing.T) {
 	m := home.New(icons.Unicode())
 
-	big := m.View(ctxAt(100, 30))
+	// Eight sections need 32 rows for the block wordmark and the whole menu.
+	big := m.View(ctxAt(100, 32))
 	if !strings.Contains(big, "██████╗") || !strings.Contains(big, about.Byline) {
-		t.Errorf("100x30 masthead lacks the wordmark or the byline:\n%s", big)
+		t.Errorf("100x32 masthead lacks the wordmark or the byline:\n%s", big)
 	}
 	small := m.View(ctxAt(80, 24))
 	if strings.Contains(small, "██████╗") || !strings.Contains(small, "D E V P I T") || !strings.Contains(small, about.Byline) {
@@ -65,7 +66,10 @@ func TestTabByDigit(t *testing.T) {
 	if tab, ok := home.TabByDigit("7"); !ok || tab.ID != home.SectionSettings {
 		t.Errorf("7 = %+v,%v want settings", tab, ok)
 	}
-	for _, bad := range []string{"0", "8", "a", "", "12"} {
+	if tab, ok := home.TabByDigit("8"); !ok || tab.ID != home.SectionShare {
+		t.Errorf("8 = %+v,%v want share", tab, ok)
+	}
+	for _, bad := range []string{"0", "9", "a", "", "12"} {
 		if _, ok := home.TabByDigit(bad); ok {
 			t.Errorf("%q should not name a tab", bad)
 		}
@@ -82,11 +86,11 @@ func TestDigitOpensItsSection(t *testing.T) {
 	}
 }
 
-// At 100x30 the body starts on row 3, the masthead is seven rows, then a
+// At 100x32 the body starts on row 3, the masthead is seven rows, then a
 // blank line and the card border: the first menu row is terminal row 13 and
 // the second entry (two rows each, no gaps) starts on row 15.
 func TestClickOnAMenuRowOpensItsSection(t *testing.T) {
-	ctx := ctxAt(100, 30)
+	ctx := ctxAt(100, 32)
 	m := home.New(icons.Unicode())
 	next, cmd := m.Update(tea.MouseClickMsg{X: 40, Y: 15, Button: tea.MouseLeft}, ctx)
 	s := pushed(t, next, cmd, ctx)

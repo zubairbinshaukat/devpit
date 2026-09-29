@@ -1,0 +1,11 @@
+
+Ressources partagées sur \\192.168.1.5
+
+Nom de partage  Type  Utilisé comme  Commentaire
+
+-------------------------------------------------------------------------------
+Jeux        Disque           My games (fr)
+Vidéos       Disque
+Imprimante1    Imprimante           Office printer
+C$          Disque           
+La commande s’est terminée correctement.

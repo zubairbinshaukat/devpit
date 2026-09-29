@@ -1,0 +1,11 @@
+
+Shared resources at \\192.168.1.5
+
+Share name  Type  Used as  Comment
+
+-------------------------------------------------------------------------------
+Games        Disk           My games (en)
+Movies       Disk
+Printer1    Print           Office printer
+C$          Disk           
+The command completed successfully.

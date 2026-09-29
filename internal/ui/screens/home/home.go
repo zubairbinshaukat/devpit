@@ -1,4 +1,4 @@
-// Package home is Devpit's main menu: the seven sections from the PRD, each
+// Package home is Devpit's main menu: the eight sections from the PRD, each
 // with a fixed name, an icon in the section's own colour and a one-line
 // description.
 //
@@ -34,6 +34,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/network"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/ports"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/share"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/update"
 	"github.com/zubairbinshaukat/devpit/internal/ui/theme"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
@@ -49,9 +50,10 @@ const (
 	SectionNetwork  = theme.SectionNetwork
 	SectionGitSSH   = theme.SectionGitSSH
 	SectionSettings = theme.SectionSettings
+	SectionShare    = theme.SectionShare
 )
 
-// Tabs returns the seven sections as the header draws them: the same order
+// Tabs returns the eight sections as the header draws them: the same order
 // as the menu, with a short label that fits a tab.
 func Tabs() []header.Tab {
 	return []header.Tab{
@@ -62,6 +64,7 @@ func Tabs() []header.Tab {
 		{ID: SectionNetwork, Label: "Network"},
 		{ID: SectionGitSSH, Label: "Git"},
 		{ID: SectionSettings, Label: "Settings"},
+		{ID: SectionShare, Label: "Share"},
 	}
 }
 
@@ -76,7 +79,7 @@ func TabByDigit(text string) (header.Tab, bool) {
 }
 
 // SectionFor reports which section a screen belongs to, or "" for a screen
-// that is not one of the seven (home itself, first run, a sub-screen). The
+// that is not one of the eight (home itself, first run, a sub-screen). The
 // header uses it to light the right tab, so it looks at the screen's type
 // rather than trusting a title that a screen may change as it works.
 func SectionFor(s uictx.Screen) string {
@@ -95,12 +98,14 @@ func SectionFor(s uictx.Screen) string {
 		return SectionGitSSH
 	case settings.Model:
 		return SectionSettings
+	case share.Model:
+		return SectionShare
 	default:
 		return ""
 	}
 }
 
-// Items returns the seven menu entries, in PRD order, with the icons of the
+// Items returns the eight menu entries, in PRD order, with the icons of the
 // given tier. The ascii tier has no section glyphs and the menu draws nothing
 // in their place.
 func Items(ic icons.Set) []menu.Item {
@@ -117,6 +122,7 @@ func Items(ic icons.Set) []menu.Item {
 		item(SectionNetwork, "Network Tools", "IP, connectivity and DNS helpers"),
 		item(SectionGitSSH, "Git & SSH Setup", "Identity and SSH key setup"),
 		item(SectionSettings, "Devpit Settings", "Preferences, theme, privacy, tool rescan"),
+		item(SectionShare, "Share Files", "Move big folders between two PCs on your network"),
 	}
 }
 
@@ -171,7 +177,7 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	case menu.SelectedMsg:
 		return m, m.Open(msg.ID)
 	case tea.KeyPressMsg:
-		// 1-7 opens a section directly. Home has no text input, so a digit
+		// 1-8 opens a section directly. Home has no text input, so a digit
 		// can never be something the user meant to type.
 		if t, ok := TabByDigit(msg.Text); ok {
 			return m, m.Open(t.ID)
@@ -273,9 +279,9 @@ func tagline(ctx uictx.Context) string {
 		return th.Muted.Render("You've freed ") + th.Success.Render(header.FormatBytes(freed)) +
 			th.Muted.Render(" with Devpit. See you next lap.")
 	}
-	keys := "1–7"
+	keys := "1–8"
 	if ctx.Icons.Tier == icons.TierASCII {
-		keys = "1-7"
+		keys = "1-8"
 	}
 	return th.Muted.Render("Pit crew ready. Pick a section, or press " + keys + ".")
 }
@@ -386,6 +392,8 @@ func (m Model) Open(id string) tea.Cmd {
 		return uictx.Push(gitssh.New())
 	case SectionSettings:
 		return uictx.Push(settings.New())
+	case SectionShare:
+		return uictx.Push(share.New())
 	default:
 		return nil
 	}

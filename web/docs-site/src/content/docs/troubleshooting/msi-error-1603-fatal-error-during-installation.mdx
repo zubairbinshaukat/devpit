@@ -1,0 +1,59 @@
+---
+title: "MSI error 1603: a fatal error occurred during installation"
+description: "Windows Installer error 1603 is a general failure. Learn how to read the MSI log with msiexec /L*V, see how winget reports it, and how Devpit shows the failure."
+sidebar:
+  label: "MSI error 1603"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/msi-error-1618-another-installation-in-progress
+  - troubleshooting/winget-0x8a150101
+faq:
+  - question: "What does exit code 1603 mean?"
+    answer: "It is the Windows Installer error ERROR_INSTALL_FAILURE, with the text A fatal error occurred during installation. It is a general code. It tells you the install failed, not why. The reason is in the installer log."
+  - question: "How do I get the MSI log?"
+    answer: "Run the package yourself with msiexec /i and the /L*V option followed by a log file path, for example msiexec /i C:\\example.msi /L*V C:\\package.log. Then search the log for the word error."
+---
+
+**Error 1603: A fatal error occurred during installation.** This is Windows Installer's general "the install failed" code. It does not say why.
+
+## What it means
+
+Windows Installer (MSI) returns numbers when it finishes. Microsoft lists 1603 as `ERROR_INSTALL_FAILURE`: "A fatal error occurred during installation."
+
+When winget runs an MSI package and it fails, winget reports its own code, `0x8A150049` ("Running MSI install failed"), and its output can also show the installer's own exit code, such as "Installer failed with exit code: 1603". The real cause is inside the installer's log.
+
+## Why it happens
+
+1603 is a catch-all. Public reports in the winget project show it for very different causes, for example a package that needs administrator rights, or an old MSI file that is missing. Do not trust a guess. Read the log.
+
+## How Devpit fixes or avoids it
+
+Devpit does not repair Windows Installer. In [Update Everything](/docs/features/update-everything) it makes the failure easy to see:
+
+- A winget package that ends with `0x8A150049` shows as **msi install failed** in the summary, followed by the last line the installer printed.
+- Other winget codes without a special meaning show as `error 0x` plus the code, so you can search for it.
+- Winget's other MSI-related outcomes have their own plain words: "another install is running" for `0x8A150102`, "disk full" for `0x8A150105`, "no network" for `0x8A150107`.
+
+Devpit runs winget as a normal user, so a package that needs administrator rights is a first thing to check. See [winget 0x80073D28](/docs/troubleshooting/winget-0x80073d28).
+
+## The manual fix
+
+1. Make sure no other install or update is running. If you get 1618 instead, see [MSI error 1618](/docs/troubleshooting/msi-error-1618-another-installation-in-progress).
+2. Run the installer yourself with a verbose log. `/i` installs, and `/L*V` writes all information including verbose output to the file you name:
+
+```text
+msiexec /i "C:\example.msi" /L*V "C:\package.log"
+```
+
+3. Open `package.log` in a text editor and search for the word `error`. The lines around the first error say what failed.
+4. Fix the cause the log names, then run the install again. If the log points at a missing file or a permission, try again from a terminal opened as administrator.
+
+## Sources
+
+- [Microsoft: Windows Installer error codes (1603)](https://learn.microsoft.com/windows/win32/msi/error-codes)
+- [Microsoft: msiexec (logging options, /L*V)](https://learn.microsoft.com/windows-server/administration/windows-commands/msiexec)
+- [winget return codes (0x8A150049, 0x8A150102, 0x8A150105, 0x8A150107)](https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
+- [winget-cli issue #1143: silent install of an MSI package fails with 1603](https://github.com/microsoft/winget-cli/issues/1143)
+- [winget-cli issue #232: Installer failed with exit code 1603](https://github.com/microsoft/winget-cli/issues/232)
+- [UniGetUI issue #2742: update fails when the old MSI installer is missing (exit code 1603)](https://github.com/Devolutions/UniGetUI/issues/2742)

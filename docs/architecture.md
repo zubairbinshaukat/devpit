@@ -16,7 +16,7 @@ internal/ui/
   components/         header, footer, menu, confirm, summary, restable,
                       progress, pathpicker
   screens/            clean, firstrun, gitssh, home, install, network,
-                      ports, settings, update
+                      ports, settings, share, update
 internal/config/       TOML settings, atomic save, corrupt-file recovery
 internal/winapi/       thin Win32 wrappers, one _windows.go per stub
 internal/version/      build identity, set by ldflags
@@ -31,7 +31,11 @@ internal/fonts/        Nerd Font download, checksum, install, Terminal patch
 internal/wt/           Windows Terminal settings.json patch/restore
 internal/network/      ping, DNS flush, local/public IP
 internal/gitssh/       SSH keygen, git config, clipboard (OSC 52)
-internal/elevate/      the elevated worker: protocol, client, server, whitelist
+internal/elevate/      the elevated worker: protocol, client, server, whitelist,
+                      and the typed share operations
+internal/share/        file sharing over the local network: host (share a
+                      folder), recv (copy from one), robocopy, netstat,
+                      errmap, job, store
 internal/telemetry/    the opt-in usage-stats client: one POST after a
                       cleanup, counts and rule names only
 internal/selfupdate/   once-a-day look at GitHub's latest release, cached on
@@ -46,7 +50,7 @@ internal/about/        author, links and licence, read by every place that
 ## The engine/UI split
 
 Every package above `internal/ui` and `internal/app` — `scan`, `clean`,
-`ports`, `tools`, `fonts`, `wt`, `network`, `gitssh`, `elevate` — is an
+`ports`, `tools`, `fonts`, `wt`, `network`, `gitssh`, `elevate`, `share/...` — is an
 **engine package**: it does not import `github.com/charmbracelet/bubbletea`,
 does not know what a screen is, and can be unit-tested with nothing but the
 filesystem and (on Windows) real Win32 calls. `internal/elevate` is the
@@ -164,7 +168,13 @@ doing the stubs are the list of what has to be written.
 | `wt` | Read/patch/restore Windows Terminal's `settings.json` | `Patch`, `Restore`, `FindSettings` | none — pure JSONC editing, the file itself is Windows-only in practice |
 | `network` | Ping, DNS flush, local/public IP | `Ping`, `FlushDNS`, `LocalIPs`, `PublicIP` | `dns_test.go`'s Windows path (`ipconfig /flushdns`) |
 | `gitssh` | SSH keygen with overwrite protection, git config read/write, OSC 52 clipboard | `Keygen`, `GitConfig`, `SetGitConfig`, `Copy` | `clipboard_windows.go` |
-| `elevate` | The elevated worker: wire protocol, client, server loop, remove-path whitelist | `Launch`, `Serve`, `Client.Exec`, `Client.Remove` | `launch_windows.go` (`ShellExecuteExW`), `pipe_windows.go`, `serve_windows.go`, `shellexecute_windows.go`, `iselevated_windows.go` |
+| `elevate` | The elevated worker: wire protocol, client, server loop, remove-path whitelist, typed share operations | `Launch`, `Serve`, `Client.Exec`, `Client.Remove`, `Client.Share` | `launch_windows.go` (`ShellExecuteExW`), `pipe_windows.go`, `serve_windows.go`, `shellexecute_windows.go`, `iselevated_windows.go` |
+| `share/host` | Pick an adapter, set up a read-only share with a temporary login through the worker, show the card, take everything down on Stop, quit, crash and next launch | `Manager.Start`, `Manager.Stop`, `ShutdownAll`, `Leftover`, `CleanUp` | `alive_windows.go` |
+| `share/recv` | List another PC's shares, sign in, dry-run size and free-space check, copy with retry and resume | `Session.List`, `Preflight`, `Run` | none, the Win32 calls are in `winapi` |
+| `share/robocopy` | Command lines, log tailing, language-independent parsing, exit-code bits | `CopyArgs`, `DryRunArgs`, `ParseLine`, `ParseSummary`, `DecodeExit`, `Tool.Copy` | `exec_windows.go` (no console window) |
+| `share/netstat` | Address check, `net view` parsing, sign-in, adapter byte counters, reachability probe | `ParseHost`, `ParseNetView`, `SignIn`, `Meter`, `WaitReachable` | `oem_windows.go` (OEM code page) |
+| `share/errmap` | One table of known sharing errors, in plain words, keyed by Win32 number | `Lookup`, `Explain`, `Entries` | none |
+| `share/job`, `share/store` | The resume record and atomic JSON files | `job.Save`, `job.Load`, `store.WriteJSON` | none |
 
 ## The elevated worker protocol
 
@@ -183,7 +193,8 @@ TUI itself running elevated — see [safety.md](safety.md) rule 18. The shape:
    elevated), then reads `Request`s until `shutdown` or the pipe closes.
    `Request.Kind` is one of `exec` (run a command, stream `stdout`/`stderr`
    back as `line` events, finish with `done` and an exit code), `remove`
-   (delete a path), or `shutdown`.
+   (delete a path), `cancel` (stop one running job), `share` (one of the typed
+   file sharing operations, see below) or `shutdown`.
 4. `remove` is checked against a whitelist inside `serveConn` itself
    (`internal/elevate/whitelist.go`'s `validateRemovePath`), independent of
    whatever pre-flight the TUI side already ran: only
@@ -196,6 +207,70 @@ TUI itself running elevated — see [safety.md](safety.md) rule 18. The shape:
    `net.Pipe()` with no real named pipe or elevation involved
    (`server_test.go`); `Serve` (Windows-only) is the thin wrapper that dials
    the real pipe.
+6. The loop only reads. Each `exec` or `remove` runs on its own goroutine,
+   one at a time, so a `cancel` or a `shutdown` is handled while a long
+   install is still going. A job is entered in the worker's table of running
+   jobs the moment it is read. `cancel` names one job by `Request.Target`;
+   it can only stop a job in that table, and anything else (an empty id, an
+   id that is unknown or already finished) is refused with a reason and
+   stops nothing. `Client.Exec` sends a `cancel` for its command when its
+   context ends, which is how the Update and Install screens skip one app
+   without touching the others. `DefaultExecutor` puts each command in a
+   Windows Job Object (`internal/winapi/job_windows.go`), so a cancel ends
+   the command's whole process tree.
+
+## Exit codes in plain words
+
+`internal/tools/managers/codes.go` is one table that turns an exit code into
+a short label, a meaning and a next step: Windows crash statuses (for
+example 3221226505, which is 0xC0000409), winget's 0x8A15xxxx codes, MSIX and
+Store app errors (0x80073Cxx, 0x80073Dxx) and Windows Installer codes (1603,
+1618, 3010). `managers.Explain` looks codes up in it, in both the unsigned
+and the negative 32-bit spelling. `managers.Codes()` lists every row so
+documentation can be generated from the same table. Nothing else in the repo
+maps a code to words.
+
+## Finding tools without starting them
+
+`tools.Detector` never starts a tool that can open a window. Windows
+Terminal (`wt`) is found on PATH, in `%LOCALAPPDATA%\Microsoft\WindowsApps`,
+or from `WT_SESSION`, and its version comes from its package folder name when
+that folder can be listed. `wt --version` shows a Help box and beeps, so it
+is never run. The Microsoft Store stubs for `python` and `pip` open the Store
+when the app is missing, so a hit inside `WindowsApps` counts as not found
+and is not run either.
+
+## Share Files
+
+Two flows, one engine tree, no Bubble Tea import below `internal/ui`.
+
+**Sharing** (`share/host`, `internal/ui/screens/share`). The TUI picks a folder and an
+adapter, asks before switching a Public network to Private, then starts the
+elevated worker once (the one UAC prompt) and keeps it for as long as the
+share is up, so Stop needs no second prompt. It sends the worker six typed
+operations (`profile`, `firewall`, `account`, `grant`, `share`, `stop`),
+never a command line. The worker validates each one against a tight pattern
+(safety.md rule 25), keeps in memory what it has set up, and undoes all of it
+on `stop` and on its own when the pipe closes. The password reaches the worker
+in the `account` request and is handed to `NetUserAdd` in memory. The TUI
+writes a manifest of the names (no password) before it creates anything, so
+a crash of both processes is finished by the next launch.
+
+**Receiving** (`share/recv`, the same screens package). `recv.Session` lists shares
+with `net view`, signs in with `WNetAddConnection2`, runs a `robocopy /L` dry
+run for the exact total and the free-space, FAT32 and path-length checks, and
+then runs the real copy. Robocopy writes a Unicode log (`/UNILOG`); the log is
+tailed and parsed by structure, never by the words, because every word in it
+is translated. Overall progress is the sum of finished-file lines against the
+dry-run total; speed comes from the byte counters of the adapter that routes
+to the other PC (`GetIfEntry2Ex`), which also shows a single 40 GB file
+moving. When a run ends with failures and the other PC no longer answers on
+port 445, `recv.Run` waits with a growing pause and starts robocopy again,
+which skips finished files and continues half-copied ones (`/Z`). The resume
+record (`share/job`) is written before the copy starts and on every step.
+
+Every error that reaches the user goes through `share/errmap`, one table keyed
+by Win32 number. `errmap.Entries` is what the docs page is generated from.
 
 ## The delete flow: tombstone, sweep, Recycle Bin
 

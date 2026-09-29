@@ -1,0 +1,131 @@
+---
+title: "Windows Terminal and Nerd Fonts, done right"
+description: "Why icons show as boxes in Windows Terminal, two ways to fix it with a Nerd Font, and how a symbols-only fallback keeps your own font. With settings.json."
+date: 2026-09-29
+authors: [zubair]
+tags: [windows terminal, nerd fonts, fonts, terminal]
+excerpt: "Boxes instead of icons? Here is what a Nerd Font is, and how to use one without giving up the font you like."
+related:
+  - troubleshooting/nerd-font-icons-show-as-boxes-windows-terminal
+  - features/settings
+  - getting-started
+---
+
+import Shot from '@/components/Shot.astro';
+
+Many command-line tools now draw small icons: a folder, a git branch, a trash can. On Windows Terminal you may see empty boxes instead. Nothing is broken. The font simply has no picture for those characters.
+
+This post explains what is going on and shows two clean ways to fix it.
+
+## What a Nerd Font is
+
+A font is a set of pictures, one for each character. A **Nerd Font** is a normal programming font that has been patched to add many extra icons. The Nerd Fonts project says its fonts add a high number of glyphs from popular icon fonts such as Font Awesome, Devicons and Octicons, and that the combined set is over 10,000 glyphs.
+
+The project also offers each font with different glyph widths: monospaced (fixed width), double-width, or proportional. For a terminal, fixed width is the safe one, because a terminal draws everything on a grid. An icon that is wider than one cell pushes the columns out of line.
+
+## Why you see boxes
+
+Windows Terminal's default font is **Cascadia Mono**. It does not contain the Nerd Font icons. And no program can ask a terminal which fonts it has. So a tool cannot know whether icons will show up. If it draws them anyway, you get boxes.
+
+That is why many terminal tools make icons opt-in. Devpit does the same. By default it draws plain shapes such as `▸` and `✓`, and it only uses Nerd Font icons after you turn them on.
+
+## Fix 1: use a full Nerd Font
+
+Install a Nerd Font and make it your terminal font.
+
+The Nerd Fonts project lists several ways to get one. Two that fit Windows:
+
+- Download a font family archive from the project's releases page and install the font files.
+- Use a package manager. The project's readme mentions, as unofficial routes, Chocolatey (`choco install nerd-fonts-hack`) and a Scoop bucket (`scoop bucket add nerd-fonts`, then `scoop install Hack-NF`).
+
+Then set the font in Windows Terminal's `settings.json`. To open it, select **Settings** in the dropdown menu while holding <kbd>Shift</kbd>. The stable release keeps the file at `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`.
+
+The font name goes in `face`, inside the `font` object. Put it under `defaults` to apply it to all profiles:
+
+```json
+{
+    "profiles": {
+        "defaults": {
+            "font": {
+                "face": "Hack Nerd Font"
+            }
+        }
+    }
+}
+```
+
+Use the family name exactly as Windows lists it after you install the font. This method is simple. The cost is that you now use that one font everywhere.
+
+## Fix 2: keep your font, add a symbols fallback
+
+You may like your current font. You only need the icons from somewhere. The Nerd Fonts project has a `SymbolsOnly` font for exactly this. Its readme calls the method "font fallback": when the current font lacks a glyph, the system uses another font for it. The project lists the pros and the cons honestly:
+
+- **Pro:** one symbol font is enough for all your text fonts.
+- **Con:** scaling and placement of the fallback symbols can be hit or miss.
+
+Windows Terminal supports this since version 1.21. Its release notes say `font.face` now supports comma-separated face names. The first font is the main one, and the next ones are used for missing characters:
+
+```json
+{
+    "profiles": {
+        "defaults": {
+            "font": {
+                "face": "Cascadia Mono, Symbols Nerd Font Mono"
+            }
+        }
+    }
+}
+```
+
+Save the file. Then **close all Windows Terminal windows and open a new one**. Windows Terminal reads its font list once for each process, so an open window does not pick up the change.
+
+## Let Devpit do Fix 2
+
+The fallback method is exactly what Devpit does, so you do not have to edit JSON. Run:
+
+```powershell
+devpit font install
+```
+
+Or use **Settings**, **Icon font** inside Devpit.
+
+<Shot name="blog-settings-icon-font" />
+
+What it does:
+
+- It installs **Symbols Nerd Font Mono** for your user only, so no administrator rights are needed. It downloads a pinned release of `NerdFontsSymbolsOnly.zip` from the Nerd Fonts project and checks its SHA-256 checksum. Devpit only keeps the one font file it needs.
+- It adds the font to the end of Windows Terminal's `font.face` list, and to every profile that already sets its own `face`. Your own font stays first.
+- It saves a backup of `settings.json` before the first change, in a file with the ending `.devpit-bak`, and writes the new file safely so Windows Terminal never sees a half-written file.
+- If it cannot read your `settings.json`, it leaves the file alone and gives you the JSON to paste in yourself.
+
+To check or undo it:
+
+```powershell
+devpit font status
+devpit font remove
+```
+
+`remove` deletes the font and undoes the Windows Terminal change. If you would rather never see the font step, the installer takes a `-NoFont` option.
+
+## One rule Devpit follows about icons
+
+Every icon Devpit draws takes exactly one cell in the terminal, and it only uses Nerd Font icons from the older private-use range that even older terminals handle as one cell. Columns always line up. If your icons look squashed or overlap, that is the hit-or-miss part of fallback fonts. Switching to a full Nerd Font (Fix 1) is the fix.
+
+## A quick checklist
+
+1. Boxes mean the font is missing glyphs. Nothing else is wrong.
+2. Either use a full Nerd Font, or keep your font and add a symbols fallback.
+3. For a fallback, list your font first, then `Symbols Nerd Font Mono`, separated by a comma.
+4. Restart all terminal windows.
+5. No time? Run `devpit font install`.
+
+The same steps, in a shorter form, are on the troubleshooting page: [Nerd Font icons show as boxes in Windows Terminal](/docs/troubleshooting/nerd-font-icons-show-as-boxes-windows-terminal).
+
+## Sources
+
+- [Windows Terminal 1.21 release notes: comma-separated font face names](https://github.com/microsoft/terminal/releases/tag/v1.21.1272.0)
+- [Microsoft: Windows Terminal profile appearance (font face)](https://learn.microsoft.com/windows/terminal/customize-settings/profile-appearance)
+- [Microsoft: Windows Terminal install (settings.json)](https://learn.microsoft.com/windows/terminal/install#settings-json-file)
+- [Nerd Fonts readme](https://github.com/ryanoasis/nerd-fonts)
+- [Devpit icons notes](https://github.com/zubairbinshaukat/devpit/blob/main/docs/icons.md)
+- [Devpit source: internal/fonts and internal/wt](https://github.com/zubairbinshaukat/devpit/tree/main/internal/fonts)

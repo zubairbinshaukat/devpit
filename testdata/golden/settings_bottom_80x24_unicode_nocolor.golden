@@ -1,5 +1,6 @@
  DEVPIT  vdev  ·  Settings                                       node …   git …
-  Clean    Ports    Apps    Update    Network    Git    Settings    tab ⇄ · 1–7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share
 ───────────────────────────────────────────────────────━━━━━━━━━━───────────────
 Changes save as soon as you make them.
 
@@ -19,6 +20,5 @@ Changes save as soon as you make them.
 ▌   Clears the scan cache so the next scan reads the disk fresh
     Update check: on
     About Devpit
-
 ────────────────────────────────────────────────────────────────────────────────
 ↑↓ move  ·  enter/space change  ·  esc back  ·  ? help

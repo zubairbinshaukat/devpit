@@ -1,0 +1,62 @@
+---
+title: "winget 0x8A15002B: no applicable update found"
+description: "Winget error 0x8A15002B means there is no applicable update for the package. It is not a failure. Learn what it means and how Devpit reports it as up to date."
+sidebar:
+  label: "winget 0x8A15002B"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/winget-upgrade-all-not-upgrading
+  - troubleshooting/winget-0x8a150101
+faq:
+  - question: "Is 0x8A15002B an error I need to fix?"
+    answer: "Usually not. Winget's own text is No applicable update found. It means there was nothing to upgrade for that package, so the package is already current or no update applies to it."
+  - question: "How can I read what any winget code means?"
+    answer: "Run winget error followed by the code, for example winget error 0x8A15002B. Winget prints its own description of the code."
+---
+
+**0x8A15002B** is winget saying "No applicable update found". For most people it is not a failure: there was nothing to upgrade.
+
+## What it means
+
+Winget names this code `APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE`. Its description in the return code table is "No applicable update found". A script or a tool that only looks at the exit code sees a non-zero number, so it looks like an error. The message on screen is a plain "nothing to do".
+
+## Why it happens
+
+- The package is already at its newest version.
+- You asked to upgrade one package, and no newer version applies to it.
+- The list you saw earlier is old. Another update ran in the meantime.
+
+If you expected a newer version and winget does not offer it, the package may be pinned or its installed version may be unknown. See [winget upgrade --all not upgrading](/docs/troubleshooting/winget-upgrade-all-not-upgrading).
+
+## How Devpit fixes or avoids it
+
+In [Update Everything](/docs/features/update-everything), Devpit reads the exit code of every winget step. For 0x8A15002B it shows **already up to date** and counts the package as fine. It does the same for winget's "already installed" codes and for the text "No available upgrade found" or "No newer package versions are available". You do not need to do anything.
+
+## The manual fix
+
+There is nothing to repair. To check the current state yourself:
+
+1. List what winget thinks can be upgraded:
+
+```powershell
+winget upgrade
+```
+
+2. Upgrade one package by its exact ID:
+
+```powershell
+winget upgrade --id Publisher.PackageName -e
+```
+
+3. To read Microsoft's text for any code, use the `error` command:
+
+```powershell
+winget error 0x8A15002B
+```
+
+## Sources
+
+- [winget return codes (0x8A15002B)](https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
+- [Microsoft: winget upgrade command](https://learn.microsoft.com/windows/package-manager/winget/upgrade)
+- [winget-cli: the `error` command source](https://github.com/microsoft/winget-cli/blob/master/src/AppInstallerCLICore/Commands/ErrorCommand.cpp)

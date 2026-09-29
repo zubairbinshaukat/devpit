@@ -1,0 +1,57 @@
+---
+title: "System error 1219: multiple connections by the same user"
+description: "Fix Windows system error 1219, 'Multiple connections to a server or shared resource by the same user', by disconnecting old connections with net use."
+sidebar:
+  label: "System error 1219"
+published: 2026-09-29
+related:
+  - features/share-files
+  - troubleshooting/system-error-1326-user-name-or-password-incorrect
+  - troubleshooting/system-error-53-network-path-not-found
+faq:
+  - question: "Will net use * /delete remove my files?"
+    answer: "No. It only disconnects network connections and mapped drives on your PC. Files on the other computer are not touched. Microsoft describes it as a command to disconnect active or remembered shared resources on a local computer."
+  - question: "Why does Windows allow only one user name per server?"
+    answer: "Microsoft's error text says multiple connections to a server or shared resource by the same user, using more than one user name, are not allowed. You must disconnect the old connection first, then connect again."
+---
+
+**System error 1219: Multiple connections to a server or shared resource by the same user, using more than one user name, are not allowed. Disconnect all previous connections to the server or shared resource and try again.**
+
+## What it means
+
+Error 1219 is `ERROR_SESSION_CREDENTIAL_CONFLICT`. Windows already has a connection to that server under one user name. You tried to connect again with a different user name. Windows does not allow that.
+
+## Why it happens
+
+- You opened the shared folder before with one account (for example your own), and now you use another account for the same PC.
+- A mapped drive to that server is still connected with old credentials.
+- You changed the password or account on the other PC, but your PC still holds the old connection.
+
+## How Devpit fixes or avoids it
+
+When you copy with [Share Files](/docs/features/share-files) and Windows answers with error 1219, Devpit shows "Already signed in to that PC as someone else".
+Press <kbd>d</kbd> to close the old connections to that one PC, and Devpit tries again.
+It does not touch connections to other PCs.
+
+[Share Files](/docs/features/share-files) also creates a temporary login just for the share, with its own user name, so your own Windows password is never used.
+If your PC already has an older connection to the same PC under a different name, Windows can still show 1219.
+Press <kbd>d</kbd> in Devpit, or disconnect the old one with the steps below, then connect again.
+
+## The manual fix
+
+1. Close any File Explorer window that shows the share.
+2. Disconnect all connections to shared resources on your PC. Open Command Prompt and run:
+
+```text
+net use * /delete
+```
+
+This disconnects active or remembered shared resources on the local computer. It does not delete any files. To see other options, such as removing only one connection, run `net help use`.
+
+3. Open the share again, for example `\\192.168.1.20\share` in the File Explorer address bar, and sign in with the user name and password of the share. Use your own IP address and share name.
+4. If the sign in fails with "The user name or password is incorrect", see [system error 1326](/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect).
+
+## Sources
+
+- [Microsoft: System error codes 1000 to 1299 (ERROR_SESSION_CREDENTIAL_CONFLICT, 1219)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--1000-1299-)
+- [Microsoft: Troubleshoot SMB, disconnecting all shared resources with Net Use * /delete](https://learn.microsoft.com/troubleshoot/windows-server/networking/troubleshoot-smb-guidance)

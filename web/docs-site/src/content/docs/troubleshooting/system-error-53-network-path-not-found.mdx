@@ -1,0 +1,71 @@
+---
+title: "System error 53: The network path was not found"
+description: "Fix Windows 'System error 53. The network path was not found' and error 0x80070035 when you open a shared folder: check reachability, sharing, services."
+sidebar:
+  label: "System error 53 / 0x80070035"
+published: 2026-09-29
+related:
+  - features/share-files
+  - features/network-tools
+  - troubleshooting/system-error-1219-multiple-connections
+  - troubleshooting/guest-access-blocked-windows-11-24h2
+faq:
+  - question: "Is error 0x80070035 the same as system error 53?"
+    answer: "Yes. System error 53 is ERROR_BAD_NETPATH, with the text The network path was not found. Windows shows the same error as 0x80070035 in some dialogs, because a Win32 error code is wrapped into an HRESULT with the prefix 0x8007. The number 0x35 is 53."
+  - question: "Does error 53 mean the password is wrong?"
+    answer: "No. Error 53 is about finding the other computer or the share. A wrong password gives system error 1326, The user name or password is incorrect."
+---
+
+**System error 53 has occurred. The network path was not found.** Windows could not reach the other PC or the share you typed. It is the same error as **0x80070035** in a dialog box.
+
+## What it means
+
+Error 53 is `ERROR_BAD_NETPATH` with the text "The network path was not found." Windows shows a Win32 error as an `0x8007....` code in some places. The last two hex digits are the error number: `0x35` is 53. So `0x80070035` and error 53 are the same problem.
+
+It is a "cannot find or reach it" error. It is not a permission error.
+
+## Why it happens
+
+Microsoft's guides list these causes:
+
+- File and Printer Sharing for Microsoft Networks is disabled or not installed on the PC that shares.
+- The **TCP/IP NetBIOS Helper** service is stopped, or it runs as **Local System** instead of **Local Service**. Microsoft describes a case where no connection request is sent at all, yet connecting to TCP port 445 with telnet works.
+- Something blocks the connection: a firewall, security software or the router.
+- The name or IP address you typed is wrong, or the two PCs are not on the same network.
+
+## How Devpit fixes or avoids it
+
+Devpit helps you find out which side is the problem:
+
+- [Network Tools](/docs/features/network-tools) shows your local and public IP addresses and can ping a host, so you can check that the other PC answers.
+
+[Share Files](/docs/features/share-files) sets up the share for you.
+On the sharing PC you pick a folder and approve one administrator prompt.
+Devpit turns on the file sharing firewall rule, makes a temporary login and shares the folder read-only.
+It shows a card with the IP, share name, user name and password.
+On the receiving PC you type that IP and pick the folder from a list.
+If the other PC does not answer, Devpit says "Cannot find that PC" and tells you to check the address, that both PCs are on the same network, and that sharing is still on. A VPN or a guest Wi-Fi can also block it.
+
+## The manual fix
+
+1. On the sharing PC, find its IP address, and on the other PC test that it is reachable on the SMB port (445):
+
+```powershell
+Test-NetConnection 192.168.1.20 -Port 445
+```
+
+Replace the address with the sharing PC's IP. `TcpTestSucceeded : True` means the port answers.
+
+2. On the sharing PC turn on sharing. Open **Control Panel**, **Network and Internet**, **Network and Sharing Center**, **Advanced sharing settings**. Select **Turn on network discovery** and, under **Private**, **Turn on file and printer sharing**. Then **Save changes**.
+3. Open **Services** and check **TCP/IP NetBIOS Helper**. Its startup type should be **Automatic**. If you see the port answer in step 1 but the name does not work, make sure it runs as **Local Service**.
+4. Try the address, not the name: `\\192.168.1.20\share` in File Explorer's address bar. If that works, the problem is name lookup and not the share.
+5. Check that a firewall or security program on either PC does not block the connection.
+6. If you see a message about "unauthenticated guest access", read [the Windows 11 24H2 page](/docs/troubleshooting/guest-access-blocked-windows-11-24h2).
+
+## Sources
+
+- [Microsoft: System error codes 0 to 499 (ERROR_BAD_NETPATH, 53)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--0-499-)
+- [Microsoft: System error 51 or 53 when you access shared resources](https://learn.microsoft.com/troubleshoot/windows-server/networking/system-error-51-53-access-shared-resources)
+- [Microsoft: Can't access shared folders from File Explorer](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: Test-NetConnection](https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection)
+- [Wine winerror.h: FACILITY_WIN32 is 7, ERROR_BAD_NETPATH is 53](https://github.com/wine-mirror/wine/blob/master/include/winerror.h)

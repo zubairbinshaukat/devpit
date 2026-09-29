@@ -1,0 +1,9 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Switch this network to Private while you share?                              │
+│ Windows blocks file sharing on a Public network. Devpit puts it back to      │
+│ Public when you stop sharing.                                                │
+│                                                                              │
+│ [ No ]   [ Yes ]                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

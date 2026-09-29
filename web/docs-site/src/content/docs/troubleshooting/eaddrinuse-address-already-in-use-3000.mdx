@@ -1,0 +1,92 @@
+---
+title: "EADDRINUSE: address already in use :::3000"
+description: "Fix Node's EADDRINUSE :::3000 error on Windows: find the process that holds port 3000, stop it, and see how Devpit frees a stuck port in two keys."
+sidebar:
+  label: "EADDRINUSE :::3000"
+published: 2026-09-29
+related:
+  - features/fix-stuck-ports
+  - troubleshooting/eperm-operation-not-permitted-rmdir
+  - troubleshooting/source-file-names-are-larger-than-supported
+faq:
+  - question: "What does the three colons in :::3000 mean?"
+    answer: "The two colons at the start are the IPv6 address :: (the unspecified address, meaning every network interface). The third colon separates the address from the port, which is 3000. Node prints this form when your server listens without a host name and IPv6 is available."
+  - question: "Is it safe to kill the process that uses port 3000?"
+    answer: "Usually yes, if it is your own old dev server. Check the process name first. Do not stop system processes. Devpit refuses to stop protected Windows processes and tells you why."
+  - question: "Why is port 3000 still busy after I closed my terminal?"
+    answer: "Closing a terminal window does not always stop the programs it started. A node process can keep running in the background and keep the port. Find its process ID and stop it."
+---
+
+**Error: listen EADDRINUSE: address already in use :::3000** means another program is already using port 3000, so your server cannot start there.
+
+## What it means
+
+`EADDRINUSE` is Node's short name for "address already in use". Node says an attempt to bind a server to a local address failed because another server on the same computer already holds that address.
+
+The `:::3000` part is an address and a port:
+
+- `::` is the IPv6 "any address". Node listens there when you do not give a host name and IPv6 is available.
+- `:3000` is the port.
+
+## Why it happens
+
+Most of the time it is your own old server:
+
+- A dev server from an earlier run is still alive. This is common when a terminal was closed but `node` kept running.
+- Two projects use the same default port.
+- Another program (not Node) uses port 3000.
+
+Only one program can listen on one address and port at a time.
+
+## How Devpit fixes it
+
+Devpit has a section for exactly this: [Fix Stuck Ports & Apps](/docs/features/fix-stuck-ports).
+
+1. Open Devpit and choose **Fix Stuck Ports & Apps**.
+2. Choose **Kill a port** and type `3000`.
+3. Devpit shows which process holds the port and asks you to confirm. The default answer is No.
+4. After you confirm, it stops the process and waits up to two seconds to check that the port is really free.
+
+You can also choose **Busy dev ports**. It lists which of the usual dev ports are in use right now: 3000 to 3010, 4200, 5000, 5173, 5174, 8000, 8080, 8081, 8888, 9000 and 19000 to 19006. You can change that list in Settings.
+
+If the process was started by npm, pnpm, yarn or node, Devpit can stop the whole process tree, so the parent does not start a child again.
+
+Devpit will not stop some processes. It refuses PID 0 and 4, programs in the Windows System32 folder (except `cmd.exe`, `powershell.exe` and `conhost.exe`), and Windows services, and it says why. Devpit itself never runs as administrator, so if the process runs as administrator Devpit tells you it needs admin. Then close that program yourself or use an administrator terminal.
+
+## The manual fix
+
+Find the process ID (PID) that owns the port. In PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000
+```
+
+The `OwningProcess` column is the PID. Then look at what it is:
+
+```powershell
+Get-Process -Id 12345
+```
+
+Replace `12345` with your PID. If it is your old dev server, stop it:
+
+```powershell
+Stop-Process -Id 12345
+```
+
+You can do the same in Command Prompt. `netstat -ano` lists connections with their PID (`-a` all, `-n` numbers, `-o` owning PID). `taskkill /pid 12345` ends the process, and `/f` forces it and `/t` also ends its child processes:
+
+```text
+netstat -ano
+taskkill /pid 12345 /t /f
+```
+
+Only force a process you understand. If it is not yours, pick another port instead, for example by setting the `PORT` environment variable that your framework reads.
+
+## Sources
+
+- [Node.js: Common system errors (EADDRINUSE)](https://nodejs.org/api/errors.html#common-system-errors)
+- [Node.js: net.Server listen, default host and the `::` address](https://nodejs.org/api/net.html#serverlisten)
+- [Microsoft: Get-NetTCPConnection](https://learn.microsoft.com/powershell/module/nettcpip/get-nettcpconnection)
+- [Microsoft: Stop-Process](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/stop-process)
+- [Microsoft: netstat](https://learn.microsoft.com/windows-server/administration/windows-commands/netstat)
+- [Microsoft: taskkill](https://learn.microsoft.com/windows-server/administration/windows-commands/taskkill)

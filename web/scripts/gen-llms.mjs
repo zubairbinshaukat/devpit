@@ -1,0 +1,166 @@
+// Generates llms.txt (and llms-full.txt) from one place: the landing-page
+// facts below plus the frontmatter and text of every docs page, so the
+// website, the docs and the answers AI assistants give agree.
+//
+//   node web/scripts/gen-llms.mjs --write   rewrite web/llms.txt (commit it)
+//   node web/scripts/gen-llms.mjs --check   exit 1 if web/llms.txt is stale
+//
+// web/scripts/build.mjs imports buildLlms() and buildLlmsFull() and writes
+// both into web/dist, so a deploy is always fresh even if the committed copy
+// was forgotten. `npm run check` in docs-site fails on a stale committed copy.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { loadPages } from '../docs-site/scripts/lib/pages.mjs';
+import { SITE } from '../docs-site/site.config.mjs';
+
+const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** The landing-page facts. Keep in step with web/index.html and the Go source. */
+const HEAD = `# Devpit
+
+> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and sets up Git and SSH.
+
+Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is ${SITE} and the documentation is at ${SITE}/docs.
+
+## Install
+
+- PowerShell one-liner: \`irm https://devpit.zubyr.dev/install | iex\` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH, installs the icon font; pass -NoFont to skip the font)
+- Scoop: \`scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket\` then \`scoop install devpit\`
+- Manual: download the zip for x64 or ARM64 from https://github.com/zubairbinshaukat/devpit/releases/latest
+- Then run \`devpit\`
+
+## What it does
+
+- Free Up Disk Space: scans a projects folder or the whole machine, lists junk with sizes and a risk label (Safe, Review, Careful), and deletes only what you tick
+- Fix Stuck Ports & Apps: shows which process holds a port (for example "port 3000 is already in use"), stops it after confirmation, and can stop the whole process tree for npm, pnpm, yarn and node
+- Install Developer Apps: installs from a catalog through Scoop, winget or Chocolatey
+- Update Everything: runs winget, Scoop, npm and Chocolatey updates in one pass, each step can be unticked
+- Network Tools: local and public IP, ping, DNS flush
+- Git & SSH Setup: git identity, SSH key generation (never overwrites an existing key without a typed confirmation), copy public key
+- Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
+
+## Safety rules (enforced in code and tests)
+
+- Nothing is deleted without a preview and an explicit confirmation; the default answer is always No
+- Careful items require typing DELETE
+- Projects touched in the last 7 days and unverified folders are never pre-ticked
+- A folder is only junk when its marker file sits beside it (package.json for node_modules, Cargo.toml for target, and so on) and the marker is re-verified right before deleting
+- Junctions, symlinks and other reparse points are never followed
+- Drive roots, the Windows directory, network paths and the user's never-touch list are refused
+- Safe items are renamed to a tombstone before removal so an interrupted delete can be finished later; Review and Careful items go to the Recycle Bin
+- Docker volumes are never touched
+- Usage stats are off by default and only send totals (never paths or names); DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
+
+## Author
+
+Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
+
+- Portfolio: https://zubyr.dev
+- GitHub: https://github.com/zubairbinshaukat
+- LinkedIn: https://www.linkedin.com/in/zubairbinshaukat
+- X: https://x.com/zubairbinshaukt
+`;
+
+/** Docs sections, in the order they appear, with the heading each gets. */
+const SECTIONS = [
+  ['start', 'Documentation', (p) => p.id === 'index' || p.id === 'getting-started'],
+  ['features', 'Features', (p) => p.id === 'features' || p.section === 'features'],
+  [
+    'reference',
+    'Reference',
+    (p) => ['keyboard-and-mouse', 'command-line', 'safety-and-privacy', 'whats-new'].includes(p.id),
+  ],
+  ['troubleshooting', 'Troubleshooting', (p) => p.section === 'troubleshooting'],
+];
+
+const oneLine = (s) => s.replace(/\s+/g, ' ').trim();
+
+function link(p) {
+  return `- [${p.title}](${p.url}): ${oneLine(p.description)}`;
+}
+
+/** The text of llms.txt. */
+export function buildLlms() {
+  const pages = loadPages();
+  const out = [HEAD.trimEnd(), ''];
+  const used = new Set();
+  for (const [, heading, match] of SECTIONS) {
+    const list = pages.filter((p) => match(p) && !used.has(p.id));
+    if (!list.length) continue;
+    list.forEach((p) => used.add(p.id));
+    out.push(`## ${heading}`, '', ...list.map(link), '');
+  }
+  const blog = pages.filter((p) => p.section === 'blog').sort((a, b) => String(b.data.date).localeCompare(String(a.data.date)));
+  const rest = pages.filter((p) => !used.has(p.id) && p.section !== 'blog');
+  if (rest.length) out.push('## More pages', '', ...rest.map(link), '');
+  out.push(
+    '## Links',
+    '',
+    `- [Website](${SITE}): landing page with an animated demo and FAQ`,
+    `- [Full documentation as one text file](${SITE}/llms-full.txt): every docs page in plain text`,
+    '- [Source code](https://github.com/zubairbinshaukat/devpit): Go source, issues and releases',
+    '- [Releases](https://github.com/zubairbinshaukat/devpit/releases): what changed in each version',
+    '- [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md): every rule and the test that pins it',
+    '- [Privacy](https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md): exactly what opt-in usage stats send',
+    '',
+  );
+  if (blog.length) out.push('## Optional', '', ...blog.map(link), '');
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+/** Turns one MDX/Markdown body into plain Markdown an assistant can read. */
+export function toPlain(body) {
+  return body
+    .replace(/^import .*$/gm, '')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/<Shot [^>]*name="([^"]+)"[^>]*\/>/g, '(Screenshot: $1)')
+    .replace(/<SectionList[^>]*\/>/g, '')
+    .replace(/<\/?(Steps|Tabs|TabItem|Card|CardGrid|LinkCard|Aside|Badge|FileTree)[^>]*>/g, '')
+    .replace(/<kbd>(.*?)<\/kbd>/g, '`$1`')
+    .replace(/^:::(note|tip|caution|danger)(\[([^\]]*)\])?\s*$/gim, (_, kind, __, title) => `**${title || kind[0].toUpperCase() + kind.slice(1)}:**`)
+    .replace(/^:::\s*$/gm, '')
+    .replace(/\]\((\/[^)]*)\)/g, (_, p) => `](${SITE}${p})`)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** The text of llms-full.txt: every docs page in one file. */
+export function buildLlmsFull() {
+  const parts = ['# Devpit documentation (full text)', '', `> Every page of ${SITE}/docs as plain Markdown, in reading order.`, ''];
+  const order = (p) => {
+    const i = SECTIONS.findIndex(([, , m]) => m(p));
+    return i < 0 ? SECTIONS.length : i;
+  };
+  const pages = loadPages()
+    .filter((p) => p.section !== 'blog')
+    .sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id));
+  for (const p of pages) {
+    parts.push('---', '', `# ${p.title}`, '', `URL: ${p.url}`, '', oneLine(p.description), '', toPlain(p.body), '');
+    const faq = Array.isArray(p.data.faq) ? p.data.faq : [];
+    if (faq.length) {
+      parts.push('## Common questions', '');
+      for (const qa of faq) parts.push(`### ${qa.question}`, '', qa.answer, '');
+    }
+  }
+  return parts.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const file = path.join(WEB, 'llms.txt');
+  const text = buildLlms();
+  if (process.argv.includes('--check')) {
+    const have = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    if (have !== text) {
+      console.error('web/llms.txt is stale. Run: node web/scripts/gen-llms.mjs --write');
+      process.exit(1);
+    }
+    console.log('web/llms.txt is up to date');
+  } else if (process.argv.includes('--write')) {
+    fs.writeFileSync(file, text);
+    console.log(`wrote ${path.relative(process.cwd(), file)} (${text.length} bytes)`);
+  } else {
+    process.stdout.write(text);
+  }
+}

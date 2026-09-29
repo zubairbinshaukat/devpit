@@ -1,0 +1,72 @@
+---
+title: "Flush the DNS cache on Windows: ipconfig /flushdns"
+description: "What ipconfig /flushdns and Clear-DnsClientCache do, when clearing the Windows DNS cache helps, and how to do it in one step from Devpit's Network Tools."
+sidebar:
+  label: "ipconfig /flushdns"
+published: 2026-09-29
+related:
+  - features/network-tools
+  - troubleshooting/system-error-53-network-path-not-found
+faq:
+  - question: "Is it safe to flush the DNS cache?"
+    answer: "Yes. It only clears saved name lookups. Windows asks the DNS server again the next time you visit a site. Devpit's confirmation says the same: nothing else on the machine changes."
+  - question: "What is the difference between ipconfig /flushdns and Clear-DnsClientCache?"
+    answer: "Microsoft's documentation says running the Clear-DnsClientCache cmdlet is equivalent to running ipconfig /flushdns. Use whichever shell you like."
+  - question: "Will flushing the DNS cache speed up my internet?"
+    answer: "No. It fixes stale or wrong lookups. The cache exists to make repeated lookups faster, so an empty cache means the first lookup of each name is slower, once."
+---
+
+`ipconfig /flushdns` clears the list of website names that Windows remembers. It helps when a name still points to an old or wrong address.
+
+## What it means
+
+When you open `example.com`, Windows asks a DNS server for its address and keeps the answer for a while. This saved list is the **DNS client resolver cache**. It makes repeat visits fast. Microsoft's `ipconfig` page says the DNS Client service uses it to resolve frequently queried names quickly, before it queries the DNS servers you have set.
+
+`/flushdns` "flushes and resets the contents of the DNS client resolver cache". Microsoft says that during DNS troubleshooting you can use it to discard negative cache entries (remembered failures), and any other entries that were added dynamically.
+
+## Why it happens (when it helps)
+
+Try it when:
+
+- A site moved to a new server and your PC still goes to the old one.
+- A name failed once while a DNS record was missing, and it keeps failing after the record was fixed. That is a negative cache entry.
+- You changed DNS settings or a record on a test domain and want a fresh lookup.
+
+It does not help when the problem is the internet connection, the site itself, or your firewall.
+
+## How Devpit fixes or avoids it
+
+Open [Network Tools](/docs/features/network-tools) and choose **Flush DNS cache**.
+
+1. Devpit asks "Flush the DNS resolver cache?" and the default answer is No. It says this clears cached lookups and nothing else on the machine changes.
+2. When you say yes, it runs `ipconfig /flushdns` and shows what Windows printed, or the error if it failed.
+
+The same screen can ping a host and show your local and public IP addresses, which helps you tell a DNS problem from a connection problem.
+
+## The manual fix
+
+In Command Prompt or PowerShell:
+
+```text
+ipconfig /flushdns
+```
+
+In PowerShell, the cmdlet does the same:
+
+```powershell
+Clear-DnsClientCache
+```
+
+To see what is in the cache first, `ipconfig /displaydns` shows the cache contents, including entries loaded from the Hosts file:
+
+```text
+ipconfig /displaydns
+```
+
+Then try your site again.
+
+## Sources
+
+- [Microsoft: ipconfig (/flushdns, /displaydns)](https://learn.microsoft.com/windows-server/administration/windows-commands/ipconfig)
+- [Microsoft: Clear-DnsClientCache](https://learn.microsoft.com/powershell/module/dnsclient/clear-dnsclientcache)
+- [Devpit source: internal/network/dns.go](https://github.com/zubairbinshaukat/devpit/blob/main/internal/network/dns.go)

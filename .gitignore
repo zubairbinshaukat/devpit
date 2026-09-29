@@ -36,3 +36,10 @@ desktop.ini
 
 # Local agent instructions
 CLAUDE.md
+
+# Website build output and dependencies (web/docs-site is an Astro project).
+web/dist/
+web/docs-site/dist/
+web/docs-site/.astro/
+node_modules/
+web/docs-site/public/author-avatar.webp

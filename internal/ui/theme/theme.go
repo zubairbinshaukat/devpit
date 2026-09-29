@@ -264,6 +264,7 @@ const (
 	SectionNetwork  = "network"
 	SectionGitSSH   = "gitssh"
 	SectionSettings = "settings"
+	SectionShare    = "share"
 )
 
 // SectionIcon is the style a section's icon is drawn in: its own hue, or the
@@ -393,6 +394,7 @@ func build(isDark bool, v Variant) Theme {
 			SectionNetwork:  fg(p.Sky),
 			SectionGitSSH:   fg(p.Yellow),
 			SectionSettings: fg(p.Mauve),
+			SectionShare:    fg(p.Accent),
 		},
 
 		TabActive: tabActive,

@@ -1,0 +1,10 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Remove the old share?                                                        │
+│ Devpit shared D:\Games earlier and did not get to remove it. This removes    │
+│ the share, its temporary login and the settings Devpit changed. Windows will │
+│ ask for permission.                                                          │
+│                                                                              │
+│ [ No ]   [ Yes ]                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

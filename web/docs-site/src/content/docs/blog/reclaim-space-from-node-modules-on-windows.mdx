@@ -1,0 +1,135 @@
+---
+title: "How to see and reclaim node_modules space on Windows"
+description: "Measure how much disk space node_modules uses with one PowerShell command, decide which folders are safe to delete, and reclaim the space safely."
+date: 2026-09-29
+authors: [zubair]
+tags: [node_modules, disk space, windows]
+excerpt: "A practical way to measure node_modules on Windows, choose what to delete, and get the folder back with one command."
+related:
+  - features/free-up-disk-space
+  - troubleshooting/eperm-operation-not-permitted-rmdir
+  - troubleshooting/source-file-names-are-larger-than-supported
+---
+
+import Shot from '@/components/Shot.astro';
+
+Every JavaScript project you have ever cloned has a `node_modules` folder. Most of them sit on your disk long after you stop working on the project.
+
+I will not tell you a number here. The size depends on your projects, and I will not invent one. Instead, this post shows you how to **measure your own machine**, how to decide what is safe to delete, and how to get it all back.
+
+## What node_modules is
+
+`node_modules` is the folder where npm, pnpm or Yarn put the packages your project depends on. It is not your code. It is a copy of other people's code, and it can be rebuilt from two files that you keep:
+
+- `package.json`, which lists the dependencies
+- a lockfile such as `package-lock.json`, which pins exact versions
+
+That is why deleting it is a normal, safe thing to do. The npm documentation for `npm ci` even says that if a `node_modules` folder is already there, `npm ci` removes it before it starts the install.
+
+## Step 1: measure one project
+
+Open PowerShell in a project folder and run this. It adds up the size of every file inside `node_modules`:
+
+```powershell
+$bytes = (Get-ChildItem .\node_modules -Recurse -Force -File | Measure-Object -Property Length -Sum).Sum
+"{0:N1} MB" -f ($bytes / 1MB)
+```
+
+What each part does:
+
+- `Get-ChildItem -Recurse -Force -File` lists every file, including hidden ones, in every subfolder.
+- `Measure-Object -Property Length -Sum` adds up the `Length` (size in bytes) of all those files.
+- `1MB` is a built-in PowerShell number for one mebibyte (1024 × 1024 bytes).
+- `-f` is PowerShell's format operator. `{0:N1}` prints the number with one decimal place.
+
+It can take a while on a big folder, because there are many small files. That is normal.
+
+Two honest limits:
+
+- By default `Get-ChildItem` does not follow symbolic links into other folders, so it does not count what those links point to.
+- If you use pnpm, files in `node_modules` are hard-linked to a shared store. This command counts each link as a file, so the real extra space on disk can be smaller than the total it prints.
+
+## Step 2: find the old ones
+
+To list `node_modules` folders under a projects folder, run this. `-Depth 3` limits how deep it looks so it finishes sooner. Change the path and depth for your layout:
+
+```powershell
+Get-ChildItem C:\Projects -Directory -Recurse -Depth 3 -Force -Filter node_modules -ErrorAction SilentlyContinue | Select-Object FullName
+```
+
+Now you have a list. You can measure each one with Step 1. Or you can let a tool do the whole job (see below).
+
+## Step 3: decide what is safe
+
+A good rule: delete `node_modules` in projects you are **not working on right now**.
+
+Before you delete, check these:
+
+1. **A `package.json` sits next to it.** Without one, you may not be able to rebuild the folder. Do not delete it blindly.
+2. **A lockfile exists** if you want the same versions back.
+3. **You have internet.** Reinstalling downloads packages again.
+4. **You did not edit files inside `node_modules`.** Those edits are lost. If you patched a package, keep the patch somewhere else first.
+
+## Step 4: get it back
+
+When you open the project again, run the install command for your package manager, in the project folder:
+
+```powershell
+npm install
+```
+
+or `pnpm install`, or `yarn`. `npm ci` is the strict version for a clean install from an existing `package-lock.json`.
+
+## Other places that hold space
+
+`node_modules` is not the only one. npm keeps a download cache. The npm docs say that on Windows the default cache folder is `%LocalAppData%\npm-cache`. Inside it, the data lives in a folder called `_cacache`.
+
+The npm documentation also says the cache is self-healing, so you should never need to clear it for any reason other than reclaiming disk space. If you want the space back:
+
+```powershell
+npm cache verify
+npm cache clean --force
+```
+
+`verify` checks the cache and removes data that is no longer needed. `clean --force` deletes the cache. It refills as you install packages.
+
+If you use pnpm, the shared store keeps a copy of every package your projects use. `pnpm store prune` removes packages that no project uses any more. The pnpm docs say it is not harmful and has no side effects on your projects, and that you should not run it too often, because a package that was unreferenced may be needed again soon.
+
+## Doing it with Devpit
+
+Doing all of this by hand for twenty projects is boring. [Free Up Disk Space](/docs/features/free-up-disk-space) does the finding, measuring and deleting for you, with safety checks.
+
+<Shot name="blog-node-modules-results" />
+
+Here is what it does, based on the code:
+
+- It scans a folder you choose, or the whole machine, and lists `node_modules` folders with their sizes.
+- A `node_modules` is listed as junk when a `package.json` sits beside it. If there is no `package.json`, it is shown as **unverified** and is never ticked for you.
+- A project you touched in the last 7 days is never ticked for you.
+- You see a preview, and the confirmation's default answer is **No**.
+- For `node_modules` it shows the command to restore it, for example "Run npm install, pnpm install or yarn in the project folder."
+- Before it removes anything, it renames the folder to a name ending in `.devpit-` and random letters. Then it deletes the contents in parallel. If you stop it half way, the renamed folder is finished the next time. You never end up with a half-empty folder that looks like a working one.
+- If a program holds a file open, Devpit tells you which program (when Windows can tell), and asks you to close it. It never ends that program for you.
+
+If a delete fails, these two pages explain the usual reasons: [EPERM: operation not permitted](/docs/troubleshooting/eperm-operation-not-permitted-rmdir) and [the path too long error](/docs/troubleshooting/source-file-names-are-larger-than-supported).
+
+## A short checklist
+
+1. Measure one project with the PowerShell command above.
+2. List old `node_modules` folders.
+3. Delete only in projects you are not using, and only where `package.json` exists.
+4. Reinstall when you come back.
+5. Optionally, verify or clean the npm cache and prune the pnpm store.
+
+That is all it takes. Measure first, then decide. The numbers on your machine are the only ones that matter.
+
+## Sources
+
+- [npm docs: npm ci](https://docs.npmjs.com/cli/commands/npm-ci)
+- [npm docs: npm cache](https://docs.npmjs.com/cli/commands/npm-cache)
+- [npm docs: cache setting (Windows default)](https://docs.npmjs.com/cli/using-npm/config#cache)
+- [pnpm docs: pnpm store prune](https://pnpm.io/cli/store)
+- [Microsoft: Get-ChildItem](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/get-childitem)
+- [Microsoft: Measure-Object](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/measure-object)
+- [Microsoft: about_Numeric_Literals (the MB suffix)](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_numeric_literals)
+- [Microsoft: about_Operators (the format operator -f)](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_operators)

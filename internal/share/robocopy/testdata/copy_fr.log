@@ -1,0 +1,21 @@
+
+		   1048576	\\192.168.1.5\Games\a.bin
+		        12	\\192.168.1.5\Games\Été\b.txt
+2026/09/29 10:15:02 ERREUR 112 (0x00000070) Copie du fichier D:\Cible\c.bin
+Espace insuffisant sur le disque.
+
+Attente de 5 secondes... Nouvelle tentative...
+
+		   2097152	\\192.168.1.5\Games\c2.bin
+------------------------------------------------------------------------------
+
+             Total    Copié   Ignoré  Non concordant    ÉCHEC    Autres
+Répertoires :         3         2         1         0         0         0
+  Fichiers :         4         3         0         0         1         0
+     Octets :   3145740   3145740         0         0         0         0
+     Heures :   0:00:05   0:00:03                       0:00:00   0:00:02
+
+
+   Vitesse :             1048576 Bytes/sec.
+   Vitesse :              60.000 MegaBytes/min.
+       Fin : mardi 29 septembre 2026 10:15:07

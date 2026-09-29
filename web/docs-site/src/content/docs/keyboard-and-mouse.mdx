@@ -1,0 +1,209 @@
+---
+title: Devpit keyboard shortcuts and mouse controls
+description: Every Devpit shortcut in one place, from the main menu keys to the results table, plus what clicking, scrolling and hovering do with the mouse.
+sidebar:
+  label: Keyboard and mouse
+  order: 10
+published: 2026-09-29
+related:
+  - getting-started
+  - features/free-up-disk-space
+  - features/settings
+faq:
+  - question: "How do I see the shortcuts inside Devpit?"
+    answer: "Press the question mark key on any screen. Devpit shows the keys for that screen and the keys that work everywhere. Press the question mark or Esc to close it."
+  - question: "How do I quit Devpit?"
+    answer: "Press q on the main menu, or press Ctrl+C anywhere. If a delete or install is running, Ctrl+C asks it to stop first and Devpit leaves when the item in flight is finished. A second Ctrl+C leaves at once."
+  - question: "Does Devpit work with a mouse?"
+    answer: "Yes. Click a tab or a menu row, click a tick box, scroll a list with the wheel, and hover a row on the main menu to read its description. The keyboard still does everything."
+  - question: "Why does Devpit say it needs a bigger window?"
+    answer: "Devpit draws its screens in at least 80 columns by 24 rows. Make the terminal window bigger and it redraws by itself."
+---
+
+Devpit is made for the keyboard, and the mouse works too.
+Press <kbd>?</kbd> on any screen to see the keys for that screen.
+
+The footer at the bottom of the window always shows the keys that work right now.
+
+## Keys that work everywhere
+
+| Key | What it does |
+| --- | --- |
+| <kbd>?</kbd> | Show or hide the shortcuts for this screen |
+| <kbd>Esc</kbd> | Go back one screen. While a scan, delete, install or update is running, it stops the work instead |
+| <kbd>Tab</kbd> | Go to the next section on the tab bar |
+| <kbd>Shift</kbd>+<kbd>Tab</kbd> | Go to the previous section |
+| <kbd>Ctrl</kbd>+<kbd>C</kbd> | Quit from anywhere. If work is running, Devpit asks it to stop first |
+| <kbd>q</kbd> | Quit, from the main menu only |
+
+On a screen with a form, such as Git identity, <kbd>Tab</kbd> moves between fields and does not change section.
+While work is running, <kbd>Tab</kbd> does nothing.
+
+## Main menu
+
+| Key | What it does |
+| --- | --- |
+| <kbd>1</kbd> | Free Up Disk Space |
+| <kbd>2</kbd> | Fix Stuck Ports & Apps |
+| <kbd>3</kbd> | Install Developer Apps |
+| <kbd>4</kbd> | Update Everything |
+| <kbd>5</kbd> | Network Tools |
+| <kbd>6</kbd> | Git & SSH Setup |
+| <kbd>7</kbd> | Devpit Settings |
+| <kbd>8</kbd> | Share Files |
+
+The digits work on the main menu only, so a number you type in a form stays a number.
+
+## Menus and lists
+
+These keys work in every menu and pick list.
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> or <kbd>k</kbd> | Move up |
+| <kbd>↓</kbd> or <kbd>j</kbd> | Move down |
+| <kbd>Enter</kbd> | Choose the highlighted row |
+| <kbd>Space</kbd> | Tick or untick a row, in lists that have tick boxes |
+
+## Questions (the confirm box)
+
+Every question starts on **No**.
+
+| Key | What it does |
+| --- | --- |
+| <kbd>y</kbd> | Yes |
+| <kbd>n</kbd> or <kbd>Esc</kbd> | No |
+| <kbd>←</kbd> <kbd>→</kbd> or <kbd>h</kbd> <kbd>l</kbd> | Move between No and Yes |
+| <kbd>Enter</kbd> | Choose what is highlighted (No, unless you moved) |
+
+For **Careful** items, and for replacing an SSH key, you must type a word first: `DELETE` or `OVERWRITE`.
+Type it exactly, in capital letters, then press <kbd>Enter</kbd>.
+<kbd>y</kbd> alone does not work there. <kbd>Esc</kbd> cancels.
+
+## Free Up Disk Space
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move |
+| <kbd>PgUp</kbd> <kbd>PgDn</kbd> | Move a page |
+| <kbd>Space</kbd> | Tick or untick the row, or all rows under a project heading |
+| <kbd>a</kbd> | Tick all, or untick all |
+| <kbd>←</kbd> <kbd>→</kbd> or <kbd>h</kbd> <kbd>l</kbd> | Fold or unfold a group |
+| <kbd>s</kbd> | Sort by size, name or age |
+| <kbd>/</kbd> | Filter the list by text |
+| <kbd>o</kbd> | Show only items older than the "older than" days (30 by default) |
+| <kbd>Enter</kbd> | Continue, on screens that say so |
+| <kbd>d</kbd> | Delete the ticked items (asks first) |
+| <kbd>r</kbd> | Scan again |
+| <kbd>R</kbd> | On the summary: retry items that something else had open |
+| <kbd>Esc</kbd> | Stop a scan or delete, or go back |
+
+More in [Free up disk space](/docs/features/free-up-disk-space).
+
+## Fix Stuck Ports & Apps
+
+| Key | What it does |
+| --- | --- |
+| <kbd>0</kbd>–<kbd>9</kbd> | Type the port number |
+| <kbd>Backspace</kbd> | Delete a digit |
+| <kbd>Enter</kbd> | Check the port, or choose a tool |
+| <kbd>Space</kbd> | Mark or unmark a row in a list |
+| <kbd>k</kbd> | Kill the marked rows (asks first) |
+| <kbd>t</kbd> | Turn "kill process tree" on or off, when it is offered |
+| <kbd>r</kbd> | Refresh the list |
+
+More in [Fix stuck ports and apps](/docs/features/fix-stuck-ports).
+
+## Install Developer Apps and Update Everything
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move |
+| <kbd>Space</kbd> | Tick or untick an app |
+| <kbd>a</kbd> / <kbd>n</kbd> | Tick all / untick all (Update only) |
+| <kbd>Enter</kbd> | Install or update the ticked apps, or finish on the summary |
+| <kbd>l</kbd> | Show or hide the full log |
+| <kbd>s</kbd> (twice) | While a run is going: skip the app that is installing or updating now. Press it a second time within 5 seconds to confirm |
+| <kbd>Esc</kbd> | Stop the run |
+
+More in [Install developer apps](/docs/features/install-developer-apps) and [Update everything](/docs/features/update-everything).
+
+## Share Files
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> | Choose Share a folder, Copy from a shared folder, Resume, or Clean up |
+| <kbd>c</kbd> | On the sharing card: copy the `net use` line |
+| <kbd>r</kbd> | On the sharing card: copy the `robocopy` line. After a copy that had failed files: try them again |
+| <kbd>p</kbd> | On the sharing card: copy the password |
+| <kbd>s</kbd> or <kbd>Esc</kbd> | On the sharing card: stop sharing (asks first) |
+| <kbd>Tab</kbd> | In the sign-in form: switch between user name and password |
+| <kbd>Enter</kbd> | Start the copy when Devpit says there is room, or resume a saved copy |
+| <kbd>d</kbd> | On the resume question: throw the saved copy away. On a "signed in as someone else" error: close old connections to that PC |
+| <kbd>Esc</kbd> | While copying: stop, and resume later |
+
+More in [Share files](/docs/features/share-files).
+
+## Network Tools
+
+| Key | What it does |
+| --- | --- |
+| <kbd>Enter</kbd> | Open a tool, start the ping, or go back when it is done |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer the flush DNS question |
+
+More in [Network tools](/docs/features/network-tools).
+
+## Git & SSH Setup
+
+| Key | What it does |
+| --- | --- |
+| <kbd>Tab</kbd> | Switch between the name and email fields |
+| <kbd>Enter</kbd> | Review your change, or go back when it is done |
+| <kbd>c</kbd> | Copy the new public key |
+
+More in [Git and SSH setup](/docs/features/git-and-ssh).
+
+## Settings
+
+| Key | What it does |
+| --- | --- |
+| <kbd>Enter</kbd> or <kbd>Space</kbd> | Change the highlighted setting |
+| <kbd>Enter</kbd> | Save, in an edit screen |
+| <kbd>a</kbd> | Add a path to the never-touch list |
+| <kbd>x</kbd> | Remove a path or a recent folder |
+| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reset the dev ports to the default list |
+| <kbd>Esc</kbd> | Go back |
+
+More in [Settings](/docs/features/settings).
+
+## First-run wizard
+
+| Key | What it does |
+| --- | --- |
+| <kbd>Enter</kbd> | Next step |
+| <kbd>Esc</kbd> or <kbd>Backspace</kbd> | Previous step |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | Choose an option |
+| <kbd>y</kbd> / <kbd>n</kbd> | Yes or no, where the step asks a question |
+
+## The mouse
+
+The mouse is an extra. The keyboard does everything.
+
+| Action | What it does |
+| --- | --- |
+| Click a tab in the header | Jump to that section |
+| Click a menu row | Open it, like pressing <kbd>Enter</kbd> |
+| Hover a row on the main menu | Highlights it and shows its description |
+| Click a tick box | Ticks or unticks that row, or everything under a project heading |
+| Click a fold arrow | Folds or unfolds a group |
+| Click a row | Moves the cursor there |
+| Scroll wheel | Scrolls menus and lists |
+
+Your terminal must pass mouse events to Devpit.
+Windows Terminal does.
+
+## Window size
+
+Devpit needs a window at least **80 columns by 24 rows**.
+If it is smaller, Devpit tells you and waits.
+Resize the window and it redraws by itself.

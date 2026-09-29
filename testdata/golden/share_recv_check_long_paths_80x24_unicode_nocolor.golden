@@ -1,0 +1,12 @@
+Ready to copy
+
+From        \\192.168.1.5\Games
+To          D:\Games
+Size        20.0 GB  in 1,200 files
+Free space  60.0 GB  (NTFS)
+
+! 14 file(s) will have a path longer than 260 characters. They copy, but some
+programs cannot open them. A shorter destination folder helps.
+✓ There is room. Press Enter to start.
+
+[keys] enter start copying

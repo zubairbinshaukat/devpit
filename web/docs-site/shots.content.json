@@ -1,0 +1,50 @@
+[
+  {
+    "name": "blog-node-modules-results",
+    "alt": "Devpit Free Up Disk Space results listing node_modules folders with their sizes and Safe risk labels",
+    "screen": "clean",
+    "state": "results",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "blog-ports-kill",
+    "alt": "Devpit Fix Stuck Ports screen asking which port to free, with port 3000 typed in",
+    "screen": "ports",
+    "state": "kill-port",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "blog-delete-summary",
+    "alt": "Devpit summary card after a delete, naming the program that holds a locked folder open",
+    "screen": "clean",
+    "state": "summary",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "blog-update-everything",
+    "alt": "Devpit Update Everything list grouped by package manager with winget, Scoop and npm updates ticked",
+    "screen": "update",
+    "state": "results",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "blog-settings-icon-font",
+    "alt": "Devpit Settings screen with the Icon font row that installs Symbols Nerd Font Mono",
+    "screen": "settings",
+    "state": "menu",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "blog-settings-usage-stats",
+    "alt": "Devpit Settings screen showing the Usage stats row set to off and the Update check row",
+    "screen": "settings",
+    "state": "menu",
+    "cols": 100,
+    "rows": 30
+  }
+]

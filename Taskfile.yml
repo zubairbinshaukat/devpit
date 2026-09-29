@@ -122,6 +122,27 @@ tasks:
       - task: lint
       - task: test
 
+  docs:cli:
+    desc: Regenerate the docs site's Command line page from the Cobra commands
+    cmds:
+      - go run ./cmd/gendocs
+
+  docs:build:
+    desc: Build the whole site (landing page plus /docs) into web/dist
+    cmds:
+      - node web/scripts/build.mjs
+
+  docs:check:
+    desc: Build the site, then run the docs checks (links, meta, JSON-LD, sitemap, llms.txt)
+    cmds:
+      - node web/scripts/build.mjs
+      - npm --prefix web/docs-site run check
+
+  docs:dev:
+    desc: Serve the docs site with live reload at http://localhost:4321/docs
+    cmds:
+      - npm --prefix web/docs-site run dev
+
   hooks:
     desc: Point git at .githooks so `task check` runs before every push
     cmds:

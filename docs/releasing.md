@@ -59,6 +59,15 @@ publishes the GitHub release with a changelog, and attests build provenance.
 
 7. Update the "no tagged release yet" note in `README.md` after the first
    release.
+8. Refresh the docs' "What's new" page from the new release (it needs the
+   GitHub release to exist first), then commit the result:
+
+   ```powershell
+   npm --prefix web/docs-site run whats-new
+   node web/scripts/gen-llms.mjs --write
+   ```
+
+   See [The website and the docs](#the-website-and-the-docs).
 
 ## If it goes wrong
 
@@ -125,3 +134,48 @@ manual update instead: `wingetcreate update Zubyr.Devpit --version X.Y.Z
 **Rules that trip people up.** Pre-releases are not accepted. The zip URLs
 must be release assets, not the `latest` redirect. The SHA256 of each zip is
 computed by the tool, so never re-upload an asset after submitting.
+
+## The website and the docs
+
+The website is one Vercel project. Its **Root Directory is `web`**, and
+`web/vercel.json` holds every build setting, so nothing is configured in the
+Vercel dashboard beyond the root directory.
+
+- `installCommand` installs the docs dependencies (`npm ci --prefix docs-site`).
+- `buildCommand` runs `node scripts/build.mjs`, which builds the Astro docs
+  (`web/docs-site`, base `/docs`) and assembles `web/dist`: the landing page
+  files exactly as they are in `web/`, the docs under `dist/docs`, one merged
+  `sitemap.xml`, and a fresh `llms.txt` and `llms-full.txt`.
+- `outputDirectory` is `dist`. Only that folder is public, so the docs sources,
+  `node_modules` and the scripts are never served. The serverless functions in
+  `web/api` are built by Vercel from `web/api` as before.
+- `cleanUrls` and `trailingSlash: false` stay on, and the docs are built to
+  match (`/docs/getting-started`, no trailing slash, no `.html`).
+
+Build the same thing locally with `task docs:build` (or
+`node web/scripts/build.mjs`), check it with `task docs:check`, and look at it
+with `node web/scripts/serve.mjs` (a small server that behaves like Vercel).
+Needs Node 22.12 or newer.
+
+**Auto-deploy caveat.** If the Vercel project deploys from `main`, then every
+merge to `main` publishes the site, including `web/install.ps1`, which is what
+`irm https://devpit.zubyr.dev/install | iex` runs. That is unchanged from
+before, and it is why a new installer step that needs a new Devpit (the icon
+font step needs `devpit font`) should not reach `main` before the release that
+contains it. The docs add one more thing to watch: pages that describe a
+feature go live when they are merged, not when the release is tagged. Merge a
+docs page for a new feature together with, or after, the release that ships it.
+
+What is generated, and how to refresh it:
+
+| File | Refresh with | When |
+| --- | --- | --- |
+| `web/docs-site/src/content/docs/command-line.mdx` | `task docs:cli` | Any change to a command or flag. A Go test fails until it is done |
+| `web/docs-site/src/content/docs/whats-new.md` | `npm --prefix web/docs-site run whats-new` | After each release is published |
+| `web/llms.txt` | `node web/scripts/gen-llms.mjs --write` | After adding or retitling a docs page |
+| `web/dist/sitemap.xml` | nothing, built on deploy | `web/sitemap.xml` stays the source for the landing entries |
+| Screenshots (`web/docs-site/src/assets/screens/*.webp`) | the screenshot tool, delivered as a zip | When a screen's look changes |
+
+CI builds and checks the site on every push (job `docs` in
+`.github/workflows/ci.yml`).
+

@@ -1,0 +1,34 @@
+---
+// Starlight's search box, plus one fix. The site is built with build.format
+// "file", so Pagefind indexes pages as ".../foo.html", and its result links
+// would send every visitor through a Vercel redirect to the clean URL. The
+// script below rewrites each result link to the clean form (no ".html", no
+// trailing slash) as soon as the results are drawn.
+import Default from '@astrojs/starlight/components/Search.astro';
+---
+
+<Default {...Astro.props} />
+
+<script>
+  /** ".../foo.html#a" -> ".../foo#a"; ".../index.html" and ".../" -> the folder. */
+  function clean(href: string): string {
+    return href
+      .replace(/\/index\.html(?=[?#]|$)/, '')
+      .replace(/\.html(?=[?#]|$)/, '')
+      .replace(/(.)\/(?=[?#]|$)/, '$1');
+  }
+
+  function fix(root: ParentNode): void {
+    for (const a of root.querySelectorAll<HTMLAnchorElement>('.pagefind-ui a[href]')) {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('/')) continue;
+      const next = clean(href);
+      if (next !== href) a.setAttribute('href', next || '/');
+    }
+  }
+
+  const box = document.querySelector('site-search');
+  if (box) {
+    new MutationObserver(() => fix(box)).observe(box, { childList: true, subtree: true });
+  }
+</script>

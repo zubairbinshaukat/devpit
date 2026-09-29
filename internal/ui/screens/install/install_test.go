@@ -606,7 +606,7 @@ func TestStopWithAFullBufferStillReachesTheSummary(t *testing.T) {
 // A failure with no exit code (the admin helper never started) must not
 // read "updated".
 func TestFailureWithoutExitCodeReadsFailed(t *testing.T) {
-	m := Model{manager: managers.Winget{}, jobs: []activity.Row{{Label: "AppA", State: activity.Running}}}
+	m := Model{manager: managers.Winget{}, now: time.Now, jobs: []activity.Row{{Label: "AppA", State: activity.Running}}}
 	m.finishJob(0, outcome{Name: "AppA", LastLines: []string{"pipe connect failed"}})
 	r := m.jobs[0]
 	if r.State != activity.Failed || strings.Contains(r.Detail, "updated") || !strings.Contains(r.Detail, "pipe connect failed") {

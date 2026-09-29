@@ -1,0 +1,185 @@
+[
+  {
+    "name": "firstrun-welcome",
+    "alt": "Devpit first-run wizard, step 1 of 4, Welcome, listing three promises: nothing is deleted without a preview and confirmation, the default answer is No, and nothing leaves the PC unless usage stats are on",
+    "screen": "firstrun",
+    "state": "welcome",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "home-menu",
+    "alt": "Devpit main menu with the block-letter DEVPIT logo and seven sections: Free Up Disk Space, Fix Stuck Ports and Apps, Install Developer Apps, Update Everything, Network Tools, Git and SSH Setup and Devpit Settings",
+    "screen": "home",
+    "state": "menu",
+    "cols": 100,
+    "rows": 32
+  },
+  {
+    "name": "clean-menu",
+    "alt": "Free Up Disk Space submenu with four rows: Project Junk, Full Scan, Choose folder and Resume interrupted deletes",
+    "screen": "clean",
+    "state": "menu",
+    "cols": 100,
+    "rows": 26
+  },
+  {
+    "name": "clean-scanning",
+    "alt": "Devpit scanning a projects folder, with a progress bar, the count of folders checked and items found so far, and the first results filling the list",
+    "screen": "clean",
+    "state": "scanning",
+    "cols": 100,
+    "rows": 30,
+    "note": "Demo projects folder; capture mid-scan with some rows already listed."
+  },
+  {
+    "name": "clean-results",
+    "alt": "Scan results grouped by project, each row with a tick box, a size bar and a risk label of Safe, Review or Careful, and a footer showing the selected total",
+    "screen": "clean",
+    "state": "results",
+    "cols": 110,
+    "rows": 32,
+    "note": "Demo projects with node_modules, dist, .next and target folders; Safe items ticked, at least one Review and one Careful row visible."
+  },
+  {
+    "name": "clean-confirm",
+    "alt": "Delete confirmation asking to delete 14 items of 2.1 GB, with restore hints such as run npm install, and the No button selected by default",
+    "screen": "clean",
+    "state": "confirm",
+    "cols": 100,
+    "rows": 26
+  },
+  {
+    "name": "clean-summary",
+    "alt": "Summary card after a clean-up saying Freed 2.1 GB, with the number of items removed and how long it took",
+    "screen": "clean",
+    "state": "summary",
+    "cols": 100,
+    "rows": 26
+  },
+  {
+    "name": "ports-menu",
+    "alt": "Fix Stuck Ports and Apps submenu with three tools: Kill a port, Busy dev ports and Node processes",
+    "screen": "ports",
+    "state": "menu",
+    "cols": 100,
+    "rows": 24
+  },
+  {
+    "name": "ports-kill-port",
+    "alt": "Kill a port screen with port 3000 typed in and a table showing the listening node.exe process with its PID and address",
+    "screen": "ports",
+    "state": "kill-confirm",
+    "cols": 100,
+    "rows": 28,
+    "note": "Show the kill-process-tree option for an npm parent."
+  },
+  {
+    "name": "ports-busy",
+    "alt": "Busy dev ports list showing ports 3000, 5173 and 8080 in use with process names and PIDs, some rows marked for killing",
+    "screen": "ports",
+    "state": "busy-list",
+    "cols": 100,
+    "rows": 26
+  },
+  {
+    "name": "install-list",
+    "alt": "Install Developer Apps list grouped by category, with some apps ticked, some marked installed and a short description under the highlighted app",
+    "screen": "install",
+    "state": "list",
+    "cols": 100,
+    "rows": 32
+  },
+  {
+    "name": "install-running",
+    "alt": "Devpit installing three apps one after another, each as a live row with a spinner or progress bar and the last line the installer printed",
+    "screen": "install",
+    "state": "running",
+    "cols": 100,
+    "rows": 26
+  },
+  {
+    "name": "update-list",
+    "alt": "Update Everything list of out-of-date apps grouped by winget, Scoop and Chocolatey, all ticked, with the installed and new version next to each",
+    "screen": "update",
+    "state": "results",
+    "cols": 110,
+    "rows": 32
+  },
+  {
+    "name": "update-running",
+    "alt": "Devpit updating apps one by one with live rows that end in a tick, a warning saying restart needed or a cross with a reason",
+    "screen": "update",
+    "state": "running",
+    "cols": 110,
+    "rows": 28
+  },
+  {
+    "name": "network-menu",
+    "alt": "Network Tools submenu with three tools: My IP addresses, Ping a host and Flush DNS cache",
+    "screen": "network",
+    "state": "menu",
+    "cols": 100,
+    "rows": 22
+  },
+  {
+    "name": "network-ip",
+    "alt": "My IP addresses card listing local interfaces with their IPv4 and IPv6 addresses and the public IP address below",
+    "screen": "network",
+    "state": "ip",
+    "cols": 100,
+    "rows": 24,
+    "note": "Use documentation-range addresses (192.0.2.x, 2001:db8::) so no real address is shown."
+  },
+  {
+    "name": "network-ping",
+    "alt": "Ping results for a host with four reply lines and a summary of packets sent and received and minimum, average and maximum time",
+    "screen": "network",
+    "state": "ping-done",
+    "cols": 100,
+    "rows": 24
+  },
+  {
+    "name": "gitssh-menu",
+    "alt": "Git and SSH Setup submenu with three rows: Show git identity, Set git identity and Generate SSH key",
+    "screen": "gitssh",
+    "state": "menu",
+    "cols": 100,
+    "rows": 22
+  },
+  {
+    "name": "gitssh-key",
+    "alt": "SSH key generated card showing the key file path and the public key text, with a hint that pressing c copies it",
+    "screen": "gitssh",
+    "state": "key-done",
+    "cols": 100,
+    "rows": 24,
+    "note": "Use a throwaway key; never show a real key."
+  },
+  {
+    "name": "settings-list",
+    "alt": "Devpit Settings list with rows for Icons, Theme, Emoji, Usage stats, Projects folder, Preferred package manager, Never-touch list, Dev ports and more, each with its current value",
+    "screen": "settings",
+    "state": "menu",
+    "cols": 110,
+    "rows": 32
+  },
+  {
+    "name": "share-card",
+    "alt": "Share a folder card showing the IP address, share name, user name and temporary password, and ready-to-copy commands for a PC that does not have Devpit",
+    "screen": "share",
+    "state": "sharing",
+    "cols": 110,
+    "rows": 30,
+    "note": "Phase 2 screen. Use a documentation-range IP and a fake password."
+  },
+  {
+    "name": "share-progress",
+    "alt": "Copy from a shared folder in progress: 47 of 80 GB done, current speed and time left, the files being copied right now and a retrying notice",
+    "screen": "share",
+    "state": "copying",
+    "cols": 110,
+    "rows": 30,
+    "note": "Phase 2 screen."
+  }
+]

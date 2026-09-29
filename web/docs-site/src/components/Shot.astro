@@ -1,0 +1,133 @@
+---
+// A screenshot rendered from the real app.
+//
+//   <Shot name="clean-results" />
+//   <Shot name="clean-results" caption="Junk found in a projects folder" />
+//   <Shot name="home-menu" priority />        (first image above the fold only)
+//
+// `name` must be listed in shots.json or shots.content.json (both are read
+// and merged). The alt text comes from that entry, so it is written once.
+// The image file is looked up at src/assets/screens/<name>.webp (png, jpg and
+// avif also work). The screenshot agent delivers those files as a separate
+// zip that is unpacked into that folder, so they are not part of any patch.
+//
+// Rendering goes through Astro's image pipeline (sharp): AVIF and WebP at
+// several widths with srcset and sizes, explicit width and height so nothing
+// shifts while the page loads, and lazy loading with async decoding. Only an
+// image marked `priority` is loaded eagerly with high fetch priority, and it
+// should be the first image on the page and above the fold.
+//
+// Locally a missing file never breaks the build: a neutral placeholder is drawn
+// and `npm run check` lists the name. A production deploy must not ship
+// placeholders, so a missing file is a build error when VERCEL is set (Vercel
+// sets it on every build) or DOCS_REQUIRE_SHOTS=1. Unpack the screenshot zip at
+// the repo root before deploying.
+import { Picture } from 'astro:assets';
+
+interface Props {
+  name: string;
+  /** Overrides the alt text from the manifest. */
+  alt?: string;
+  /** Optional visible caption. */
+  caption?: string;
+  /** Eager, high-priority load for the one image above the fold. */
+  priority?: boolean;
+}
+
+interface Entry {
+  name: string;
+  alt: string;
+  cols?: number;
+  rows?: number;
+}
+
+const { name, alt, caption, priority = false } = Astro.props;
+
+const manifests = import.meta.glob<Entry[]>('/shots*.json', { eager: true, import: 'default' });
+const entry = Object.values(manifests)
+  .flat()
+  .find((s) => s.name === name);
+if (!entry) throw new Error(`<Shot name="${name}"> is not listed in web/docs-site/shots.json or shots.content.json`);
+
+const files = import.meta.glob<{ default: ImageMetadata }>('/src/assets/screens/*.{webp,png,jpg,jpeg,avif}', {
+  eager: true,
+});
+const found = Object.entries(files).find(([path]) => path.replace(/^.*\//, '').replace(/\.[^.]+$/, '') === name);
+const image = found?.[1].default;
+
+if (!image && (process.env.VERCEL || process.env.DOCS_REQUIRE_SHOTS === '1')) {
+  throw new Error(
+    `Missing screenshot src/assets/screens/${name}.webp. A production build (VERCEL or DOCS_REQUIRE_SHOTS=1) needs every screenshot: unpack the screenshot zip at the repo root first.`,
+  );
+}
+
+const text = alt ?? entry.alt;
+// A terminal cell is about twice as tall as it is wide, so cols x rows x 2 gives
+// the picture's aspect ratio. The placeholder reserves the same space the image
+// will take, so filling the image in later moves nothing.
+const ratio = entry.cols && entry.rows ? `${entry.cols} / ${Math.round(entry.rows * 2.1)}` : '16 / 9';
+---
+
+<figure class="shot">
+  {
+    image ? (
+      <Picture
+        src={image}
+        alt={text}
+        formats={['avif', 'webp']}
+        fallbackFormat="webp"
+        widths={[480, 736, 960, 1472]}
+        sizes="(min-width: 50rem) 46rem, calc(100vw - 2rem)"
+        loading={priority ? 'eager' : 'lazy'}
+        decoding={priority ? 'sync' : 'async'}
+        fetchpriority={priority ? 'high' : 'auto'}
+      />
+    ) : (
+      <div
+        class="shot-missing"
+        style={`aspect-ratio: ${ratio}`}
+        role="img"
+        aria-label={text}
+        data-shot-missing={name}
+        data-pagefind-ignore
+      />
+    )
+  }
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .shot {
+    margin: 1.5rem 0;
+  }
+  .shot :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+    border: 1px solid var(--sl-color-hairline);
+  }
+  .shot :global(picture) {
+    display: block;
+  }
+  /* The words are drawn by CSS so they are not page text: nothing is indexed. */
+  .shot-missing::after {
+    content: 'Screenshot coming soon';
+  }
+  .shot-missing {
+    display: grid;
+    place-content: center;
+    padding: 1.5rem;
+    text-align: center;
+    border: 1px dashed var(--sl-color-gray-4);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg-nav);
+    color: var(--sl-color-gray-2);
+  }
+  figcaption {
+    margin-top: 0.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    text-align: center;
+  }
+</style>
