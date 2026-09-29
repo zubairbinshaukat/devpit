@@ -1,0 +1,153 @@
+---
+title: Devpit settings, themes, icons and the never-touch list
+description: Every Devpit setting explained, from themes and icons to usage stats, the never-touch list, dev ports and the icon font, and where the settings file lives.
+sidebar:
+  label: Settings
+  order: 7
+published: 2026-09-29
+related:
+  - safety-and-privacy
+  - getting-started
+  - features/free-up-disk-space
+faq:
+  - question: "Where are Devpit's settings stored?"
+    answer: "In one file, %APPDATA%\\devpit\\config.toml. Set the DEVPIT_CONFIG_DIR environment variable to use another folder. Changes in the app are saved as soon as you make them."
+  - question: "How do I turn usage stats off?"
+    answer: "Open Settings and switch Usage stats to off. Setting the environment variable DEVPIT_NO_TELEMETRY=1 or DO_NOT_TRACK=1 turns them off whatever the setting says. Stats are off by default."
+  - question: "How do I protect a folder from being cleaned?"
+    answer: "Add it to the never-touch list in Settings. Devpit skips it when scanning and refuses it when deleting. Devpit also refuses to delete the folder that holds its own program file."
+  - question: "Icons show as boxes. What should I change?"
+    answer: "Set Icons to unicode or ascii in Settings to use plain shapes. Or choose Icon font to install the icon font, restart Windows Terminal, then run Icon check."
+  - question: "What happens if my settings file is damaged?"
+    answer: "Devpit renames it to config.toml.broken with a number, starts with defaults and shows a warning. Your old file is kept so you can look at it. A settings file written by a newer Devpit is refused, not half applied."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Open **Devpit Settings** from the main menu with <kbd>7</kbd>.
+Changes save the moment you make them.
+
+Press <kbd>Enter</kbd> or <kbd>Space</kbd> on a row.
+Some rows switch to the next value right away.
+Others open a small screen.
+
+<Shot name="settings-list" />
+
+## The settings
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **Icons** | Which icon set to draw: `auto`, `nerd`, `unicode` or `ascii`. | Cycles |
+| **Theme** | `auto` follows your terminal. `dark` and `light` pick a background. `aqua`, `blue`, `rose` and `mono` change the accent colour. | Cycles |
+| **Emoji** | Allow emoji in headers and summaries. Never used in tables. | On or off |
+| **Usage stats** | Anonymous totals after a clean-up. Off by default. | On or off |
+| **Projects folder** | The folder **Project Junk** scans, and your recent folders. | Opens a screen |
+| **Preferred package manager** | Which manager installs and updates use: `auto`, `scoop`, `winget` or `choco`. `auto` picks Scoop, then winget, then Chocolatey. | Cycles |
+| **Never-touch list** | Folders Devpit never scans and never deletes. | Opens a screen |
+| **Dev ports** | The ports that **Busy dev ports** checks. | Opens a screen |
+| **Active project window** | Projects touched within this many days are never pre-ticked. Default 7. | Opens a screen (1 to 365) |
+| **Older-than filter** | The age used by the results screen's older-only filter. Default 30 days. | Opens a screen (1 to 365) |
+| **Icon font** | Installs or removes the icon font and patches Windows Terminal. | Opens a screen |
+| **Icon check** | Asks if the icons render, and turns the icon set on if you say Yes. | Opens a screen |
+| **Rescan my tools** | Clears the scan cache so the next scan reads the disk fresh. | Asks first |
+| **Update check** | Asks GitHub once a day if a newer Devpit exists. | On or off |
+| **About Devpit** | Version, author, links, licence and the command to upgrade. | Opens a screen |
+
+## Themes and icons
+
+Devpit has three icon sets and picks one for you.
+
+| Icon set | What you see |
+| --- | --- |
+| `nerd` | Real icons for folders, Git, Node and more. Needs the icon font. |
+| `unicode` | Plain shapes and check marks. Works in most terminals. |
+| `ascii` | Only basic characters. For very simple terminals. |
+
+You can also start Devpit with `devpit --ascii` to force the plain set for one run.
+
+The seven themes:
+
+- `auto`: follows your terminal's background
+- `dark`: Devpit aqua on a dark background
+- `light`: Devpit aqua on a light background
+- `aqua`: the house colour
+- `blue`: a calm blue accent
+- `rose`: a soft rose accent
+- `mono`: no colour at all, shapes and words only
+
+## The icon font
+
+**Icon font** installs or removes the icon font.
+It does what `devpit font install` and `devpit font remove` do.
+
+1. Open **Icon font**.
+2. Press <kbd>Enter</kbd> to install (or to remove, when it is installed).
+3. Close every Windows Terminal window and open a new one.
+4. Open **Icon check** and answer Yes if the icons show.
+
+More about the font is in [Getting started](/docs/getting-started#the-icon-font).
+
+## Folder settings
+
+### Projects folder
+
+- The first row is the **default folder**. Press <kbd>Enter</kbd> to edit it. It must exist. Network paths are not allowed.
+- Below it are your **recent folders**. Press <kbd>x</kbd> to remove one.
+
+### Never-touch list
+
+1. Press <kbd>a</kbd> to add a path.
+2. Type the full path and press <kbd>Enter</kbd>.
+3. Press <kbd>x</kbd> on a row to remove it.
+
+Devpit skips these folders when scanning and refuses them when deleting.
+It also protects itself: it refuses to delete anything that holds `devpit.exe`.
+
+### Dev ports
+
+The list is one line of numbers and ranges, for example `3000-3010, 5173, 8080`.
+Press <kbd>Enter</kbd> to save.
+Press <kbd>Ctrl</kbd>+<kbd>R</kbd> to go back to the default list.
+The default is 3000 to 3010, 4200, 5000, 5173, 5174, 8000, 8080, 8081, 8888, 9000 and 19000 to 19006.
+
+## Usage stats and updates
+
+**Usage stats** are off until you turn them on.
+They send totals only, never file names or paths.
+Read exactly what is sent on [Safety and privacy](/docs/safety-and-privacy).
+
+**Update check** looks at GitHub's public releases once a day.
+It shows an `update` label in the header when a newer version exists.
+Nothing is downloaded for you.
+
+These environment variables always win over the settings:
+
+| Variable | Effect |
+| --- | --- |
+| `DEVPIT_NO_TELEMETRY=1` or `DO_NOT_TRACK=1` | Usage stats off |
+| `DEVPIT_NO_UPDATE_CHECK=1` | Update check off |
+| `DEVPIT_CONFIG_DIR` | Use another folder for `config.toml` |
+| `DEVPIT_CACHE_DIR` | Use another folder for caches and logs |
+
+## Where files are kept
+
+| What | Where |
+| --- | --- |
+| Settings | `%APPDATA%\devpit\config.toml` |
+| Caches and logs | `%LOCALAPPDATA%\devpit\` |
+
+If the settings file is damaged, Devpit renames it to `config.toml.broken-<number>`, starts with the defaults and shows a warning.
+Your old file stays so you can look at it.
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move |
+| <kbd>Enter</kbd> / <kbd>Space</kbd> | Change the row |
+| <kbd>a</kbd> | Add a path (never-touch list) |
+| <kbd>x</kbd> | Remove a path or folder |
+| <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reset dev ports to the default |
+| <kbd>Esc</kbd> | Go back |
+
+See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.

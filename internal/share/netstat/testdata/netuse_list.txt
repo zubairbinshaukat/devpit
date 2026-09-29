@@ -1,0 +1,9 @@
+New connections will be remembered.
+
+Status       Local     Remote                    Network
+
+-------------------------------------------------------------------------------
+OK                     \\192.168.1.5\IPC$       Microsoft Windows Network
+OK           Z:        \\192.168.1.5\Games      Microsoft Windows Network
+OK                     \\192.168.1.9\Other      Microsoft Windows Network
+The command completed successfully.

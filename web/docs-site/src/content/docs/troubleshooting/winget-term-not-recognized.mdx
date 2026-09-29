@@ -1,0 +1,84 @@
+---
+title: "The term 'winget' is not recognized"
+description: "Fix \"The term 'winget' is not recognized\" in PowerShell: check App Installer, the App execution alias and PATH, then register or reset the package."
+sidebar:
+  label: "'winget' is not recognized"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - features/install-developer-apps
+  - troubleshooting/winget-upgrade-all-not-upgrading
+faq:
+  - question: "Which Windows versions have winget?"
+    answer: "Microsoft says winget is available on Windows 11, modern versions of Windows 10 and Windows Server 2025, as part of the App Installer. It is only supported on Windows 10 version 1809 (build 17763) or later."
+  - question: "I just created a new Windows user and winget is missing. Why?"
+    answer: "Microsoft says winget is not available until you have logged into Windows as a user for the first time, because the Microsoft Store registers it in the background. You can request the registration from PowerShell with Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe."
+  - question: "Do I need winget to use Devpit?"
+    answer: "No. Devpit works with the package managers it finds: winget, Scoop, Chocolatey and npm. If winget is missing it is simply not used."
+---
+
+```text
+winget : The term 'winget' is not recognized as the name of a cmdlet, function, script file, or operable program.
+```
+
+In Command Prompt the same problem reads `'winget' is not recognized as an internal or external command, operable program or batch file.` It means your shell cannot find `winget.exe`.
+
+## What it means
+
+Winget comes inside a Microsoft Store component called **App Installer**. The command `winget` is an alias that App Installer adds to a folder in your `PATH`. If any part is missing, the shell says the term is not recognized.
+
+## Why it happens
+
+Microsoft's troubleshooting page lists these common reasons:
+
+1. The App Installer is too old or does not contain the Windows Package Manager. Its version should be greater than 1.11.11451.
+2. The **App execution alias** for winget is turned off.
+3. The App Installer did not add its folder to `PATH`. The folder is `%userprofile%\AppData\Local\Microsoft\WindowsApps`.
+4. App Installer was installed for a different Windows user account.
+5. The App Installer package is in a broken state.
+
+It can also be a new account: winget is not available until you have signed in once as that user.
+
+## How Devpit fixes or avoids it
+
+Devpit does not install winget. [Update Everything](/docs/features/update-everything) looks for winget, Scoop, npm and Chocolatey on your `PATH`, and only uses the ones it finds. If none is found, it says so: no package manager was found, so there is nothing to update. [Install Developer Apps](/docs/features/install-developer-apps) installs through Scoop, winget or Chocolatey in the same way.
+
+## The manual fix
+
+Try these in order.
+
+1. Check that App Installer exists and see its version (PowerShell):
+
+```powershell
+Get-AppxPackage microsoft.desktopappinstaller
+```
+
+2. Turn the alias on: open Windows Settings, search for **App execution aliases**, and turn on the entry for the Windows Package Manager (**winget**).
+3. Test the full path. If this works but plain `winget` does not, your `PATH` is missing the folder:
+
+```powershell
+& "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget"
+```
+
+Add `%userprofile%\AppData\Local\Microsoft\WindowsApps` to your user `PATH` and open a new terminal.
+
+4. If you just signed in to a new account, ask Windows to register winget:
+
+```powershell
+Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+```
+
+5. If App Installer is missing, get it from the Microsoft Store (search for **App Installer**).
+6. If the package is broken, on Windows 11 reset it:
+
+```powershell
+Get-AppxPackage Microsoft.DesktopAppInstaller | Reset-AppxPackage
+```
+
+Then check with `winget --info`.
+
+## Sources
+
+- [winget-cli: Troubleshooting (common issues, not recognized)](https://github.com/microsoft/winget-cli/tree/master/doc/troubleshooting)
+- [Microsoft: Use the winget tool to install and manage applications](https://learn.microsoft.com/windows/package-manager/winget/)
+- [Devpit source: internal/ui/screens/update/update.go](https://github.com/zubairbinshaukat/devpit/blob/main/internal/ui/screens/update/update.go)

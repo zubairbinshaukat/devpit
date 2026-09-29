@@ -1,0 +1,78 @@
+---
+title: "The specified network name is no longer available (error 64)"
+description: "A big copy from a shared folder stopped with 'The specified network name is no longer available' (error 64, 0x80070040). Why it happens and how to resume."
+sidebar:
+  label: "Network name no longer available (64)"
+published: 2026-09-29
+related:
+  - features/share-files
+  - blog/resume-interrupted-file-copy-windows
+  - troubleshooting/robocopy-exit-codes
+  - troubleshooting/system-error-53-network-path-not-found
+faq:
+  - question: "Is error 0x80070040 the same as error 64?"
+    answer: "Yes. Windows wraps a Win32 error in a code that starts with 0x8007. The last part, 0x40, is 64 in decimal, which is ERROR_NETNAME_DELETED, The specified network name is no longer available."
+  - question: "Did I lose the files that were already copied?"
+    answer: "No. Files that finished copying stay on your disk. Only the file that was being copied at that moment may be incomplete. A copy tool that skips finished files, such as robocopy, carries on from there."
+  - question: "Can a PC going to sleep cause error 64?"
+    answer: "Yes. A PC that sleeps stops answering on the network, so the connection to its shared folder breaks in the middle of the copy. Keep both PCs awake during a long copy."
+---
+
+A copy from a shared folder stopped in the middle with **The specified network name is no longer available.** File Explorer may show it as **Error 0x80070040**. In a command it is **System error 64**.
+
+Your PC had a working connection to the share, and then it broke. The fix is to find out why, then carry on without starting over.
+
+## What it means
+
+Error 64 is `ERROR_NETNAME_DELETED`, with the text "The specified network name is no longer available." `0x80070040` is the same error: `0x8007` marks a Windows error, and `0x40` is 64.
+
+It is different from [system error 53](/docs/troubleshooting/system-error-53-network-path-not-found). With 53 Windows never reached the share. With 64 it was connected, and the connection went away.
+
+## Why it happens
+
+The connection to the other PC dropped during the copy. Common reasons:
+
+- The Wi-Fi dropped or roamed to another access point for a moment.
+- The other PC went to sleep, restarted, or lost power.
+- The share was removed on the other PC, or the program that made it was closed.
+- A network cable was unplugged, or a VPN connected or disconnected.
+
+On Microsoft's Q&A forum, answers for this error also point to firewalls that cut idle or long connections and to security software, and suggest checking the event logs on both PCs for network errors at that time.
+
+## How Devpit fixes or avoids it
+
+[Share Files](/docs/features/share-files) expects this error during a long copy.
+
+- It keeps both PCs awake: the sharing PC while it shares, and the receiving PC while it copies.
+- When the other PC stops answering, Devpit shows "The network dropped", waits, and tries again with a growing pause. When the PC answers, it carries on by itself, as long as Devpit stays open.
+- If you close Devpit or stop the copy, open **Share Files** again and choose the resume entry. Finished files are skipped and a half-copied file carries on, because Devpit copies with robocopy in restartable mode (`/Z`).
+
+## The manual fix
+
+1. **Check the other PC.** Is it awake, on the same network, and still sharing? Open the share again in File Explorer to see.
+2. **Keep both PCs awake** for the copy. In Command Prompt, this sets sleep to never while plugged in:
+
+```text
+powercfg /change standby-timeout-ac 0
+```
+
+After the copy, set it back, for example to 30 minutes: `powercfg /change standby-timeout-ac 30`.
+
+3. **Use a cable if you can.** A wired connection does not roam or drop like Wi-Fi. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
+4. **Carry on with robocopy** instead of starting over in File Explorer. On the receiving PC:
+
+```text
+robocopy \\192.168.1.20\share D:\Copy /E /Z /R:5 /W:10
+```
+
+Robocopy skips files that are already the same on both sides. With `/Z`, a file that was cut off can continue. If the network drops again, run the same command again. See [resume an interrupted file copy](/docs/blog/resume-interrupted-file-copy-windows) for the full method, and [robocopy exit codes](/docs/troubleshooting/robocopy-exit-codes) to read the result.
+
+5. **If it happens at the same point every time**, test the port on the other PC with `Test-NetConnection 192.168.1.20 -Port 445` in PowerShell, and check a firewall or security program on either PC.
+
+## Sources
+
+- [Microsoft: System error codes 0 to 499 (ERROR_NETNAME_DELETED, 64)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--0-499-)
+- [Microsoft Q&A: The specified network name is no longer available (firewalls, security software, event logs)](https://learn.microsoft.com/answers/questions/5698093/the-specified-network-name-is-no-longer-available)
+- [Microsoft: robocopy (/Z restartable mode, /R, /W)](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft: powercfg command-line options (/change standby-timeout-ac)](https://learn.microsoft.com/windows-hardware/design/device-experiences/powercfg-command-line-options)
+- [Microsoft: Test-NetConnection](https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection)

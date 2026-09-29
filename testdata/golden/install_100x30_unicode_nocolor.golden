@@ -1,5 +1,6 @@
  DEVPIT  vdev  ·  Install Developer Apps                                             node …   git …
-  Clean    Ports    Apps    Update    Network    Git    Settings                        tab ⇄ · 1–7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share               tab ⇄ · 1–8
 ───────────────────━━━━━━───────────────────────────────────────────────────────────────────────────
 Manager: scoop
 
@@ -25,6 +26,5 @@ Manager: scoop
           Docker Desktop                                                     not available via scoop
  Package Managers
       [ ] pnpm
-      [ ] Yarn
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 esc back  ·  ↑↓ move  ·  space toggle  ·  enter install  ·  ? help

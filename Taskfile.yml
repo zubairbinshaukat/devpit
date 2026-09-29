@@ -93,6 +93,9 @@ tasks:
       - cmd: go vet ./...
         env:
           GOOS: linux
+      # The screenshot scenes sit behind a build tag; vet them so they keep
+      # compiling as the screens change.
+      - go vet -tags shots ./internal/shots
 
   lint:
     desc: Lint on Windows and on Linux, so the platform stubs stay honest
@@ -121,6 +124,38 @@ tasks:
       - task: vet
       - task: lint
       - task: test
+
+  docs:cli:
+    desc: Regenerate the docs site's Command line page from the Cobra commands
+    cmds:
+      - go run ./cmd/gendocs
+
+  docs:shots:
+    desc: Render the docs screenshots from the real app (needs Edge or Chrome, and Cascadia Mono)
+    vars:
+      OUT: '{{.DEVPIT_SHOTS_OUT | default (print .ROOT_DIR "/.shots")}}'
+    env:
+      DEVPIT_SHOTS: "1"
+      DEVPIT_SHOTS_OUT: "{{.OUT}}"
+    cmds:
+      - go test -tags shots -count=1 ./internal/shots -run TestRender
+      - node web/docs-site/scripts/shots-render.mjs --in "{{.OUT}}"
+
+  docs:build:
+    desc: Build the whole site (landing page plus /docs) into web/dist
+    cmds:
+      - node web/scripts/build.mjs
+
+  docs:check:
+    desc: Build the site, then run the docs checks (links, meta, JSON-LD, sitemap, llms.txt)
+    cmds:
+      - node web/scripts/build.mjs
+      - npm --prefix web/docs-site run check
+
+  docs:dev:
+    desc: Serve the docs site with live reload at http://localhost:4321/docs
+    cmds:
+      - npm --prefix web/docs-site run dev
 
   hooks:
     desc: Point git at .githooks so `task check` runs before every push

@@ -1,0 +1,134 @@
+---
+title: Free up disk space and delete node_modules on Windows
+description: Find and delete node_modules, build folders, caches and other developer junk safely, with a preview, risk labels and a confirmation before anything goes.
+sidebar:
+  label: Free up disk space
+  order: 1
+published: 2026-09-29
+related:
+  - safety-and-privacy
+  - features/settings
+  - keyboard-and-mouse
+faq:
+  - question: "Is it safe to delete node_modules?"
+    answer: "Yes. node_modules is rebuilt when you run npm install, pnpm install or yarn install. Devpit labels it Safe, only lists it when a package.json sits beside it, and shows the size before you confirm."
+  - question: "Why is one of my projects not ticked?"
+    answer: "Devpit never pre-ticks a project you touched in the last 7 days, a folder it could not fully verify, or a cloud placeholder. You can still tick it yourself. The 7 day window can be changed in Settings."
+  - question: "Where do the deleted files go?"
+    answer: "Safe items are deleted for good, after being renamed so an interrupted delete can be finished. Review and Careful items go to the Recycle Bin, so you can restore them."
+  - question: "What does stale, rescanning mean?"
+    answer: "Devpit shows the results of your last scan of that folder straight away, marked stale, while a fresh scan runs. When the scan ends the list is updated."
+  - question: "Will Devpit delete my Docker volumes?"
+    answer: "No, never. Devpit only offers Docker build cache, dangling images and stopped containers, and it refuses to run any Docker command that includes volumes."
+  - question: "How do I stop Devpit from ever touching a folder?"
+    answer: "Add the folder to the never-touch list in Settings. Both the scanner and the deleter skip it, every time."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Developer machines fill up with folders that can be rebuilt: `node_modules`, `dist`, `target`, caches.
+Devpit finds them, shows their size, and deletes only what you tick.
+
+Open it from the main menu with <kbd>1</kbd>, or choose **Free Up Disk Space**.
+
+## What you can scan
+
+The section opens a small menu with four rows.
+
+| Row | What it does |
+| --- | --- |
+| **Project Junk** | Looks through your projects folder for build output and dependency folders such as `node_modules`, `dist`, `.next`, `target`, `bin`, `obj`, `__pycache__` and virtual environments. |
+| **Full Scan** | Everything in Project Junk, plus package manager caches (npm, yarn, pnpm, pip, NuGet, Gradle, Maven, Cargo, Go and more), Windows temporary files, editor caches, old Scoop versions, Docker leftovers and large files. |
+| **Choose folder…** | Scans a folder you pick instead of your default one. |
+| **Resume interrupted deletes** | Finishes anything a stopped clean left behind. |
+
+<Shot name="clean-menu" />
+
+A folder only counts as junk when a marker file sits beside it.
+For example `node_modules` needs a `package.json`, and `target` needs a `Cargo.toml`.
+Devpit checks the marker again right before it deletes.
+
+## Clean up in six steps
+
+1. Press <kbd>1</kbd> on the main menu.
+2. Choose **Project Junk** (or **Full Scan**).
+3. If you have not set a projects folder, Devpit asks. Pick a recent folder, type a path, or browse. Network paths are not allowed.
+4. Wait for the scan. You see the folders checked, the items found and the total size. The list fills in as it goes.
+
+   <Shot name="clean-scanning" />
+
+5. Read the results. Devpit groups items by project and labels each one with a risk. Safe items start ticked. Tick or untick with <kbd>Space</kbd>.
+
+   <Shot name="clean-results" />
+
+6. Press <kbd>d</kbd>. Devpit asks one question, for example "Delete 14 items (2.1 GB)?", and shows how to get each kind back. The default answer is **No**. Press <kbd>y</kbd> to go on.
+
+   <Shot name="clean-confirm" />
+
+When it finishes you see a summary with the space freed, how many items went, and how long it took.
+
+<Shot name="clean-summary" />
+
+## What the risk labels mean
+
+Every item has a label before you choose.
+
+| Label | Meaning | What happens when you delete it |
+| --- | --- | --- |
+| **Safe** | Rebuilds on its own, for example from a lockfile. Pre-ticked. | Deleted for good. It is renamed first so an interrupted delete can be finished. |
+| **Review** | Safe to remove, but the next build is slower or downloads again. | Moved to the Recycle Bin. |
+| **Careful** | May hold something you cannot get back. Never pre-ticked. | Moved to the Recycle Bin, and you must type `DELETE` first. |
+
+Devpit never pre-ticks:
+
+- a project you touched in the last 7 days,
+- a folder it could not fully verify,
+- a file that only exists in the cloud (a OneDrive or Dropbox placeholder),
+- any Careful item.
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>k</kbd> <kbd>j</kbd> | Move |
+| <kbd>PgUp</kbd> <kbd>PgDn</kbd> | Move a page |
+| <kbd>Space</kbd> | Tick or untick the row (or a whole project) |
+| <kbd>a</kbd> | Tick all, or none |
+| <kbd>←</kbd> <kbd>→</kbd> | Fold or unfold a group |
+| <kbd>s</kbd> | Sort by size, name or age |
+| <kbd>/</kbd> | Filter by text |
+| <kbd>o</kbd> | Show only items older than 30 days (the number can be changed in Settings) |
+| <kbd>d</kbd> | Delete the ticked items |
+| <kbd>r</kbd> | Scan again |
+| <kbd>Esc</kbd> | Stop a scan or delete, or go back |
+
+The mouse works here too: click a tick box, click a fold arrow, scroll with the wheel.
+See [Keyboard and mouse](/docs/keyboard-and-mouse) for all keys.
+
+## If something is skipped
+
+Devpit tells you why in plain words, for example:
+
+> Couldn't delete api\node_modules — it's open in Code.exe. Close it and press R to retry.
+
+1. Close the program that has the folder open.
+2. On the summary, press <kbd>R</kbd> to retry the locked items.
+
+Other reasons you may see: the item is on your never-touch list, it sits under a junction or symlink, it is on a network drive, or it no longer matches the rule that found it.
+Devpit never deletes through a link and never touches a drive root or the Windows folder.
+
+If you press <kbd>Esc</kbd> during a delete, Devpit finishes the item it is working on and shows what was done.
+Nothing is left half removed.
+Choose **Resume interrupted deletes** later to finish the rest.
+
+## How to get things back
+
+- **Review and Careful items:** open the Recycle Bin and restore them.
+- **Safe items:** rebuild them. The confirmation shows how, for example run `npm install` for `node_modules`.
+
+## Good to know
+
+- Devpit shows the last results for a folder straight away, marked "stale · rescanning", while a fresh scan runs.
+- **Settings** lets you change the projects folder, the never-touch list and the "active project" window. See [Settings](/docs/features/settings).
+- Devpit keeps a running total of the space it has freed on your PC and shows it on this screen.
+- The full list of protections is on [Safety and privacy](/docs/safety-and-privacy).

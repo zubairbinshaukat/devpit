@@ -1,0 +1,165 @@
+---
+title: "Resume an interrupted file copy on Windows"
+description: "A big copy stopped halfway? File Explorer cannot resume it. Carry on where it stopped with robocopy /Z, BITS for one huge file, or Devpit Share Files."
+date: 2026-09-29
+authors: [zubair]
+tags: [robocopy, file transfer, windows]
+excerpt: "File Explorer has no resume button. Here is how to carry on a stopped copy without starting over, for folders and for one huge file."
+related:
+  - features/share-files
+  - blog/copy-huge-folders-between-pcs-robocopy-resume
+  - troubleshooting/robocopy-exit-codes
+  - troubleshooting/specified-network-name-no-longer-available
+faq:
+  - question: "Can I resume a copy after the PC restarted?"
+    answer: "Yes. Robocopy keeps no state of its own. It compares the source and the destination each time, so running the same command after a restart copies only what is missing or different. A background BITS job also resumes after a restart, Microsoft says."
+  - question: "Should I delete the files that were already copied before I try again?"
+    answer: "No. Keep them. Robocopy skips the files that are already the same on both sides, which is what saves the time. Deleting them only makes the copy start over."
+  - question: "Does pressing Ctrl+C in robocopy lose my progress?"
+    answer: "No. Files that finished stay finished. Run the same command again later and robocopy carries on with the rest. With the /Z option, the file it was in the middle of can continue too."
+  - question: "Can File Explorer skip the files that are already there?"
+    answer: "When a file with the same name exists, File Explorer asks whether to replace or skip it, but it has no resume feature and does not check that a skipped file is complete. Robocopy compares the files, which is safer for a big copy."
+---
+
+You are copying a big folder. It is at 60 percent. Then the Wi-Fi drops, the other PC goes to sleep, or Windows restarts for an update. The copy window is gone.
+
+Now you have a question: do I start again from zero?
+
+No. This guide shows how to carry on from where the copy stopped. It works for a copy between two disks on one PC, from a USB drive, and from a shared folder on another PC.
+
+## The short answer
+
+- **File Explorer cannot resume a copy.** Microsoft does not document a resume feature for it.
+- **Robocopy can.** It is built into Windows. Run it with the same source and destination, and it skips the files that are already done. With `/Z`, a file that was cut off in the middle can continue.
+- **For one very large file**, BITS (a Windows transfer service) can pause and resume by itself, even after a restart.
+
+## Why File Explorer cannot help
+
+File Explorer's copy is one job. When it stops, the job is gone. If you start it again, it has no record of what it did before.
+
+That is why people end up with two bad choices: copy everything again (slow), or guess which files are complete (risky). A tool that compares the source and the destination file by file avoids both.
+
+## Resume a folder copy with robocopy
+
+Robocopy ("robust file copy") comes with Windows. You do not install anything.
+
+### Step 1: open a terminal
+
+Press <kbd>Win</kbd>, type `cmd` or `PowerShell`, and open it. You do not need administrator rights to copy your own files.
+
+### Step 2: run the copy
+
+Use the same source and destination that you used in File Explorer. For a shared folder on another PC:
+
+```text
+robocopy \\192.168.1.20\Games D:\Games /E /Z /R:5 /W:10 /LOG:C:\copy.log /TEE
+```
+
+For a USB drive or another disk on the same PC:
+
+```text
+robocopy E:\Photos D:\Photos /E /Z /R:5 /W:10 /LOG:C:\copy.log /TEE
+```
+
+Replace the paths with your own. Do not put a backslash at the very end of a path in quotes, like `"D:\Games\"`. Robocopy reads `\"` as a quote and the rest of the line breaks.
+
+What the options mean, from Microsoft's robocopy documentation:
+
+| Option | What it does |
+| --- | --- |
+| `/E` | Copies subfolders, including empty ones. |
+| `/Z` | Restartable mode. If a file copy is interrupted, robocopy can pick up where it left off instead of copying the whole file again. |
+| `/R:5` | Retries a failed copy 5 times. The default is 1,000,000. |
+| `/W:10` | Waits 10 seconds between retries. The default is 30. |
+| `/LOG:file` | Writes the status to a file. |
+| `/TEE` | Also shows the status on the screen. |
+
+### Step 3: if it stops again, run the same command again
+
+This is the whole trick. Robocopy compares the source and the destination.
+
+- Files that are already the same on both sides are skipped. Microsoft even has an option, `/IS`, to *include* the same files, which tells you they are left out by default.
+- Files that are missing or different are copied.
+- With `/Z`, a file that was cut off can continue from where it stopped.
+
+You can run it as many times as you need. Each run does only what is left.
+
+### Step 4: read the result
+
+Robocopy's exit code is not a simple pass or fail. A code from 0 to 7 means there was no failure. A code of 8 or more means at least one file failed. In PowerShell, `$LASTEXITCODE` shows the code right after robocopy ends. The full table is on [robocopy exit codes](/docs/troubleshooting/robocopy-exit-codes).
+
+If some files failed, open the log file and search for the word `ERROR`. Fix the cause, and run the same command again.
+
+### Options to be careful with
+
+- `/MIR` and `/PURGE` **delete** files in the destination that are not in the source. For a plain copy, leave them out.
+- `/MT:n` copies several files at once (1 to 128 threads, default 8). Microsoft says it is best used with a log file, which is why the examples above use `/LOG`.
+- `/J` uses unbuffered I/O, which Microsoft recommends for large files.
+
+Try `/MT` and `/J` on your own copy and compare. Only your own test shows what helps on your disks and network.
+
+## Resume one huge file with BITS
+
+A single very large file, such as a disk image or a video project, is a special case. BITS, the Background Intelligent Transfer Service, is a Windows service that Microsoft says "handles network interruptions, pausing and automatically resuming transfers, even after a reboot". It can download from SMB file shares, which is what a shared folder is.
+
+In PowerShell:
+
+```powershell
+Start-BitsTransfer -Source "\\192.168.1.20\share\backup.iso" -Destination "D:\Copy\backup.iso" -Asynchronous -DisplayName BigCopy
+```
+
+`-Asynchronous` runs it in the background, so it survives you closing the window. Check on it with:
+
+```powershell
+Get-BitsTransfer -Name BigCopy
+```
+
+When its state is `Transferred`, finish it. A background BITS job only writes the final file when you complete it:
+
+```powershell
+Get-BitsTransfer -Name BigCopy | Complete-BitsTransfer
+```
+
+If the other PC wants a user name and password, add `-Credential (Get-Credential)` to the first command.
+
+BITS is best for a few big files. For a folder with thousands of files, robocopy is simpler.
+
+## What other tools do
+
+Some copy and transfer tools also handle interruptions. Here is what their own pages say, and nothing more:
+
+- **TeraCopy** (Windows, with a Mac version). Its site says that on a copy error it skips the file and carries on, that it "will also wait for network or device reconnection", and that you can retry only the failed or skipped files afterwards. The product page does not describe a resume of a half-copied file.
+- **croc** (command line, Windows, macOS, Linux). Its README lists "Allows resuming transfers that are interrupted". It sends files between two computers with end-to-end encryption, and both sides run croc.
+- **magic-wormhole** (command line). Resuming an interrupted transfer is an open feature request on its GitHub, so do not count on it for a very large file.
+- **Syncthing** (continuous sync). It writes changes to a temporary file first and, after an error, keeps that temporary file for up to a day so it does not have to request the same data again. It is made for keeping folders in sync, not for a one-time copy.
+
+## Resume with Devpit Share Files
+
+[Share Files](/docs/features/share-files) is Devpit's screen for copying a big folder from one Windows PC to another on the same network. Under the hood it uses a shared folder and robocopy, like the method above, with the parts that usually go wrong handled for you.
+
+- **During the copy**, if the other PC stops answering, Devpit waits and tries again with a growing pause. When the PC answers again, it carries on by itself, as long as Devpit stays open.
+- **If you stopped the copy or closed Devpit**, open **Share Files** again. It offers **Resume the copy from** the other PC and shows how much is already copied. Press <kbd>Enter</kbd>. Finished files are skipped and a half-copied file carries on, because Devpit runs robocopy with `/Z`.
+- **At the end** you get a clear "Done", or a list of the files that failed with the reason, and <kbd>r</kbd> tries them again.
+
+Devpit also keeps both PCs awake during the copy, which removes the most common reason for a stop.
+
+## Prevent the next interruption
+
+- **Keep both PCs awake.** A PC that sleeps stops sharing and stops copying. For the length of the copy, `powercfg /change standby-timeout-ac 0` sets sleep to never while plugged in. Set it back afterwards.
+- **Plug in a cable** if you can. Wi-Fi can drop or roam for a moment. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
+- **Check free space first.** A full disk stops a copy near the end, which is the worst time.
+- **Use a log.** With `/LOG`, you know exactly what was copied and what failed.
+
+If the copy stopped with "The specified network name is no longer available", see [error 64](/docs/troubleshooting/specified-network-name-no-longer-available). For the full walk-through of a copy between two PCs, see [copy a huge folder between two PCs with robocopy](/docs/blog/copy-huge-folders-between-pcs-robocopy-resume).
+
+## Sources
+
+- [Microsoft: robocopy (/E, /Z, /R, /W, /LOG, /TEE, /MT, /J, /IS, /MIR, exit codes)](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft: Background Intelligent Transfer Service](https://learn.microsoft.com/windows/win32/bits/background-intelligent-transfer-service-portal)
+- [Microsoft: Start-BitsTransfer](https://learn.microsoft.com/powershell/module/bitstransfer/start-bitstransfer)
+- [Microsoft: Complete-BitsTransfer](https://learn.microsoft.com/powershell/module/bitstransfer/complete-bitstransfer)
+- [Microsoft: powercfg command-line options](https://learn.microsoft.com/windows-hardware/design/device-experiences/powercfg-command-line-options)
+- [TeraCopy product page](https://www.codesector.com/teracopy)
+- [croc README](https://github.com/schollz/croc)
+- [magic-wormhole issue 88: restart interrupted transfers](https://github.com/magic-wormhole/magic-wormhole/issues/88)
+- [Syncthing docs: Understanding synchronization (temporary files)](https://docs.syncthing.net/users/syncing.html)

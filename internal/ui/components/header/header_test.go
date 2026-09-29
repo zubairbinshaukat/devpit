@@ -105,7 +105,7 @@ func TestUpdateNoticeBecomesAPill(t *testing.T) {
 	}
 }
 
-func TestHeaderIsThreeRowsWithTabs(t *testing.T) {
+func TestHeaderIsFourRowsWithTabs(t *testing.T) {
 	h := header.New()
 	h.Tabs = tabs()
 	h.ShowTabs = true
@@ -114,6 +114,26 @@ func TestHeaderIsThreeRowsWithTabs(t *testing.T) {
 		if n := strings.Count(h.View(ctx(w)), "\n"); n != header.Rows-1 {
 			t.Errorf("width %d: %d newlines, want %d", w, n, header.Rows-1)
 		}
+	}
+}
+
+// The tab row is separated from the badge row by exactly one blank row, so
+// the header breathes, and the blank row is not a tab: clicking it opens
+// nothing because the root model tests for [header.TabRow] only.
+func TestOneBlankRowSitsAboveTheTabs(t *testing.T) {
+	h := header.New()
+	h.Tabs = tabs()
+	h.ShowTabs = true
+	h.Title = "Free Up Disk Space"
+	lines := strings.Split(ansi.Strip(h.View(ctx(100))), "\n")
+	if len(lines) != header.Rows {
+		t.Fatalf("%d rows, want %d", len(lines), header.Rows)
+	}
+	if strings.TrimSpace(lines[1]) != "" {
+		t.Errorf("row 1 = %q, want blank", lines[1])
+	}
+	if !strings.Contains(lines[header.TabRow], "Clean") {
+		t.Errorf("tab row %d = %q, want the tabs", header.TabRow, lines[header.TabRow])
 	}
 }
 
@@ -145,15 +165,15 @@ func TestRuleUnderlinesTheOpenTab(t *testing.T) {
 	h.ShowTabs = true
 	h.Active = "ports"
 	lines := strings.Split(ansi.Strip(h.View(ctx(80))), "\n")
-	rule := []rune(lines[2])
+	rule := []rune(lines[header.Rows-1])
 	want := " Ports "
 	start := 10
 	for i := range len([]rune(want)) {
 		if rule[start+i] != '━' {
-			t.Fatalf("rule = %q, want a heavy stroke under %q at column %d", lines[2], want, start)
+			t.Fatalf("rule = %q, want a heavy stroke under %q at column %d", lines[header.Rows-1], want, start)
 		}
 	}
 	if rule[start-1] == '━' || rule[start+len([]rune(want))] == '━' {
-		t.Errorf("underline is wider than the tab: %q", lines[2])
+		t.Errorf("underline is wider than the tab: %q", lines[header.Rows-1])
 	}
 }

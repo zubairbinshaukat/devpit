@@ -1,0 +1,145 @@
+---
+title: "Move 100 GB between PCs: what sets the speed"
+description: "How long does 100 GB take over Wi-Fi, Ethernet or USB? The simple size-divided-by-speed math, what really limits a transfer, and the fastest choice."
+date: 2026-09-29
+authors: [zubair]
+tags: [file transfer, networking, windows]
+excerpt: "The arithmetic behind a big transfer, the rated speeds of Wi-Fi, Ethernet and USB, and why your real copy is slower than the box says."
+related:
+  - features/share-files
+  - blog/direct-ethernet-cable-between-two-pcs
+  - blog/transfer-files-between-two-pcs-over-wifi
+  - blog/resume-interrupted-file-copy-windows
+faq:
+  - question: "How long does it take to transfer 100 GB over Wi-Fi?"
+    answer: "Divide the size by your real speed. 100 GB is 100,000 MB, so at 50 MB per second it is 2,000 seconds, about 33 minutes, and at 20 MB per second it is 5,000 seconds, about 83 minutes. Measure your real speed with a small test copy first, because Wi-Fi speed changes with distance, walls and other devices."
+  - question: "Is a USB drive faster than copying over the network?"
+    answer: "It can be, but you copy twice: once onto the drive and once off it. Add both times. A fast external SSD on a fast USB port can beat Wi-Fi, while a slow USB stick can be slower than a cable between the PCs."
+  - question: "Why is my copy much slower than my Wi-Fi speed?"
+    answer: "The number on the router box is a theoretical maximum data rate. A real copy loses some of it to protocol overhead and to other devices, and it is also limited by the disks on both sides and by the number of files. Many small files copy slower than one big file."
+  - question: "Can I use cloud storage for 100 GB?"
+    answer: "Only with enough storage. A free Microsoft account has 5 GB of OneDrive storage and a Google Account has 15 GB shared across Gmail, Drive and Photos. The data also goes up to the internet and back down, so your internet upload speed usually sets the time."
+---
+
+import Shot from '@/components/Shot.astro';
+
+You have 100 GB to move from one PC to another. Maybe a game library, a photo archive or a video project. The first question is always: how long will this take? The second: what is the fastest way?
+
+This post gives you the math, the rated speeds of each kind of link with a source for every number, and the things that slow a real copy down. It does not give you benchmark results, because a number measured on someone else's PCs says little about yours. Instead it shows how to measure your own.
+
+## The formula
+
+**Time = size ÷ speed.**
+
+Watch the units. Network speeds are usually in **bits** per second (Mb/s, Gb/s). File sizes are in **bytes** (MB, GB). One byte is 8 bits.
+
+- 100 GB = 100,000,000,000 bytes = **800,000,000,000 bits** = 800 Gb.
+- To turn a link speed in Mb/s into MB/s, divide by 8. For example, 1,000 Mb/s ÷ 8 = 125 MB/s.
+
+This post uses decimal units (1 GB = 1,000 MB) to keep the arithmetic simple.
+
+## The best case for each link (arithmetic only)
+
+The table below takes each link's **rated maximum** and divides 800 Gb by it. This is arithmetic, not a measurement. It is the time the copy could never beat, even in a perfect world. Real copies take longer, for the reasons in the next section.
+
+| Link | Rated maximum | 100 GB at that rate (arithmetic) |
+| --- | --- | --- |
+| Wi-Fi 5 (802.11ac wave 1), 2x2, 80 MHz | 866 Mb/s | 800,000 ÷ 866 ≈ 924 s ≈ 15 min |
+| Wi-Fi 5 (802.11ac wave 2), 2x2, 160 MHz | 1.73 Gb/s | 800 ÷ 1.73 ≈ 462 s ≈ 8 min |
+| Wi-Fi 6 (802.11ax), 2x2, 160 MHz | 2.4 Gb/s | 800 ÷ 2.4 ≈ 333 s ≈ 6 min |
+| Wi-Fi 7, two-antenna PC, 4K QAM | 5.8 Gb/s | 800 ÷ 5.8 ≈ 138 s ≈ 2.3 min |
+| Gigabit Ethernet (1000BASE-T) | 1 Gb/s | 800 ÷ 1 = 800 s ≈ 13 min |
+| 2.5GBASE-T Ethernet | 2.5 Gb/s | 800 ÷ 2.5 = 320 s ≈ 5.3 min |
+| USB 5Gbps (USB 3.2 Gen 1) | 5 Gb/s | 800 ÷ 5 = 160 s ≈ 2.7 min |
+| USB 10Gbps (USB 3.2 Gen 2) | 10 Gb/s | 800 ÷ 10 = 80 s |
+| USB 20Gbps (USB 3.2 Gen 2x2) | 20 Gb/s | 800 ÷ 20 = 40 s |
+| USB4 40Gbps | 40 Gb/s | 800 ÷ 40 = 20 s |
+
+The Wi-Fi numbers are what Intel and the Wi-Fi Alliance call **theoretical** maximum data rates. Your own card and router may support fewer antennas or narrower channels, and then the maximum is lower. Look up your exact model.
+
+Nobody copies 100 GB over Wi-Fi 7 in 2.3 minutes. The table is useful for one thing: it tells you which link has the **higher ceiling**, and that a slow link can never be fast.
+
+## Why a real copy is slower
+
+A copy runs as fast as the **slowest part** of the chain. The chain has more parts than people think:
+
+1. **The disk you read from.** A spinning hard drive is much slower than an SSD, especially with many small files.
+2. **The link.** Wi-Fi, Ethernet or USB, as above.
+3. **Everything in between.** Your router, a switch, a long or damaged cable.
+4. **The disk you write to.** It has to keep up too.
+5. **The files themselves.** 100 GB as one file copies faster than 100 GB as 500,000 small files, because each file has its own work: open, create, close, set times.
+6. **The protocol.** Headers, acknowledgements and, with encryption, some CPU work. This takes a share of the link.
+7. **Security software.** Scanning each new file on arrival can slow a copy of many files.
+
+### The Wi-Fi to Wi-Fi catch
+
+When **both** PCs are on Wi-Fi through the same router, every byte usually travels over the air twice: from PC A to the router, then from the router to PC B. Both trips share the same radio channel with every other device in the house. So two PCs on Wi-Fi often copy slower than one PC on Wi-Fi and one on a cable.
+
+Microsoft's own Nearby sharing page makes a related point: when that feature falls back to Bluetooth, transfers are "much slower".
+
+## Measure your own speed
+
+This takes five minutes and gives you a real answer.
+
+1. Pick one test file of 1 to 5 GB, or a small folder that looks like your real data.
+2. Copy it the way you plan to copy the 100 GB.
+3. Time it. Divide the size by the seconds. That is your real speed in MB/s.
+4. Divide your total size by that speed.
+
+Robocopy prints a **Speed** line in its summary at the end of each run, so it does the division for you. Devpit's [Share Files](/docs/features/share-files) shows the real speed and the time left while it copies.
+
+<Shot name="share-progress" caption="Share Files shows the live speed and time left (example screen, not a benchmark)" />
+
+For planning, here is the same formula at a few example speeds. These are example numbers for the arithmetic, not measurements:
+
+| Your real speed | 100 GB (100,000 MB) takes |
+| --- | --- |
+| 10 MB/s | 10,000 s ≈ 2 h 47 min |
+| 25 MB/s | 4,000 s ≈ 1 h 7 min |
+| 50 MB/s | 2,000 s ≈ 33 min |
+| 100 MB/s | 1,000 s ≈ 17 min |
+| 200 MB/s | 500 s ≈ 8 min |
+
+## The choices, from usually fastest to usually slowest
+
+### 1. A cable between the two PCs, or both on the router by cable
+
+Gigabit Ethernet's rated 1 Gb/s is 125 MB/s at most, and it is steady. A cable does not drop or roam like Wi-Fi. If both PCs have 2.5 Gb/s ports, the ceiling is higher still. You can plug both into the router, or connect the two PCs directly: see [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
+
+### 2. An external SSD over a fast USB port
+
+USB's rated speeds are high, but you copy twice: onto the drive, then off it. The drive's own speed, which its maker states, is often lower than the port's. A cheap USB stick can be far slower. Also check the drive's file system: Microsoft lists FAT32's maximum file size as 4 GiB, so one big file will not fit on a FAT32 stick. Format it as exFAT or NTFS (that erases it).
+
+### 3. Wi-Fi
+
+Fine for tens of gigabytes if the signal is good, one PC is on a cable, and you use a copy tool that can resume. The Wi-Fi 6 and 7 ceilings above are high, but real Wi-Fi speed changes with distance, walls and other devices.
+
+### 4. The cloud
+
+OneDrive and Google Drive work across the internet, not just your network. For 100 GB they are rarely the fast choice: the data goes up and comes back down, so your internet upload speed usually sets the time. Microsoft lists 5 GB of free OneDrive storage and a 250 GB limit per file. Google lists 15 GB free, shared across Gmail, Drive and Photos.
+
+## A checklist before a 100 GB copy
+
+1. **Free space.** The destination needs more free space than the total size.
+2. **File system.** No FAT32 destination if any file is over 4 GiB.
+3. **Power.** Plug both laptops in and stop both PCs from sleeping. `powercfg /change standby-timeout-ac 0` sets sleep to never while plugged in; set it back after.
+4. **A tool that can resume.** File Explorer cannot. Use robocopy with `/Z`, or a tool that resumes. See [resume an interrupted file copy](/docs/blog/resume-interrupted-file-copy-windows).
+5. **Test first.** Copy one folder and measure.
+
+Devpit's [Share Files](/docs/features/share-files) does most of this list on its own for a copy between two Windows PCs: it measures the exact size first, checks free space, warns about FAT32 and long paths before it starts, keeps both PCs awake, copies up to 16 files at once, and resumes where it stopped.
+
+## Sources
+
+- [Intel: Different Wi-Fi protocols and data rates (802.11ac, 802.11ax theoretical maximums)](https://www.intel.com/content/www/us/en/support/articles/000005725/wireless/legacy-intel-wireless-products.html)
+- [Wi-Fi Alliance: Wi-Fi 7, advanced connectivity (5.8 Gb/s for a two-antenna PC with 4K QAM)](https://www.wi-fi.org/beacon/the-beacon/wi-fi-7-advanced-connectivity-for-the-next-generation)
+- [IEEE 802.3ab: 1000BASE-T, 1000 Mb/s over Category 5 copper](https://standards.ieee.org/ieee/802.3ab/1086/)
+- [IEEE 802.3bz: 2.5 Gb/s and 5 Gb/s over twisted pair](https://standards.ieee.org/ieee/802.3bz/6130/)
+- [USB-IF: USB 3.2 language and packaging guidelines (5, 10, 20 Gbps)](https://www.usb.org/sites/default/files/usb_3_2_language_product_and_packaging_guidelines_final.pdf)
+- [USB-IF: USB4 language and packaging guidelines (20 and 40 Gbps)](https://www.usb.org/sites/default/files/usb4_language_product_and_packaging_guidelines_final__0.pdf)
+- [Microsoft: File system functionality comparison (FAT32 maximum file size)](https://learn.microsoft.com/windows/win32/fileio/filesystem-functionality-comparison)
+- [Microsoft: Fix problems with Nearby sharing (Bluetooth is much slower)](https://support.microsoft.com/en-us/windows/fix-problems-with-nearby-sharing-in-windows-e6f5db3a-48c3-04f6-13d6-84db6f821455)
+- [Microsoft: Restrictions and limitations in OneDrive and SharePoint (250 GB per file)](https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa)
+- [Microsoft: Microsoft storage quotas (5 GB free)](https://support.microsoft.com/en-US/onedrive/microsoft-storage-quotas)
+- [Google: Google Account storage (15 GB)](https://support.google.com/googleone/answer/9312312)
+- [Microsoft: robocopy](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft: powercfg command-line options](https://learn.microsoft.com/windows-hardware/design/device-experiences/powercfg-command-line-options)

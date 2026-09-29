@@ -88,6 +88,7 @@ type pingModel struct {
 	initCmd tea.Cmd
 	submit  key.Binding
 	cont    key.Binding
+	again   key.Binding
 }
 
 func newPingScreen() pingModel {
@@ -107,6 +108,7 @@ func newPingScreen() pingModel {
 		initCmd: focusCmd,
 		submit:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "ping")),
 		cont:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "back")),
+		again:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "ping again")),
 	}
 }
 
@@ -122,7 +124,7 @@ func (m pingModel) ShortHelp() []key.Binding {
 	case pingStateInput:
 		return []key.Binding{m.submit}
 	case pingStateDone:
-		return []key.Binding{m.cont}
+		return []key.Binding{m.again, m.cont}
 	default:
 		return nil
 	}
@@ -189,7 +191,14 @@ func (m pingModel) updateKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 		return m, cmd
 
 	case pingStateDone:
-		if key.Matches(msg, m.cont) {
+		switch {
+		case key.Matches(msg, m.again):
+			// Back to the host field with the last host kept, so a second try
+			// at the same address is one more Enter.
+			m.state = pingStateInput
+			m.result, m.err = network.PingResult{}, nil
+			return m, m.input.Focus()
+		case key.Matches(msg, m.cont):
 			return m, uictx.Pop()
 		}
 	}
@@ -244,12 +253,36 @@ func (m pingModel) renderDone(ctx uictx.Context, b *strings.Builder) {
 
 	r := m.result
 	mark := th.Success.Render(ctx.Icons.Tick)
-	if r.Received == 0 {
+	switch {
+	case r.Received == 0:
 		mark = th.Danger.Render(ctx.Icons.Fail)
+	case r.Received < r.Sent:
+		mark = th.Warning.Render(ctx.Icons.Warn)
 	}
 	b.WriteString(mark)
 	b.WriteString(" ")
 	b.WriteString(th.CardTitle.Render(fmt.Sprintf("Sent %d, received %d", r.Sent, r.Received)))
+	if r.Sent > 0 {
+		b.WriteString(th.Muted.Render(fmt.Sprintf("  ·  %d%% loss", lossPercent(r))))
+	}
 	b.WriteString("\n")
-	b.WriteString(th.Base.Render(fmt.Sprintf("min %.0fms  avg %.0fms  max %.0fms", r.MinMs, r.AvgMs, r.MaxMs)))
+	if r.Received > 0 {
+		b.WriteString(th.Base.Render(fmt.Sprintf("min %.0fms  avg %.0fms  max %.0fms", r.MinMs, r.AvgMs, r.MaxMs)))
+	} else {
+		b.WriteString(th.Base.Render("No replies. The host may be down, or it may block ping."))
+	}
+	// The replies stay on screen once the run ends: they are what a person
+	// scrolls back to when one of them was slow or timed out.
+	if len(m.lines) > 0 {
+		b.WriteString("\n\n")
+		b.WriteString(th.Muted.Render(m.view.View()))
+	}
+}
+
+// lossPercent is the share of echo requests that got no reply, rounded down.
+func lossPercent(r network.PingResult) int {
+	if r.Sent <= 0 || r.Received >= r.Sent {
+		return 0
+	}
+	return (r.Sent - r.Received) * 100 / r.Sent
 }

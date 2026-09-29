@@ -1,0 +1,158 @@
+---
+title: "LocalSend vs Quick Share vs Syncthing: which to use"
+description: "A fair comparison of LocalSend, Quick Share, Nearby sharing, Syncthing, PairDrop, croc and Devpit Share Files for moving files on a local network."
+date: 2026-09-29
+authors: [zubair]
+tags: [file transfer, file sharing, comparison]
+excerpt: "Seven ways to move files between devices on your network, what each one is good at, and where each one falls short."
+related:
+  - features/share-files
+  - blog/transfer-files-between-two-pcs-over-wifi
+  - blog/smb-vs-ftp-vs-http-local-network
+  - blog/resume-interrupted-file-copy-windows
+faq:
+  - question: "Is LocalSend safe to use?"
+    answer: "LocalSend sends files over HTTPS with a certificate made on each device, needs no account and works without the internet. Like any app it has had security fixes, which it publishes on its GitHub page, so keep it updated."
+  - question: "Can Quick Share send files from one Windows PC to another?"
+    answer: "Google's pages describe sharing between Android devices and Windows PCs. They do not say that Windows to Windows works, so do not count on it. For two Windows PCs, Windows Nearby sharing, LocalSend or a shared folder are documented ways."
+  - question: "What is the best LocalSend alternative for Windows only?"
+    answer: "For small files between two nearby Windows PCs, Nearby sharing is already built in. For a large folder between two Windows PCs, a shared folder copied with robocopy handles retries and resume, and Devpit Share Files sets that up for you."
+  - question: "Do these tools need the internet?"
+    answer: "LocalSend, Nearby sharing, Warpinator and a Windows shared folder work on the local network alone. PairDrop's website needs its signaling server to connect devices. croc and magic-wormhole use a relay or rendezvous server to find each other."
+---
+
+There are many free tools that move files between devices on the same network. They are not the same. Some are made for phones, some keep folders in sync forever, and some are best for one big copy.
+
+This post compares the popular ones, using only what each project says on its own website, docs or GitHub. Devpit's own tool, Share Files, is in the list too. It is good at one job and not at others, and this post says which.
+
+## The short version
+
+- **Phone to PC, or a mix of devices:** LocalSend. It runs on Windows, macOS, Linux, Android and iOS.
+- **Android phone to a Windows PC:** Quick Share for Windows, from Google.
+- **Small files between two nearby Windows PCs:** Nearby sharing, which is already in Windows.
+- **Keep folders the same on several devices, all the time:** Syncthing.
+- **One-off, nothing to install:** PairDrop in a web browser.
+- **From a terminal, even across the internet:** croc.
+- **A very large folder between two Windows PCs, with resume:** a shared folder with robocopy, or Devpit Share Files, which sets that up for you.
+
+## Side by side
+
+| Tool | Devices | Install on | How it finds the other side | Encryption (as the project states it) | Resume |
+| --- | --- | --- | --- | --- | --- |
+| LocalSend | Windows, macOS, Linux, Android, iOS | Both sides | Multicast on the local network, or type the IP | HTTPS with a certificate made on each device | Not documented |
+| Quick Share for Windows | Android and Windows | Both sides | Bluetooth plus the same network, close by | "Encrypted", end to end | Not documented |
+| Nearby sharing | Windows 10 (1803+) and 11 | Built in, turned on on both | Bluetooth, or Wi-Fi on the same Private network | Not stated | Not documented |
+| Syncthing | Windows, macOS, Linux, BSD and more | Both sides | Local broadcast, plus global discovery servers and relays | TLS 1.2 or 1.3 | Keeps partial files up to a day |
+| PairDrop | Any modern browser | Nothing | Same network automatically, or a room code | WebRTC, encrypted in transit | Not documented |
+| croc | Windows, macOS, Linux | Both sides | A code phrase, through a relay | End to end (PAKE) | Yes, per its README |
+| Devpit Share Files | Windows to Windows | Devpit on the sharing PC; the receiver can use plain Windows commands | Type the IP shown on the sharing PC | Windows file sharing (SMB). Devpit does not turn on SMB encryption | Yes |
+
+"Not documented" means the project's own pages do not say. It does not mean the feature is missing, only that you should test before you rely on it.
+
+## LocalSend
+
+LocalSend is a free, open-source app (Apache-2.0 license) with no ads, no tracking and no account. Its README says all data is sent over HTTPS, and the certificate is made on the fly on each device. It works without the internet.
+
+**How it finds devices.** It sends a multicast message on the local network. If that fails, it can try each local address, or you can type the other device's IP yourself. The README warns that discovery fails when the router has "AP isolation" turned on, and that on Windows the network should be set to Private.
+
+**Good at:** phones. It is one of the few free tools that is the same app on Android, iOS, Windows, macOS and Linux.
+
+**Watch out for:** resuming a stopped transfer is not in its docs. There are open feature requests for it on GitHub. For one huge folder over flaky Wi-Fi, that matters. The project also publishes security advisories on GitHub, so keep the app updated.
+
+## Quick Share for Windows
+
+Google's Quick Share app for Windows sends files between Android devices and a Windows PC. Google's help page lists what you need: a 64-bit version of Windows 10 or later, Bluetooth on, Wi-Fi or Ethernet on, both devices on the same network, and the devices within about 5 meters (16 feet). A Google account is optional but unlocks all options. Google says the files are encrypted when you share them.
+
+**Good at:** an Android phone and a Windows PC, with drag and drop or right-click, **Send with Quick Share**.
+
+**Watch out for:** Google's pages talk about Android and Windows. They do not say that Windows-to-Windows works. On ARM-based PCs, Google's pages disagree with each other, so check the current requirements first. Samsung PCs use Samsung's own Quick Share app instead.
+
+## Windows Nearby sharing
+
+Nearby sharing is built into Windows 10 (version 1803 and later) and Windows 11. Microsoft says it works over Bluetooth or Wi-Fi. On the latest Windows 11 it can use Wi-Fi if the other PC is on the same Private Wi-Fi network; otherwise it uses Bluetooth. Microsoft's troubleshooting page adds that it needs Bluetooth 4.0 or later with Low Energy, that the network must be Private, that the devices should be within about 10 meters (30 feet), and that "Bluetooth file transfers are much slower".
+
+**Good at:** a few files between two Windows PCs in the same room, with nothing to install.
+
+**Watch out for:** big transfers. If it falls back to Bluetooth, it will be slow, as Microsoft itself says.
+
+## Syncthing
+
+Syncthing is different from the others. It is not a "send this file" tool. It keeps folders the same on two or more devices, all the time. When a file changes on one device, Syncthing copies the change to the others.
+
+Its docs say connections use TLS 1.2 or 1.3. It finds devices on the local network with broadcast and multicast, and by default also uses global discovery servers and relays. A relay is used only when two devices cannot connect directly, and the data stays end-to-end encrypted. It never writes directly to the real file. Changes go to a temporary file first, and after an error that temporary file is kept for up to a day so the same data is not sent again. It is free and open source (MPL-2.0).
+
+**Good at:** keeping a folder in sync between a desktop and a laptop, or backing up phone photos to a PC, for months.
+
+**Watch out for:** it is more setup than a one-time copy needs. You pair devices and choose folders first.
+
+## PairDrop (and what happened to Snapdrop)
+
+PairDrop runs in a web browser. You open the site on both devices and send. It uses WebRTC, which encrypts files in transit. Its FAQ says that if both devices are on the same network, no files go through any server, but a signaling server is needed to connect them. It is open source (GPL-3.0) and you can host it yourself on your own network.
+
+PairDrop began as a fork of Snapdrop. The Snapdrop GitHub page now says Snapdrop has been acquired by LimeWire.
+
+**Good at:** a quick one-off, when you cannot install anything.
+
+**Watch out for:** the public site needs the internet for the signaling step, and a very large file depends on a browser tab staying open.
+
+## croc
+
+croc is a command-line tool (MIT license). Its README says it sends data between any two computers peer to peer with a relay as fallback, uses end-to-end encryption with PAKE (a password-based key exchange), works on Windows, Linux and macOS, and "allows resuming transfers that are interrupted". You run `croc send file` on one side and type the code on the other.
+
+**Good at:** developers who live in a terminal, and sending across the internet, not only the local network.
+
+**Watch out for:** by default it goes through a public relay to find the other side.
+
+## Warpinator
+
+Warpinator is Linux Mint's tool for sending files on a local network. The official app is for Linux. Its README links to unofficial ports, including one for Windows (installable with `winget install slowscript.Warpinator`) and one for Android. Devices find each other with zeroconf on the same subnet, and a shared "group code" decides which devices can see each other.
+
+**Good at:** a home with Linux PCs.
+
+## Devpit Share Files
+
+[Share Files](/docs/features/share-files) is part of Devpit, a free, open-source (MIT) Windows terminal app. It does one thing: move a big folder, such as a game, from one Windows PC to another on the same network, with live progress, retries and resume.
+
+It does not use a new protocol. It uses Windows' own file sharing (SMB) and robocopy, which are already on every Windows PC.
+
+- **On the sharing PC**, you pick a folder and approve one admin prompt. Devpit creates a temporary login just for this share, shares the folder **read-only** to that login, and turns on the firewall rule for file sharing if it is off. Your own Windows password is never used. The login expires by itself after 48 hours even if nothing removes it.
+- **On the receiving PC**, Devpit measures the exact size and checks free space before it starts, shows speed and time left, keeps both PCs awake, carries on by itself after a network drop, and can resume after you close it.
+- **The receiving PC does not need Devpit.** The sharing PC's card shows a `net use` line and a `robocopy` line that work on any Windows PC.
+- **Stop sharing** removes the share, the login, the firewall change and the network change.
+
+**Good at:** tens or hundreds of gigabytes between two Windows PCs, where a drop in the middle would be painful.
+
+**Not for:** phones, Macs or Linux. It does not send over the internet, and it does not keep folders in sync. On encryption, Devpit does not turn on SMB encryption for its share. Windows 11 24H2 Pro, Enterprise and Education require SMB signing by default, which protects against changes in transit but does not hide the contents. Use it on a network you trust, such as your home Wi-Fi.
+
+## How to choose
+
+1. **Is a phone involved?** Use LocalSend, or Quick Share for Android and Windows.
+2. **Do you want the same files on both devices from now on?** Use Syncthing.
+3. **Is it a few files, both Windows, in the same room?** Use Nearby sharing.
+4. **Is it a big folder between two Windows PCs?** Use a shared folder and robocopy, by hand or with Devpit Share Files. See [how to transfer files between two PCs over Wi-Fi](/docs/blog/transfer-files-between-two-pcs-over-wifi) for the step-by-step version.
+5. **Can you not install anything?** Try PairDrop in a browser, or a shared folder, which needs nothing extra on Windows.
+
+Want the protocol details behind these tools? Read [SMB vs FTP vs HTTP on a local network](/docs/blog/smb-vs-ftp-vs-http-local-network).
+
+## Sources
+
+- [LocalSend website](https://localsend.org/)
+- [LocalSend README (HTTPS, AP isolation, Private network)](https://github.com/localsend/localsend)
+- [LocalSend protocol (multicast discovery, port 53317)](https://github.com/localsend/protocol)
+- [LocalSend security advisories](https://github.com/localsend/localsend/security)
+- [LocalSend feature request: resume transfers](https://github.com/localsend/localsend/issues/1191)
+- [Google: Share files between Android and Windows with Quick Share](https://support.google.com/android/answer/13801258?hl=en)
+- [Google: Quick Share app for Windows](https://www.android.com/better-together/quick-share-app/)
+- [Microsoft: Share things with nearby devices in Windows](https://support.microsoft.com/en-us/windows/experience/connectivity-networking/share-things-with-nearby-devices-in-windows)
+- [Microsoft: Fix problems with Nearby sharing in Windows](https://support.microsoft.com/en-us/windows/fix-problems-with-nearby-sharing-in-windows-e6f5db3a-48c3-04f6-13d6-84db6f821455)
+- [Syncthing website](https://syncthing.net/)
+- [Syncthing docs: Security principles](https://docs.syncthing.net/users/security.html)
+- [Syncthing docs: Relaying](https://docs.syncthing.net/users/relaying.html)
+- [Syncthing docs: Understanding synchronization](https://docs.syncthing.net/users/syncing.html)
+- [PairDrop README](https://github.com/schlagmichdoch/PairDrop)
+- [PairDrop FAQ](https://github.com/schlagmichdoch/PairDrop/blob/master/docs/faq.md)
+- [Snapdrop repository notice](https://github.com/SnapDrop/snapdrop)
+- [croc README](https://github.com/schollz/croc)
+- [Warpinator README](https://github.com/linuxmint/warpinator)
+- [Warpinator for Windows (unofficial port)](https://github.com/slowscript/warpinator-windows)
+- [Microsoft: Control SMB signing behavior](https://learn.microsoft.com/windows-server/storage/file-server/smb-signing)

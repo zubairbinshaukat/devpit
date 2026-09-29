@@ -1,0 +1,113 @@
+---
+title: "Copy a huge folder between two PCs and resume with robocopy"
+description: "Copy a very large folder between two Windows PCs with robocopy, resume after a failure, read the exit code, and see what Devpit's Share Files adds."
+date: 2026-09-29
+authors: [zubair]
+tags: [robocopy, smb, file sharing, windows]
+excerpt: "Robocopy over a shared folder can retry and resume. Here are the options that matter, and where Share Files fits in."
+related:
+  - features/share-files
+  - troubleshooting/robocopy-exit-codes
+  - troubleshooting/system-error-53-network-path-not-found
+  - troubleshooting/guest-access-blocked-windows-11-24h2
+---
+
+Moving a big folder, such as a game or a project archive, from one PC to another is a common job. Dragging it in File Explorer works until the Wi-Fi drops halfway. Then you do not know what was copied.
+
+Windows already has a better tool: `robocopy`. This post explains the options that matter, how to read the result, and what Devpit's Share Files feature adds.
+
+## The idea
+
+Two things are needed:
+
+1. **A shared folder** on the PC that has the files (the source).
+2. **A copy command** on the other PC that reads from that share and writes to a local folder.
+
+Robocopy can copy from a network path such as `\\192.168.1.20\share` (a UNC path: two backslashes, the PC name or IP, the share name).
+
+## Step 1: share the folder
+
+On the PC that has the files, share the folder. In File Explorer, right-click it, choose **Properties**, open the **Sharing** tab, and choose **Advanced Sharing**. Give it a share name.
+
+Then find that PC's IP address (`ipconfig` shows it), or let Devpit's Network Tools show it.
+
+The share also needs a Private network, file sharing turned on, and an account with a password and read access. The full steps are in [share a folder on Windows 11 with another PC](/docs/blog/share-a-folder-on-windows-11).
+
+## Step 2: check size and free space
+
+Know what you are copying. On the source PC, this PowerShell command adds up the size of all files in the folder:
+
+```powershell
+$bytes = (Get-ChildItem "D:\Games\Big" -Recurse -Force -File | Measure-Object -Property Length -Sum).Sum
+"{0:N1} GB" -f ($bytes / 1GB)
+```
+
+Check that the destination drive has more free space than that number. The time it will take is size divided by your real network speed. The network sets the speed limit, and a cable is usually faster than Wi-Fi. Test with a small folder first to learn your own speed. The arithmetic is in [move 100 GB between PCs](/docs/blog/move-100gb-between-computers).
+
+## Step 3: copy with robocopy
+
+On the receiving PC, in Command Prompt or PowerShell:
+
+```text
+robocopy \\192.168.1.20\share D:\Copy /E /Z /R:5 /W:10 /LOG:C:\copy.log /TEE
+```
+
+What each option means, from Microsoft's documentation:
+
+| Option | Meaning |
+| --- | --- |
+| `/E` | Copy subfolders, including empty ones. |
+| `/Z` | Restartable mode. If a file copy is interrupted, robocopy can pick up where it left off instead of copying the whole file again. |
+| `/R:5` | Retry a failed copy 5 times. The default is 1,000,000 retries. |
+| `/W:10` | Wait 10 seconds between retries. The default is 30. |
+| `/LOG:file` | Write the status to a file. |
+| `/TEE` | Also show the status on the screen. |
+
+Two more you may want. `/MT:n` copies with n threads (1 to 128, default 8) and Microsoft says it is better used with a log file. `/J` uses unbuffered I/O, which Microsoft recommends for large files. Try them on your own network and compare, because only your own test shows what helps.
+
+Be careful with `/MIR` and `/PURGE`. They **delete** files in the destination that are not in the source. For a plain copy, do not use them.
+
+## Resuming
+
+If the copy stops, because of a network drop, a sleeping PC or a closed window, run the **same command again**.
+
+Robocopy compares the source and the destination. Files that are already the same are skipped. Microsoft's `/IS` option ("include the same files") exists to force copying them, which tells you that same files are skipped by default. Files that were only partly copied are copied again, and with `/Z` an interrupted file can continue where it stopped. For one huge single file there is also BITS, which resumes by itself; see [resume an interrupted file copy](/docs/blog/resume-interrupted-file-copy-windows).
+
+## Reading the result
+
+Robocopy's exit code is not simple pass or fail. From 0 to 7 there was no failure. From 8 up there was at least one failure. 1 means files were copied, and that is a success. Read the full table on [robocopy exit codes](/docs/troubleshooting/robocopy-exit-codes). In PowerShell, `$LASTEXITCODE` holds the code right after the command ends.
+
+## When the connection fails
+
+- **System error 53, "The network path was not found"**: Windows cannot reach the PC or the share. See [System error 53](/docs/troubleshooting/system-error-53-network-path-not-found).
+- **System error 1326, "The user name or password is incorrect"**: the sign-in failed. See [System error 1326](/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect).
+- **System error 1219, "Multiple connections ... by the same user"**: an old connection with other credentials is open. Run `net use * /delete`, then connect again. See [System error 1219](/docs/troubleshooting/system-error-1219-multiple-connections).
+- **"...your organization's security policies block unauthenticated guest access"**: Windows blocks guest logons by default. Use a real user name and password. See [the 24H2 page](/docs/troubleshooting/guest-access-blocked-windows-11-24h2).
+- **"Windows cannot access", error 0x80004005**: a general error. Get the real number with `net use`. See [0x80004005](/docs/troubleshooting/windows-cannot-access-0x80004005).
+- **"The specified network name is no longer available"** (error 64) in the middle of a copy: the connection dropped. Run the same command again. See [error 64](/docs/troubleshooting/specified-network-name-no-longer-available).
+
+## What Share Files adds
+
+Share Files wraps the same shared-folder and copy method in one screen, with no commands to type.
+
+**On the PC that shares** you pick a folder and approve one administrator prompt. Devpit turns on the file sharing firewall rule, creates a temporary login just for this share, and shares the folder read-only. Your own Windows password is never used. A card shows the IP, share name, user name and password, plus a `net use` line and a `robocopy` line for someone who does not have Devpit. Stop sharing removes everything it set up, and that also happens when you quit Devpit.
+
+**On the PC that receives** you type the other PC's IP, pick a shared folder from the list, sign in, and choose where to save. Before it starts, Devpit measures the exact total size and checks that you have enough free space. During the copy you see the total done, the speed and the time left, the files finished most recently, and a notice when the network blips. If the other PC stops answering, Devpit waits and carries on when it is back. If you stop the copy or close Devpit, you choose the resume entry in Share Files and it continues where it stopped. At the end you get a clear "Done" or a list of files that failed. It works whether or not the other PC has Devpit, and in any Windows language.
+
+## A short checklist
+
+1. Share the folder and note the IP.
+2. Measure the size and check the free space.
+3. Copy with `/E /Z /R /W /LOG /TEE`.
+4. If it stops, run the same command again.
+5. Read the exit code: 8 or more means a failure.
+
+## Sources
+
+- [Microsoft: robocopy](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft: Can't access shared folders from File Explorer (Advanced Sharing steps)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: Troubleshoot SMB (net use * /delete)](https://learn.microsoft.com/troubleshoot/windows-server/networking/troubleshoot-smb-guidance)
+- [Microsoft: System error codes (53, 1219, 1326)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--0-499-)
+- [Microsoft: Get-ChildItem](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/get-childitem)
+- [Microsoft: Measure-Object](https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/measure-object)
+- [Microsoft: about_Numeric_Literals (the GB suffix)](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_numeric_literals)

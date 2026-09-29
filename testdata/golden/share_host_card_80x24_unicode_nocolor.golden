@@ -1,0 +1,18 @@
+╭────────────────────────────────────────────────────────────────────────────╮
+│ ✓ Sharing D:\Games  (read-only)                                            │
+│                                                                            │
+│ Address   192.168.1.5  on Ethernet                                         │
+│ Share     Games-x7k2                                                       │
+│ User      devpit-ab12                                                      │
+│ Password  Xk3mPq9RtVw2NbLc                                                 │
+│                                                                            │
+│ On a PC without Devpit, type these two commands:                           │
+│   net use \\192.168.1.5\Games-x7k2 /user:devpit-ab12 Xk3mPq9RtVw2NbLc      │
+│   robocopy \\192.168.1.5\Games-x7k2 ".\Games-x7k2" /E /Z /MT:16 /R:3       │
+│     /W:5 /XO                                                               │
+│ The copy lands in a new folder where that terminal is open.                │
+│                                                                            │
+│ The login is temporary and can only read this folder.                      │
+╰────────────────────────────────────────────────────────────────────────────╯
+
+[keys] c copy net use  ·  r copy robocopy  ·  p copy password  ·  s stop sharing

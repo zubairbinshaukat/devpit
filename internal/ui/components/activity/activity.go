@@ -68,6 +68,13 @@ type Row struct {
 	Detail string
 	// Elapsed is how long the job ran, or has been running.
 	Elapsed time.Duration
+	// Stuck is how long a running job has said nothing, once that is at
+	// least [StuckAfter]; zero otherwise. A running row with it set shows
+	// a hint to skip instead of its latest line.
+	Stuck time.Duration
+	// Next is what to do about a job that did not finish cleanly, in plain
+	// words ("Retry: winget upgrade --id Git.Git"). The summary lists it.
+	Next string
 }
 
 // labelMax caps the name column, so one long package name cannot push every
@@ -245,6 +252,9 @@ func middleOf(ctx uictx.Context, r Row, room int) string {
 
 	switch r.State {
 	case Running:
+		if r.Stuck > 0 {
+			return th.Warning.Render(cut(StuckText(r.Stuck), room))
+		}
 		out := ""
 		used := 0
 		if r.Percent >= 0 && room >= barWidth+6 {
@@ -283,7 +293,16 @@ func middleOf(ctx uictx.Context, r Row, room int) string {
 	case Skipped:
 		return th.Muted.Render(cut(r.Detail, room))
 	default: // Queued
-		v, _ := versions(true)
+		v, w := versions(true)
+		if r.Detail != "" && w+2 < room {
+			// A queued row with a detail is waiting on something, e.g.
+			// "needs admin rights, retrying at the end".
+			sep := ""
+			if v != "" {
+				sep = "  "
+			}
+			return v + th.Warning.Render(sep+cut(r.Detail, room-w-len(sep)))
+		}
 		return v
 	}
 }

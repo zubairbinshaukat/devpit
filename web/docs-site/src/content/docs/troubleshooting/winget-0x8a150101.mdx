@@ -1,0 +1,68 @@
+---
+title: "winget 0x8A150101: application is currently running"
+description: "Winget error 0x8A150101 means the app is running and cannot be replaced. Close it, retry, and see how Devpit marks the app as in use so you can retry."
+sidebar:
+  label: "winget 0x8A150101"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/winget-0x80073d28
+  - troubleshooting/winget-0x8a15002b
+faq:
+  - question: "What is the difference between 0x8A150101, 0x8A150103 and 0x8A150111?"
+    answer: "0x8A150101 says the application is currently running. 0x8A150103 says one or more files are being used. 0x8A150111 says the application is currently in use by another application. In each case you close the program and try again. Devpit shows all three as in use."
+  - question: "Do I lose data if I close the app?"
+    answer: "Save your work first, as you would before closing any program. The update replaces the program files, not your documents."
+---
+
+**0x8A150101** means winget could not upgrade the app because it is running. Winget's own message is: "Application is currently running. Exit the application then try again."
+
+## What it means
+
+Winget has a list of return codes. This one is `APPINSTALLER_CLI_ERROR_INSTALL_PACKAGE_IN_USE`. The installer wanted to replace program files that are in use. Windows does not let a running program's files be replaced, so the upgrade stops and nothing is changed.
+
+Two close cousins from the same table:
+
+- `0x8A150103`: "One or more file is being used. Exit the application then try again."
+- `0x8A150111`: "Application is currently in use by another application."
+
+## Why it happens
+
+- The app is open, or it is still running in the background or in the system tray after you closed its window.
+- A helper process of the app is running.
+- Another program has one of its files open.
+
+## How Devpit fixes or avoids it
+
+In [Update Everything](/docs/features/update-everything), Devpit reads the exit code of each winget step. For 0x8A150101, 0x8A150103 and 0x8A150111 the row says **in use, close it and retry** instead of showing a raw code. Scoop's "still running" message and npm's `EBUSY` are read the same way.
+
+When an app has to be closed first, the row also names it, for example "close Contoso App and retry".
+You can also press <kbd>s</kbd> twice to skip the app that is updating right now. The summary says how to retry it later.
+
+## The manual fix
+
+1. Save your work, then close the app. Also check the system tray (the small arrow near the clock) and quit it there.
+2. If it will not go away, find it in Task Manager. Or end it by name in a terminal. `/im` is the program's file name and `/f` forces it:
+
+```text
+taskkill /im appname.exe /f
+```
+
+3. Run the upgrade again. `--id` picks the package and `-e` is an exact match:
+
+```powershell
+winget upgrade --id Publisher.PackageName -e
+```
+
+4. To read what winget itself says about any code, ask it:
+
+```powershell
+winget error 0x8A150101
+```
+
+## Sources
+
+- [winget return codes (0x8A150101, 0x8A150103, 0x8A150111)](https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
+- [winget-cli: the `error` command source](https://github.com/microsoft/winget-cli/blob/master/src/AppInstallerCLICore/Commands/ErrorCommand.cpp)
+- [Microsoft: winget upgrade command](https://learn.microsoft.com/windows/package-manager/winget/upgrade)
+- [Microsoft: taskkill](https://learn.microsoft.com/windows-server/administration/windows-commands/taskkill)

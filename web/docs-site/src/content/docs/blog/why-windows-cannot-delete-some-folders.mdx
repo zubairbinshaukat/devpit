@@ -1,0 +1,113 @@
+---
+title: "Why Windows can't delete some folders, and what to do"
+description: "The 260 character path limit, files locked by another program, and links that lead elsewhere: why folders refuse to delete on Windows, and safe fixes."
+date: 2026-09-29
+authors: [zubair]
+tags: [windows, delete, long paths, troubleshooting]
+excerpt: "Three real reasons a folder will not delete on Windows, how to tell them apart, and the fix for each one."
+related:
+  - features/free-up-disk-space
+  - troubleshooting/source-file-names-are-larger-than-supported
+  - troubleshooting/eperm-operation-not-permitted-rmdir
+  - troubleshooting/robocopy-exit-codes
+---
+
+import Shot from '@/components/Shot.astro';
+
+You right-click a folder, press Delete, and Windows says no. The message is often confusing. Under the message there are only a few real reasons. If you know which one you have, the fix is short.
+
+This post covers the three most common reasons for developer folders such as `node_modules` and build output.
+
+## Reason 1: the path is too long
+
+**The message:** "The source file name(s) are larger than is supported by the file system. Try moving to a location which has a shorter path name, or try renaming to shorter name(s) before attempting this operation."
+
+Windows has an old limit called `MAX_PATH`. Microsoft's documentation says it is **260 characters** for a path. The count includes the drive letter, the colon, every backslash, and a hidden ending character.
+
+Nested folders grow fast. A package inside a package inside a package, all under a project that already sits in a long path, can pass the limit. Microsoft names one such case itself: cloning a Git repository that has long file names into a folder that already has a long name.
+
+### What Windows offers
+
+- **Extended-length paths.** If a path starts with `\\?\`, the API accepts about 32,767 characters. Programs must ask for this form themselves.
+- **`LongPathsEnabled`.** Since Windows 10 version 1607 you can turn on long paths with a registry value. But Microsoft is clear about the catch: the value must be `1` **and** the program must declare that it supports long paths. Many programs do not, so it is not a fix for everything.
+
+To turn it on, run PowerShell as administrator:
+
+```powershell
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+  -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
+
+Microsoft says a restart might be needed, because some programs started before the value was set.
+
+### What to try first
+
+1. Rename a parent folder to something short, or move the folder up to `C:\p`, then delete it.
+2. Try `rd /s /q` on the folder. `rd` is the short name of `rmdir`. `/s` removes the whole tree and `/q` skips the question.
+3. Use the robocopy trick below.
+
+### The robocopy trick
+
+`robocopy` with `/MIR` mirrors a source into a destination and deletes destination files that are not in the source. If the source is an empty folder, the destination ends up empty:
+
+```text
+mkdir C:\empty
+robocopy C:\empty "C:\path\to\folder" /MIR
+rmdir "C:\path\to\folder"
+rmdir C:\empty
+```
+
+The order matters: the empty folder first, the folder to empty second. If you swap them, robocopy copies instead of deleting. Microsoft's pages describe `/MIR` but do not name this trick. It is a common use of the documented behaviour. If you see a code like 1 or 3 at the end, that is fine: see [robocopy exit codes](/docs/troubleshooting/robocopy-exit-codes).
+
+## Reason 2: another program has a file open
+
+**The message:** a note that a file or folder is open in another program, or, from Node, `EPERM` or `EBUSY`.
+
+Windows will not remove a file that a running program holds open. The system error behind it is number 32: "The process cannot access the file because it is being used by another process."
+
+Typical holders are a dev server, an editor with the project open, a terminal whose current folder is inside the tree, or a build watcher.
+
+**The fix:** find and close the program, then try again. Stop the dev server with <kbd>Ctrl</kbd>+<kbd>C</kbd>. Close the editor window. Move your terminal out of the folder. If you still cannot tell who holds it, restart Windows and delete the folder before you open anything else.
+
+There is a full page for the Node version of this problem: [EPERM: operation not permitted, rmdir](/docs/troubleshooting/eperm-operation-not-permitted-rmdir).
+
+## Reason 3: you don't have the permission
+
+**The message:** "Access is denied" (system error 5).
+
+A folder can belong to another user, or to an administrator session. Then a normal session cannot remove it. The fix depends on why: take ownership as the owner, or open a terminal as administrator, and only if you are sure the folder is yours to remove.
+
+## A danger worth knowing: links
+
+Windows has junctions and symbolic links. They look like folders, but they point to a folder somewhere else. A careless delete tool can follow the link and delete the real files it points to. Devpit's README names this as the bug that made other cleaners delete real source code.
+
+Devpit never follows these links. It treats junctions, symlinks and other reparse points as leaves, and it refuses a path that goes through one. If you delete by hand, look at what a folder really is before you run a recursive delete.
+
+## How Devpit deals with it
+
+[Free Up Disk Space](/docs/features/free-up-disk-space) deletes folders with its own code, and it plans for all of the above:
+
+- **Long paths.** If a delete fails because the path is over the limit, Devpit retries with the extended `\\?\` form.
+- **Locks.** Devpit renames the folder to a name ending in `.devpit-` and random letters before it removes anything. If a program holds a file, the rename fails at once, before a single byte is deleted. The summary says which program holds it when Windows can tell, for example "Couldn't delete api\node_modules — it's open in Code.exe. Close it and press R to retry." Devpit never ends that program.
+- **Interrupted runs.** Because of the rename, an interrupted delete leaves a clearly named leftover, never a half-emptied folder that looks like a working one. The leftover is finished on the next start, or from Settings.
+- **Links.** Never followed, as described above.
+
+<Shot name="blog-delete-summary" />
+
+## Quick decision guide
+
+| You see | Likely cause | Try |
+| --- | --- | --- |
+| "source file name(s) are larger than is supported" | Path over 260 characters | Shorten the path, `rd /s /q`, or the robocopy trick |
+| "open in another program", EPERM, EBUSY | A file is locked | Close the program, restart if needed |
+| "Access is denied" | Permission | Check the owner, then use an administrator terminal if the folder is yours |
+
+## Sources
+
+- [Microsoft: Maximum path length limitation](https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation)
+- [Microsoft: System error codes 0 to 499 (5 and 32)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--0-499-)
+- [Microsoft: rmdir](https://learn.microsoft.com/windows-server/administration/windows-commands/rmdir)
+- [Microsoft: robocopy](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft Q&A: the source file name(s) error text](https://learn.microsoft.com/en-us/answers/questions/2441993/the-source-file-name-s-are-larger-than-is-supporte)
+- [Devpit safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md)
+- [Devpit README: Safety](https://github.com/zubairbinshaukat/devpit#safety)

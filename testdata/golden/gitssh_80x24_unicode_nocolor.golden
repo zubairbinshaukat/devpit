@@ -1,5 +1,6 @@
  DEVPIT  vdev  ·  Git & SSH Setup                                node …   git …
-  Clean    Ports    Apps    Update    Network    Git    Settings    tab ⇄ · 1–7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share
 ────────────────────────────────────────────────━━━━━───────────────────────────
 Get a fresh machine ready to push code.
 
@@ -11,7 +12,6 @@ Get a fresh machine ready to push code.
 
     Generate SSH key
     Create an ed25519 key and copy the public half
-
 
 
 

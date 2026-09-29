@@ -43,32 +43,37 @@ type shellExecuteInfoW struct {
 // waits only for ShellExecuteExW itself to return, not for the process to
 // exit.
 //
+// It returns the worker's process handle when Windows gives one back (zero
+// otherwise); the caller closes it. [Launch] uses it only to learn the
+// worker's PID, so it can check that the process on the other end of the
+// pipe is that worker.
+//
 // If the user declines the UAC prompt, the returned error satisfies
 // errors.Is(err, windows.ERROR_CANCELLED); [Launch] turns that into a
 // [DeclinedError].
-func shellExecuteRunas(exe, params string) error {
+func shellExecuteRunas(exe, params string) (windows.Handle, error) {
 	dll := windows.NewLazySystemDLL("shell32.dll")
 	if err := dll.Load(); err != nil {
-		return fmt.Errorf("elevate: load shell32.dll: %w", err)
+		return 0, fmt.Errorf("elevate: load shell32.dll: %w", err)
 	}
 	proc := dll.NewProc("ShellExecuteExW")
 	if err := proc.Find(); err != nil {
-		return fmt.Errorf("elevate: shell32.dll is missing ShellExecuteExW: %w", err)
+		return 0, fmt.Errorf("elevate: shell32.dll is missing ShellExecuteExW: %w", err)
 	}
 
 	verb, err := windows.UTF16PtrFromString("runas")
 	if err != nil {
-		return err
+		return 0, err
 	}
 	file, err := windows.UTF16PtrFromString(exe)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	var paramsPtr *uint16
 	if params != "" {
 		paramsPtr, err = windows.UTF16PtrFromString(params)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -83,10 +88,7 @@ func shellExecuteRunas(exe, params string) error {
 
 	r1, _, callErr := proc.Call(uintptr(unsafe.Pointer(&info)))
 	if r1 == 0 {
-		return callErr
+		return 0, callErr
 	}
-	if info.hProcess != 0 {
-		_ = windows.CloseHandle(info.hProcess)
-	}
-	return nil
+	return info.hProcess, nil
 }

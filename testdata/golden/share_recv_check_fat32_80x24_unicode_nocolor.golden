@@ -1,0 +1,13 @@
+Ready to copy
+
+From        \\192.168.1.5\Games
+To          D:\Games
+Size        20.0 GB  in 1,200 files
+Free space  60.0 GB  (FAT32)
+
+✗ The destination is FAT32. 2 file(s) are bigger than 4 GB and cannot be stored
+there. Choose an NTFS or exFAT disk.
+
+Press Esc to go back and change the destination.
+
+[keys]

@@ -1,0 +1,92 @@
+---
+title: "robocopy exit codes: what 0, 1, 2, 3, 8 and 16 mean"
+description: "Robocopy exit codes are a bitmask. Codes 0 to 7 mean no failure, 8 and above mean a failure. See the full table for 1, 2, 4, 8 and 16, and how to read them."
+sidebar:
+  label: "robocopy exit codes"
+published: 2026-09-29
+related:
+  - troubleshooting/source-file-names-are-larger-than-supported
+  - troubleshooting/system-error-53-network-path-not-found
+  - features/share-files
+faq:
+  - question: "Is robocopy exit code 1 an error?"
+    answer: "No. Exit code 1 means all files were copied successfully. Codes from 0 to 7 mean no failure. Only a code of 8 or more means at least one failure."
+  - question: "Why does my script think robocopy failed when it copied everything?"
+    answer: "Many tools treat any non-zero exit code as a failure. Robocopy returns 1, 2, 3 and so on for success cases. In a script, test for a code of 8 or more instead of a non-zero code."
+  - question: "What does exit code 16 mean?"
+    answer: "A serious error. Robocopy did not copy any files. It is either a usage error, such as a wrong option or path, or an error caused by not having enough access on the source or destination folders."
+---
+
+**Robocopy exit codes are not pass or fail.** A code from **0 to 7** means the copy had **no failure**. A code of **8 or more** means **at least one failure**.
+
+## What it means
+
+Robocopy returns a number when it ends. Each bit of that number says something different, and bits can be added together. This is why you see codes like 3 or 7.
+
+Microsoft's note is short: any value equal to or greater than 8 indicates that there was at least one failure during the copy operation.
+
+## The bit table
+
+| Bit | Meaning if set |
+| --- | --- |
+| 1 | One or more files were copied successfully (new files arrived). |
+| 2 | Extra files or directories exist in the destination that are not in the source. |
+| 4 | Some files or directories are mismatched. Look at the log. |
+| 8 | Some files or directories could not be copied. Copy errors happened and the retry limit was used up. |
+| 16 | Serious error. Robocopy copied no files. Either a usage error, or not enough access on the source or destination. |
+
+## Common codes
+
+| Code | What happened | Failure? |
+| --- | --- | --- |
+| 0 | Nothing was copied. The files already exist in the destination, so the copy was skipped. No mismatch. | No |
+| 1 | All files were copied successfully. | No |
+| 2 | Extra files exist in the destination. Nothing was copied. | No |
+| 3 | Some files were copied, and extra files exist (1 + 2). | No |
+| 4 | Mismatched files or directories were found. | No |
+| 5 | Some files were copied and some were mismatched (1 + 4). | No |
+| 6 | Extra and mismatched files exist. Nothing was copied. | No |
+| 7 | Files were copied, and there were mismatches and extra files (1 + 2 + 4). | No |
+| 8 | Several files did not copy. | Yes |
+| 9 to 15 | Bit 8 plus a mix of bits 1, 2 and 4. Some files failed, and the rest of the digits say what else happened. | Yes |
+| 16 | Serious error. Nothing was copied. | Yes |
+
+Codes of 16 and above (16 plus other bits) also mean a serious error. A code above 7 always needs a look at the log.
+
+## How Devpit fixes or avoids it
+
+Only [Share Files](/docs/features/share-files) runs robocopy.
+It copies big folders between two PCs with live progress, automatic retry and resume.
+It reads robocopy's log, so it works in any Windows language.
+At the end it shows a clear "Done", or a list of the files that failed with a reason for each, so you do not have to read exit codes.
+It uses `/E /XJ /XO /MT:16 /Z /R:3 /W:5`. `/XO` keeps a file that is newer on the receiving PC instead of overwriting it with an older copy, and it never uses `/MIR` or `/PURGE`, so nothing on the receiving PC is ever deleted.
+
+## The manual fix
+
+1. Read the code robocopy left behind. In PowerShell:
+
+```powershell
+$LASTEXITCODE
+```
+
+2. Write a log so you can read what happened. `/LOG:` writes the status to a file, and `/TEE` also shows it on screen:
+
+```text
+robocopy C:\src D:\dst /E /LOG:C:\copy.log /TEE
+```
+
+3. If the code is 8 or more, open the log and search for `ERROR`. Fix the named files or folders and run the same command again. Robocopy skips files that are already the same.
+4. For unreliable networks, `/Z` copies in restartable mode, so an interrupted file can pick up where it left off. `/R:n` sets how many times to retry a failed copy (the default is 1,000,000) and `/W:n` sets the wait between retries in seconds (the default is 30):
+
+```text
+robocopy C:\src \\pc2\share /E /Z /R:5 /W:10
+```
+
+5. In a script, test for failure with a code of 8 or more, not for non-zero.
+
+## Sources
+
+- [Microsoft: robocopy (options and exit codes)](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)
+- [Microsoft: Return codes used by the Robocopy utility](https://learn.microsoft.com/troubleshoot/windows-server/backup-and-storage/return-codes-used-robocopy-utility)
+- [SS64: Robocopy exit codes (bit values 1, 2, 4, 8 and 16)](https://ss64.com/nt/robocopy-exit.html)
+- [Microsoft: about_Automatic_Variables ($LASTEXITCODE)](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_automatic_variables)

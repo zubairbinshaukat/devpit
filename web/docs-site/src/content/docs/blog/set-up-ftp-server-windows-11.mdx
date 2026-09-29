@@ -1,0 +1,187 @@
+---
+title: "Set up a local FTP server on Windows 11"
+description: "Set up an FTP server on Windows 11 for your local network with IIS or FileZilla Server, open the firewall, add FTPS, and see when SFTP or SMB is better."
+date: 2026-09-29
+authors: [zubair]
+tags: [ftp, file transfer, windows]
+excerpt: "Two ways to run an FTP server on your own network, the firewall and security parts people skip, and when a shared folder or SFTP is the better tool."
+related:
+  - blog/smb-vs-ftp-vs-http-local-network
+  - blog/share-a-folder-on-windows-11
+  - blog/transfer-files-between-two-pcs-over-wifi
+  - features/share-files
+faq:
+  - question: "Is FTP safe to use on my home network?"
+    answer: "Plain FTP sends the user name, the password and the files without encryption, so anyone who can watch the network can read them. On a home network you fully trust, some people accept that. Use FTPS or SFTP when you can, and never open a plain FTP server to the internet."
+  - question: "Which ports does an FTP server need?"
+    answer: "Port 21 for commands. Passive mode also needs a range of data ports, which you choose in the server and then allow in the firewall. Implicit FTPS uses port 990. SFTP uses port 22, one port for everything."
+  - question: "Is SFTP the same as FTPS?"
+    answer: "No. FTPS is the old FTP protocol with TLS encryption added. SFTP is a different protocol that runs over SSH. Windows 11 can run an SFTP server with its optional OpenSSH Server feature. FileZilla Server supports FTP and FTPS, not SFTP."
+  - question: "Can a phone or a TV connect to my FTP server?"
+    answer: "Often yes. Many file manager apps and some media players have an FTP client built in. That is one of the main reasons to use FTP today. Check the app's own settings for FTP, FTPS or SFTP support."
+---
+
+FTP (File Transfer Protocol) is one of the oldest ways to move files over a network. It is still useful at home and in small offices, because many devices speak it: file manager apps on phones, some TVs and media players, cameras, scripts and Linux machines.
+
+This guide shows two ways to run an FTP server on Windows 11 for your **local network**, the firewall part, how to add encryption, and when you should use something else.
+
+## First: is FTP the right tool?
+
+Answer this before you install anything.
+
+- **Both computers run Windows?** A shared folder (SMB) is already built in, works in File Explorer, and robocopy can resume a big copy over it. See [share a folder on Windows 11](/docs/blog/share-a-folder-on-windows-11).
+- **A phone, a TV, a camera or a script that speaks FTP?** FTP is a good fit.
+- **You need encryption?** Plain FTP has none. Use FTPS or SFTP, both covered below.
+
+For the long comparison, read [SMB vs FTP vs HTTP on a local network](/docs/blog/smb-vs-ftp-vs-http-local-network).
+
+## The security part, in plain words
+
+The FTP security RFC says it directly: standard FTP sends passwords in clear text, and all data and control information, including passwords, crosses the network unencrypted. Microsoft's IIS docs say the same about Basic sign-in: it sends passwords unencrypted, so use it only on a connection you know is secure, such as one protected with SSL.
+
+There are two encrypted choices:
+
+| Name | What it is | Port | Server on Windows 11 |
+| --- | --- | --- | --- |
+| **FTP** | The original protocol. No encryption. | 21, plus passive data ports | IIS FTP, FileZilla Server |
+| **FTPS** | FTP with TLS encryption added (RFC 4217). | 21 (explicit) or 990 (implicit), plus passive ports | IIS FTP, FileZilla Server |
+| **SFTP** | A different protocol that runs over SSH. | 22 | OpenSSH Server (a Windows optional feature) |
+
+Rules that keep you safe:
+
+1. Use a separate Windows account for the FTP user, not your own.
+2. Give it **read** access only, unless it must upload.
+3. Keep the server on your local network. Do not forward port 21 on your router.
+4. Turn the server off when you do not need it.
+
+## Option 1: the FTP server built into Windows (IIS)
+
+Windows includes an FTP server as part of IIS (Internet Information Services). You turn it on as a Windows feature. Microsoft's step-by-step pages for this were written for Windows 7 and 8, and the feature and button names below come from them. If a name looks slightly different on your PC, look for the closest match.
+
+### Turn on the feature
+
+1. Press <kbd>Win</kbd>, type `Turn Windows features on or off`, and open it.
+2. Expand **Internet Information Services**.
+3. Expand **FTP Server** and tick **FTP Service**. (**FTP Extensibility** is only needed for special sign-in methods.)
+4. Under **Web Management Tools**, make sure the IIS management console is ticked, so you get IIS Manager.
+5. Click **OK** and wait for Windows to finish.
+
+### Make an account for the FTP user
+
+Open **Settings**, **Accounts**, **Other users**, **Add account**, then **I don't have this person's sign-in information** and **Add a user without a Microsoft account**. Give it a name and a strong password.
+
+### Add the FTP site
+
+1. Press <kbd>Win</kbd>, type `IIS`, and open **Internet Information Services (IIS) Manager**.
+2. In the **Connections** pane, expand your PC, right-click **Sites** and choose **Add FTP Site**.
+3. **Site Information**: type a name, and in **Physical path** pick the folder to share, for example `D:\FTP`.
+4. **Binding and SSL Settings**: keep **IP Address** as **All Unassigned** and **Port** as **21**. Tick **Start FTP site automatically** only if you want it running after every restart. For SSL, choose:
+   - **No SSL** for a quick test on a trusted home network (plain FTP), or
+   - **Require SSL** and pick a certificate for FTPS (see below).
+5. **Authentication and Authorization Information**: tick **Basic** (not **Anonymous**). Under **Allow access to**, choose **Specified users** and type the account name. Under **Permissions**, tick **Read** only.
+6. Click **Finish**.
+
+### A certificate for FTPS
+
+For a local network, a self-signed certificate works. In IIS Manager, click your PC's name, open **Server Certificates**, and choose **Create Self-Signed Certificate**. Then choose it in the FTP site's SSL settings. The client will ask you to accept it the first time, because no public authority signed it.
+
+### Open the firewall
+
+Microsoft's IIS FTP firewall guide gives these commands. Run them in Command Prompt as administrator.
+
+For plain FTP on port 21:
+
+```text
+netsh advfirewall firewall add rule name="FTP (non-SSL)" action=allow protocol=TCP dir=in localport=21
+netsh advfirewall set global StatefulFtp enable
+```
+
+For FTPS, Microsoft says the firewall's stateful FTP inspection will most likely block it, so allow the FTP service itself and turn that inspection off:
+
+```text
+netsh advfirewall firewall add rule name="FTP for IIS7" service=ftpsvc action=allow protocol=TCP dir=in
+netsh advfirewall set global StatefulFtp disable
+```
+
+Microsoft also points out that opening port 21 alone lets a client send commands but not transfer data. In passive mode the data uses other ports. In IIS Manager, open **FTP Firewall Support** on the server and set a **Data Channel Port Range**, for example `5000-5100`, then allow that range in the firewall too.
+
+## Option 2: FileZilla Server
+
+FileZilla Server is a free, open-source FTP server with its own settings window. Its docs say it supports **FTP and FTPS** only. SFTP is only in the paid FileZilla Pro Enterprise Server.
+
+1. Download FileZilla Server from the official site, `filezilla-project.org`, and install it. Note the **admin port** the installer asks for. The default is `14148`.
+2. Open the administration window, connect to `127.0.0.1` on that admin port, and accept the certificate fingerprint it shows.
+3. Open **Server**, **Configure**.
+4. Under users, add a user with a password.
+5. Add a **mount point**: a **Virtual path** such as `/` mapped to a **Native path** such as `D:\FTP`. Give it read access only unless the user must upload.
+6. Under **Passive mode**, set a port range. The FileZilla wiki says a range like `5000-5100` is enough.
+7. In the Windows firewall, allow port 21 (and 990 if you use implicit FTPS) plus your passive range.
+
+FileZilla Server can also turn on FTPS with a certificate in its settings.
+
+## Option 3: SFTP with the OpenSSH Server in Windows
+
+If the device you connect from supports SFTP, this is the simplest encrypted choice. Microsoft includes an OpenSSH server as an optional Windows feature.
+
+1. Press <kbd>Win</kbd>, type `Optional features`, and open it.
+2. Choose **View features** (or **Add a feature**), find **OpenSSH Server** and install it.
+3. Open `services.msc`, find **OpenSSH SSH Server**, set **Startup type** to **Automatic** and click **Start**.
+
+Or in PowerShell as administrator:
+
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Start-Service sshd
+```
+
+Microsoft says setup creates a firewall rule named `OpenSSH-Server-In-TCP` for port 22. Then connect from another PC with an SFTP client, or with the built-in `sftp` command where the OpenSSH client is installed:
+
+```text
+sftp username@192.168.1.20
+```
+
+An SSH server lets that account sign in to a command line, not only move files. Use a separate account with a strong password, and stop the service when you are done.
+
+## Connect from another device
+
+Find the server PC's IP address with `ipconfig` (the **IPv4 Address** line), for example `192.168.1.20`.
+
+- **FileZilla client** (free, Windows, macOS, Linux) supports FTP, FTPS and SFTP. Enter the host, user name, password and port, then connect.
+- **Windows' built-in `ftp` command** is very basic. Microsoft's IIS docs name it as a client that does not support passive connections, and its reference page does not mention TLS. Use it only for a quick plain-FTP test.
+- **Phone apps and TVs**: look for FTP, FTPS or SFTP in the app's network or server settings.
+
+## Can FTP resume a stopped transfer?
+
+Yes, when both sides support it. FTP has a restart command, `REST`, and a later RFC added restart by byte position in the normal transfer mode. In the FileZilla client, the "file exists" setting has a resume choice that continues a transfer that was stopped in the middle.
+
+## Troubleshooting
+
+- **The client connects but the file list never loads.** The data connection is blocked. Set a passive port range in the server and allow it in the firewall.
+- **FTPS fails, plain FTP works.** On IIS, follow the FTPS firewall steps above (the `ftpsvc` rule and `StatefulFtp disable`).
+- **"Access denied" after sign-in.** The account needs read permission on the folder itself, not only in the FTP site.
+- **Nothing connects at all.** Check that both devices are on the same network, and test the port from another Windows PC with `Test-NetConnection 192.168.1.20 -Port 21` in PowerShell.
+
+## When a shared folder is the better choice
+
+Between two Windows PCs, a shared folder beats FTP for most people: nothing to install, it opens in File Explorer, and robocopy can retry and resume a big copy over it.
+
+If you want that without the manual steps, [Devpit Share Files](/docs/features/share-files) shares a folder read-only with a temporary login, opens only the SMB firewall rule, and shows the other PC exactly what to type. The other PC does not need Devpit. It is free and open source.
+
+## Sources
+
+- [IETF RFC 2577: FTP Security Considerations (clear-text passwords)](https://www.rfc-editor.org/rfc/rfc2577)
+- [IETF RFC 4217: Securing FTP with TLS](https://www.rfc-editor.org/rfc/rfc4217)
+- [IETF RFC 959: File Transfer Protocol (REST)](https://www.rfc-editor.org/rfc/rfc959)
+- [IETF RFC 3659: Extensions to FTP (restart in stream mode)](https://www.rfc-editor.org/rfc/rfc3659)
+- [Microsoft: FTP Server feature in IIS (installation)](https://learn.microsoft.com/iis/configuration/system.applicationhost/sites/site/ftpserver/)
+- [Microsoft: Build an FTP site on IIS (Basic authentication warning)](https://learn.microsoft.com/iis/publish/using-the-ftp-service/scenario-build-an-ftp-site-on-iis)
+- [Microsoft: Creating a new FTP site in IIS 7](https://learn.microsoft.com/iis/publish/using-the-ftp-service/creating-a-new-ftp-site-in-iis-7)
+- [Microsoft: Using FTP over SSL in IIS 7](https://learn.microsoft.com/iis/publish/using-the-ftp-service/using-ftp-over-ssl-in-iis-7)
+- [Microsoft: Configuring FTP firewall settings in IIS 7](https://learn.microsoft.com/iis/publish/using-the-ftp-service/configuring-ftp-firewall-settings-in-iis-7)
+- [Microsoft: ftp command](https://learn.microsoft.com/windows-server/administration/windows-commands/ftp)
+- [Microsoft: Get started with OpenSSH for Windows](https://learn.microsoft.com/windows-server/administration/openssh/openssh_install_firstuse)
+- [FileZilla wiki: FAQ (admin port, passive range, mount points)](https://wiki.filezilla-project.org/wiki/index.php?title=FAQ)
+- [FileZilla docs: protocols supported by FileZilla Server](https://filezillapro.com/docs/server/basic-usage-instructions-server/protocols-supported-filezilla-server/)
+- [FileZilla docs: configure FileZilla Server](https://filezillapro.com/docs/server/basic-usage-instructions-server/configure-filezilla-server/)
+- [FileZilla docs: client protocols (FTP, FTPS, SFTP)](https://filezillapro.com/docs/v3/features-v3/filezilla-protocols/)
+- [FileZilla docs: change the default file exists behaviour (resume)](https://filezillapro.com/docs/v3/advanced/change-default-file-exists-behaviour/)

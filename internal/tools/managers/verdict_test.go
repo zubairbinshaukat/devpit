@@ -65,14 +65,16 @@ func TestExplain(t *testing.T) {
 
 func TestVerdictOK(t *testing.T) {
 	for kind, want := range map[managers.VerdictKind]bool{
-		managers.VerdictOK:        true,
-		managers.VerdictRestart:   true,
-		managers.VerdictUpToDate:  true,
-		managers.VerdictInUse:     false,
-		managers.VerdictPinned:    false,
-		managers.VerdictCancelled: false,
-		managers.VerdictFailed:    false,
-		managers.VerdictTimeout:   false,
+		managers.VerdictOK:         true,
+		managers.VerdictRestart:    true,
+		managers.VerdictUpToDate:   true,
+		managers.VerdictInUse:      false,
+		managers.VerdictPinned:     false,
+		managers.VerdictCancelled:  false,
+		managers.VerdictFailed:     false,
+		managers.VerdictTimeout:    false,
+		managers.VerdictCrashed:    false,
+		managers.VerdictNeedsAdmin: false,
 	} {
 		if got := (managers.Verdict{Kind: kind}).OK(); got != want {
 			t.Errorf("Verdict{%v}.OK() = %v, want %v", kind, got, want)

@@ -17,6 +17,7 @@ import (
 
 	"github.com/zubairbinshaukat/devpit/internal/app"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/share/host"
 	"github.com/zubairbinshaukat/devpit/internal/version"
 )
 
@@ -38,8 +39,9 @@ func NewRootCmd() *cobra.Command {
 	flags := &rootFlags{}
 
 	root := &cobra.Command{
-		Use:   "devpit",
-		Short: "A pit stop for your dev machine",
+		Use:     "devpit",
+		Example: "devpit\ndevpit --ascii",
+		Short:   "A pit stop for your dev machine",
 		Long: "Devpit frees disk space, fixes stuck ports, and keeps your developer tools up to " +
 			"date, from one terminal menu.\n\nRun it with no arguments to open the app.",
 		Version:       version.String(),
@@ -64,6 +66,7 @@ func NewRootCmd() *cobra.Command {
 		newUpdateCmd(),
 		newFontCmd(),
 		newSettingsCmd(),
+		newShareCmd(),
 	)
 	return root
 }
@@ -98,5 +101,13 @@ func runTUI(ctx context.Context, flags *rootFlags) error {
 
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithFPS(30))
 	_, err = p.Run()
+	// However the program ended (q, Ctrl+C, a termination signal), a running
+	// share is taken down here, so leaving Devpit never leaves a share, a
+	// temporary login or a firewall change behind. If Devpit is killed
+	// outright, its elevated worker does the same when the pipe closes, and
+	// the next launch offers to finish any cleanup that is left.
+	if serr := host.ShutdownAll(); serr != nil {
+		fmt.Fprintln(os.Stderr, "devpit: could not remove everything that sharing set up:", serr)
+	}
 	return err
 }

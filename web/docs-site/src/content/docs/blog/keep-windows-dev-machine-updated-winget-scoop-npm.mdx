@@ -1,0 +1,137 @@
+---
+title: "Keep a Windows dev machine updated: winget, Scoop and npm"
+description: "The exact commands to update apps with winget, Scoop and global npm packages, what gets skipped and why, and how to do all three in one pass with Devpit."
+date: 2026-09-29
+authors: [zubair]
+tags: [winget, scoop, npm, updates]
+excerpt: "One update command per tool, the reasons an update gets skipped, and a way to run them all in one pass."
+related:
+  - features/update-everything
+  - troubleshooting/winget-upgrade-all-not-upgrading
+  - troubleshooting/scoop-is-held-to-version-still-running
+  - troubleshooting/winget-0x8a150101
+---
+
+import Shot from '@/components/Shot.astro';
+
+A developer PC usually has more than one package manager. Apps come from winget. Command-line tools come from Scoop. JavaScript tools come from npm. Each one has its own update command, and none of them updates the others.
+
+This post gives you the commands for the three, explains what each one skips, and shows a way to run all of them in one pass.
+
+## winget: apps
+
+Winget is Microsoft's Windows Package Manager. To see what has an update:
+
+```powershell
+winget upgrade
+```
+
+Read the table first. Microsoft's own advice is to run `upgrade` without arguments before you upgrade everything, so you can preview what will change. Then upgrade everything with:
+
+```powershell
+winget upgrade --all
+```
+
+### What `--all` skips
+
+Winget skips some apps on purpose, and prints why:
+
+- **Apps with an unknown version.** Some apps do not report a version. Winget cannot tell if a newer one exists. It skips them unless you add `--include-unknown`.
+- **Pinned apps.** If you pinned an app with `winget pin add`, `--all` leaves it alone, unless you add `--include-pinned` (which works for non-blocking pins only).
+- **Apps that need explicit targeting.** Winget lists them separately. Upgrade them by name.
+
+To upgrade one app by its exact ID, use `--id` with `-e` (exact match):
+
+```powershell
+winget upgrade --id Publisher.PackageName -e
+```
+
+### What can go wrong
+
+- The app is running. Winget stops with `0x8A150101`, "Application is currently running. Exit the application then try again." Close the app and try again. See [winget 0x8A150101](/docs/troubleshooting/winget-0x8a150101).
+- The app needs administrator rights (`0x80073D28`). Run that one upgrade in an administrator terminal. See [winget 0x80073D28](/docs/troubleshooting/winget-0x80073d28).
+
+More detail: [winget upgrade --all does not upgrade some apps](/docs/troubleshooting/winget-upgrade-all-not-upgrading).
+
+## Scoop: command-line tools
+
+Scoop installs tools into your user folder, so it needs no administrator rights for normal apps.
+
+`scoop update` on its own updates Scoop itself and its app lists. To update apps, name them, or use `*` for all:
+
+```powershell
+scoop update
+scoop status
+scoop update *
+```
+
+`scoop status` shows which apps are out of date. `scoop update *` updates every app.
+
+Scoop keeps old versions of each app. To remove them, and to clear the download cache:
+
+```powershell
+scoop cleanup *
+scoop cache rm *
+```
+
+Scoop's help says `*` and `-a` mean the same thing in `cleanup` and `cache rm`.
+
+### What Scoop skips
+
+- **Held apps.** `scoop hold <app>` stops an app from being updated. Scoop prints `'app' is held to version 1.2.3`. Release it with `scoop unhold <app>`.
+- **Running apps.** If a process from the app's folder is running, Scoop stops with "The following instances of "app" are still running. Close them and try again."
+
+See [Scoop: "is held to version" and "still running"](/docs/troubleshooting/scoop-is-held-to-version-still-running).
+
+## npm: global packages
+
+Global npm packages are the tools you installed with `npm install -g`. To see which are out of date, and then update them:
+
+```powershell
+npm outdated -g
+npm update -g
+```
+
+The npm documentation says `npm update -g` applies the update to each globally installed package that is outdated. Global packages have no `package.json` range, so npm treats the newest version as the one you want.
+
+Project dependencies are a different thing. They live in each project's `package.json`. Update those inside the project, on purpose, and test.
+
+## One pass with Devpit
+
+Running six commands every week is easy to forget. [Update Everything](/docs/features/update-everything) does them together.
+
+<Shot name="blog-update-everything" />
+
+What it does:
+
+1. It looks for winget, Scoop, npm and Chocolatey on your PATH and uses the ones it finds.
+2. It checks each one for outdated apps, all at the same time, and shows one list grouped by manager.
+3. It leaves things unticked when they need your decision: apps that winget says need explicit targeting, held Scoop apps, pinned Chocolatey apps, and Devpit itself (which says it updates itself). It also tells you how many winget apps it did not show because their version is unknown or because they are pinned.
+4. You pick what to update. It runs the steps one after another, and each package upgrade uses the exact package ID and silent, no-prompt options, so nothing waits for a window you cannot see.
+5. For Scoop it also runs `scoop cleanup *` and `scoop cache rm -a` at the end, so old versions do not pile up.
+6. At the end you get a summary. A row can say "updated", "already up to date", "in use, close it and retry", "held", or an error code for you to look up.
+
+You can stop a run with <kbd>Esc</kbd>. Devpit stops the running step and its child processes, so nothing keeps running in the background.
+
+Devpit also has a skip key: press <kbd>s</kbd> twice to skip the app that is updating right now and move on. The summary then says what was skipped and how to retry it. Apps that can only be updated as administrator are collected and updated together at the end with one administrator prompt. If an app has to be closed first, its row says so.
+
+## A simple weekly routine
+
+1. Save your work and close big apps like editors and browsers.
+2. Run `winget upgrade` and read the table.
+3. Update, then read the summary for anything skipped.
+4. For skipped apps, use the tool-specific fix above.
+5. Once in a while, clean old Scoop versions and caches.
+
+## Sources
+
+- [Microsoft: winget upgrade command](https://learn.microsoft.com/windows/package-manager/winget/upgrade)
+- [Microsoft: winget pin command](https://learn.microsoft.com/windows/package-manager/winget/pinning)
+- [winget return codes](https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
+- [Scoop source: scoop-update.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-update.ps1)
+- [Scoop source: scoop-cleanup.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-cleanup.ps1)
+- [Scoop source: scoop-cache.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-cache.ps1)
+- [Scoop source: scoop-hold.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-hold.ps1)
+- [npm docs: npm update](https://docs.npmjs.com/cli/commands/npm-update)
+- [npm docs: npm outdated](https://docs.npmjs.com/cli/commands/npm-outdated)
+- [Devpit source: internal/tools/managers](https://github.com/zubairbinshaukat/devpit/tree/main/internal/tools/managers)

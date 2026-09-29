@@ -1,0 +1,11 @@
+
+Freigegebene Ressourcen auf \\192.168.1.5
+
+Freigabename  Typ  Verwendet als  Kommentar
+
+-------------------------------------------------------------------------------
+Spiele        Platte           My games (de)
+Filme       Platte
+Drucker1    Drucker           Office printer
+C$          Platte           
+Der Befehl wurde erfolgreich ausgeführt.

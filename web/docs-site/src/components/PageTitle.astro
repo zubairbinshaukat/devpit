@@ -1,0 +1,74 @@
+---
+// Starlight's page title, plus a way back on blog pages. The blog swaps the
+// docs sidebar for its own list of posts (and on a phone the sidebar is behind
+// the menu button), so each blog page starts with "Back to docs" and, on a
+// post, "All posts".
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+
+import { BASE } from '../../site.config.mjs';
+
+const id = Astro.locals.starlightRoute.id;
+const isBlog = id === 'blog' || id.startsWith('blog/');
+const isPost = isBlog && !/^blog(\/(\d+|tags\/.+|authors\/.+))?$/.test(id);
+---
+
+{
+  isBlog && (
+    <nav class="dp-back" aria-label="Back">
+      <a href={BASE} class="dp-back__link">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Back to docs
+      </a>
+      {isPost && (
+        <a href={`${BASE}/blog`} class="dp-back__link dp-back__link--quiet">
+          All posts
+        </a>
+      )}
+    </nav>
+  )
+}
+<Default {...Astro.props} />
+
+<style>
+  .dp-back {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .dp-back__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.85rem 0.35rem 0.7rem;
+    border: 1px solid var(--dp-border);
+    border-radius: 999px;
+    background: var(--dp-surface);
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      border-color var(--dp-fast) var(--dp-ease),
+      background-color var(--dp-fast) var(--dp-ease),
+      box-shadow var(--dp-fast) var(--dp-ease);
+  }
+  .dp-back__link:hover {
+    border-color: color-mix(in oklab, var(--sl-color-accent-high) 45%, var(--dp-border));
+    background: var(--dp-tint);
+    box-shadow: var(--dp-ring);
+  }
+  .dp-back__link svg {
+    transition: transform var(--dp-fast) var(--dp-ease);
+  }
+  .dp-back__link:hover svg {
+    transform: translateX(-2px);
+  }
+  .dp-back__link--quiet {
+    padding-inline: 0.85rem;
+    color: var(--sl-color-gray-2);
+    font-weight: 500;
+  }
+</style>

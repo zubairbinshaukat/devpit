@@ -1,0 +1,93 @@
+---
+title: "winget upgrade --all does not upgrade some apps"
+description: "Why winget upgrade --all skips apps: unknown versions, pins and packages that need explicit targeting. Winget's own messages, flags, and Devpit's view."
+sidebar:
+  label: "winget upgrade --all skips apps"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/winget-0x8a15002b
+  - troubleshooting/winget-0x80073d28
+  - troubleshooting/winget-term-not-recognized
+faq:
+  - question: "What does --include-unknown do?"
+    answer: "Microsoft's documentation says it upgrades packages even if their current version cannot be determined. Some apps do not report a version, so winget cannot tell if a newer one exists. Without this flag, winget upgrade --all skips them."
+  - question: "What is the difference between a pin and a blocking pin?"
+    answer: "A normal pin excludes the package from winget upgrade --all but still allows winget upgrade for that package, and --include-pinned lets --all include it. A blocking pin blocks both, so you have to remove the pin, or use --force."
+  - question: "Does Devpit run winget upgrade --include-unknown?"
+    answer: "No. Devpit does not upgrade apps whose version is unknown. It tells you how many were left out, and it does not touch pinned apps."
+---
+
+`winget upgrade --all` upgrades only what winget can safely and clearly upgrade. Some apps are skipped on purpose, and winget tells you why.
+
+## What it means
+
+Winget's documentation says `upgrade --all` upgrades "all installed applications that have an available update". Two notes explain most surprises:
+
+- Some applications do not provide a version. Winget cannot know if a newer one exists, so they are not upgraded unless you add `--include-unknown`.
+- Applications that you pinned are not upgraded when you use `--all`, unless you add `--include-pinned`. That works for non-blocking pins only.
+
+## Why it happens
+
+Look at the lines winget prints under the table. These are its exact texts:
+
+| Winget says | What it means |
+| --- | --- |
+| `N package(s) have version numbers that cannot be determined. Use --include-unknown to see all results.` | Unknown versions. They are left out. |
+| `N package(s) have pins that prevent upgrade. Use the 'winget pin' command to view and edit pins. Using the '--include-pinned' argument may show more results.` | Pinned packages are left out. |
+| `The following packages have an upgrade available, but require explicit targeting for upgrade:` | An upgrade exists, but it will not run with `--all`. Name the package. |
+
+Other apps fail during the upgrade and show an error code instead. The two most common are [0x80073D28](/docs/troubleshooting/winget-0x80073d28) (needs administrator rights) and [0x8A150101](/docs/troubleshooting/winget-0x8a150101) (the app is running).
+
+## How Devpit fixes or avoids it
+
+In [Update Everything](/docs/features/update-everything), Devpit reads the winget table and the footer lines and shows you what happened:
+
+- Apps with an unknown version are not listed, and a note under winget says how many "apps with an unknown version aren't shown".
+- Pinned apps are left alone, and a note says how many ("pinned apps are left alone"). Pinned Chocolatey apps and held Scoop apps appear in the list as **pinned** or **held** and are not ticked.
+- Packages that winget says need explicit targeting are listed as **needs explicit upgrade** and are not ticked.
+- For every app you tick, Devpit runs `winget upgrade` with that app's exact ID (`--id` and `-e`), silent, with the agreement flags, so the upgrade never waits for a prompt nobody can see.
+
+Devpit never adds `--include-unknown` or `--include-pinned` for you. Pins are your decision.
+
+## The manual fix
+
+1. See what winget offers. Run this and read the lines under the table:
+
+```powershell
+winget upgrade
+```
+
+2. To include apps with an unknown version:
+
+```powershell
+winget upgrade --all --include-unknown
+```
+
+3. To include apps with a normal (non-blocking) pin:
+
+```powershell
+winget upgrade --all --include-pinned
+```
+
+4. To see your pins and remove one you no longer want:
+
+```powershell
+winget pin list
+winget pin remove --id Publisher.PackageName
+```
+
+5. To upgrade one package by exact ID:
+
+```powershell
+winget upgrade --id Publisher.PackageName -e
+```
+
+Use `--include-unknown` with care. Winget cannot read the current version of those apps, so it cannot tell whether an upgrade is needed.
+
+## Sources
+
+- [Microsoft: winget upgrade command (--all, --include-unknown, --include-pinned)](https://learn.microsoft.com/windows/package-manager/winget/upgrade)
+- [Microsoft: winget pin command (pin types, pin list, pin remove)](https://learn.microsoft.com/windows/package-manager/winget/pinning)
+- [winget-cli: user-facing strings (winget.resw)](https://github.com/microsoft/winget-cli/blob/master/src/AppInstallerCLIPackage/Shared/Strings/en-us/winget.resw)
+- [Devpit source: internal/tools/managers/winget.go](https://github.com/zubairbinshaukat/devpit/blob/main/internal/tools/managers/winget.go)

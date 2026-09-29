@@ -1,0 +1,99 @@
+---
+title: "Windows cannot access \\\\PC: error 0x80004005 Unspecified error"
+seoTitle: "Windows cannot access \\\\PC: error 0x80004005"
+description: "Fix 'Windows cannot access \\\\PC' with error 0x80004005 on a shared folder: get the real error number with net use, then apply the right fix."
+sidebar:
+  label: "Windows cannot access (0x80004005)"
+published: 2026-09-29
+related:
+  - features/share-files
+  - troubleshooting/system-error-53-network-path-not-found
+  - troubleshooting/guest-access-blocked-windows-11-24h2
+  - troubleshooting/you-do-not-have-permission-to-access
+faq:
+  - question: "What does 0x80004005 mean?"
+    answer: "It is E_FAIL, which Microsoft lists as Unspecified failure. It is a general code. It says something went wrong but not what, so you need a second step to find the real cause."
+  - question: "Is 0x80004005 the same as 0x80070035?"
+    answer: "No. 0x80070035 is system error 53, The network path was not found, which means Windows could not reach the PC or the share. 0x80004005 does not name a cause at all."
+  - question: "Should I turn on SMB 1.0 to fix it?"
+    answer: "Only as a last resort for an old device that cannot be updated. SMB 1.0 is not installed by default on current Windows and Microsoft recommends against using it. Update or replace the old device if you can."
+---
+
+File Explorer shows a **Network Error** box: "Windows cannot access \\\\PC" (or \\\\PC\\share). It adds "Check the spelling of the name. Otherwise, there might be a problem with your network." and at the bottom **Error code: 0x80004005 Unspecified error**.
+
+The short answer: 0x80004005 does not say what went wrong. Ask Windows again with `net use`, which gives you a real error number, and fix that.
+
+## What it means
+
+`0x80004005` is `E_FAIL`. Microsoft's list of common HRESULT values describes it as "Unspecified failure". File Explorer shows it when the connection failed for a reason it does not name.
+
+The same "Windows cannot access" box also appears with **0x80070035**. That one is a clear error: [system error 53, the network path was not found](/docs/troubleshooting/system-error-53-network-path-not-found). This page is about 0x80004005.
+
+## Why it happens
+
+Because the code is general, there are several causes. Microsoft's pages and Q&A answers point to these:
+
+- **The other side only offers guest access.** Windows blocks guest sign-in to shares by default, and Windows 11 24H2 Pro, Enterprise and Education also require SMB signing, which guest sign-in cannot use. See [guest access blocked](/docs/troubleshooting/guest-access-blocked-windows-11-24h2).
+- **An old device only speaks SMB 1.0.** SMB 1.0 is not installed by default on current Windows. An old NAS or router that only has SMB 1.0 cannot talk to a PC without it.
+- **Old saved sign-ins.** Your PC still holds a connection or saved password for that PC from before.
+- **Sharing is not allowed on the other PC**, or its firewall blocks file sharing.
+- **Permissions.** The account you use may not read that folder. See [you do not have permission to access](/docs/troubleshooting/you-do-not-have-permission-to-access).
+
+## How Devpit fixes or avoids it
+
+[Share Files](/docs/features/share-files) does not go through File Explorer, so you do not get its general "Unspecified error".
+It reads the Windows error number behind a failure and, for the errors it knows, shows a plain sentence and a next step, in any Windows language.
+For example error 53 becomes "Cannot find that PC", 1326 becomes "The user name or password is wrong", 1219 becomes "Already signed in to that PC as someone else", and 1272 becomes "Windows blocked the sign-in".
+For a number it does not know, it shows the Windows text.
+
+It also avoids the usual causes on the sharing side: it creates a temporary login with a password (no guest access), shares the folder read-only to that login only, gives that login read access to the folder, and turns on the firewall rule for file sharing if it is off.
+
+## The manual fix
+
+### 1. Get the real error number
+
+Microsoft's own advice for a share that File Explorer cannot open is to try it from Command Prompt with `net use`. Open **Command Prompt** and run:
+
+```text
+net use \\192.168.1.20\share
+```
+
+Use the other PC's IP address or name and the real share name. If it asks, type the user name and password. When it fails, `net use` prints "System error N has occurred" with a real number. Then:
+
+| Number | Meaning | Go to |
+| --- | --- | --- |
+| 53 | The network path was not found | [System error 53](/docs/troubleshooting/system-error-53-network-path-not-found) |
+| 5 | Access is denied | [No permission](/docs/troubleshooting/you-do-not-have-permission-to-access) |
+| 1326 | The user name or password is incorrect | [System error 1326](/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect) |
+| 1219 | Multiple connections by the same user | [System error 1219](/docs/troubleshooting/system-error-1219-multiple-connections) |
+| 1272 | Guest sign-in was blocked | [Guest access blocked](/docs/troubleshooting/guest-access-blocked-windows-11-24h2) |
+
+If `net use` works, File Explorer will usually open the share after that too.
+
+### 2. Clear old connections and saved passwords
+
+1. In Command Prompt, run `net use * /delete`. If it asks to continue, answer `Y`. It disconnects your PC's shared-folder connections. It deletes no files.
+2. Open **Control Panel**, **Credential Manager**, **Windows Credentials**. Remove saved entries that start with the other PC's name or IP.
+3. Try the share again.
+
+### 3. Check the sharing PC
+
+1. Its network should be **Private**: **Settings**, **Network & internet**, **Wi-Fi** or **Ethernet**, the network, **Network profile type**.
+2. **File and printer sharing** should be on under **Private networks**: **Settings**, **Network & internet**, **Advanced network settings**, **Advanced sharing settings**.
+3. The share should use a real account with a password, not guest access.
+
+### 4. For an old NAS or router
+
+Check the device maker's site for a firmware update that supports SMB 2 or 3. Microsoft's File Explorer guide lists turning on the **SMB 1.0/CIFS Client** feature, but Microsoft also says SMB 1.0 is not installed by default and should not be used. Use it only for a device that can never be updated, and turn it off again when you are done.
+
+Microsoft's page also lists one fix for this exact code: give the PC a fixed IP address instead of an automatic one. That helps when two devices got the same address. Most home networks do not need it.
+
+## Sources
+
+- [Microsoft: Common HRESULT values (E_FAIL, 0x80004005)](https://learn.microsoft.com/windows/win32/seccrypto/common-hresult-values)
+- [Microsoft: Can't access shared folders from File Explorer (net use, SMB 1.0 client, 0x80004005)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: SMBv1 is not installed by default](https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/smbv1-not-installed-by-default-in-windows)
+- [Microsoft: Troubleshoot SMB (net use * /delete)](https://learn.microsoft.com/troubleshoot/windows-server/networking/troubleshoot-smb-guidance)
+- [Microsoft: net use](https://learn.microsoft.com/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/gg651155(v=ws.11))
+- [Microsoft Q&A: the "Check the spelling of the name" dialog with 0x80004005](https://learn.microsoft.com/answers/questions/2840403/cant-connect-to-network-share-get-error-0x80004005)
+- [Microsoft support: Accessing Credential Manager](https://support.microsoft.com/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0)

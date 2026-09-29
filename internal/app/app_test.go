@@ -19,6 +19,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/install"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/share"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/update"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
@@ -123,6 +124,7 @@ func fakeScreens() map[string]func() uictx.Screen {
 				install.WithLookPathFunc(func(string) (string, error) { return "", errors.New("not installed") }),
 			)
 		},
+		home.SectionShare: func() uictx.Screen { return share.NewWith(share.Deps{}) },
 		home.SectionUpdate: func() uictx.Screen {
 			return update.New(
 				update.WithDetectFunc(func(context.Context) []tools.Tool { return detected }),

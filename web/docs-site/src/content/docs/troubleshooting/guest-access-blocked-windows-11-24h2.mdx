@@ -1,0 +1,71 @@
+---
+title: "You can't access this shared folder because your organization's security policies block unauthenticated guest access"
+seoTitle: "You can't access this shared folder: guest access blocked"
+description: "Fix the Windows error that says security policies block unauthenticated guest access to a shared folder, with the safer options on Windows 11 24H2."
+sidebar:
+  label: "Guest access blocked (24H2)"
+published: 2026-09-29
+related:
+  - features/share-files
+  - troubleshooting/system-error-1326-user-name-or-password-incorrect
+  - troubleshooting/system-error-53-network-path-not-found
+faq:
+  - question: "Is it safe to turn on insecure guest logons?"
+    answer: "Microsoft recommends that you do not. Guest logons allow an attacker to trick you into connecting to a fake server without any credential prompt, and guest logons do not support SMB signing or encryption. Turn it on only for a device you trust that cannot use a user name and password."
+  - question: "Why did this start after I updated to Windows 11 24H2?"
+    answer: "Microsoft says SMB signing is required by default in Windows 11 24H2 Pro, Enterprise and Education. Guest logons cannot use signing, so guest access can fail even when guest fallback was allowed before. Guest logons were already off by default in many editions of Windows 10 and 11."
+  - question: "What is the best fix?"
+    answer: "Do not use guest access. Give the shared folder a real user name and password, and sign in with it. That is what Devpit's Share Files feature does, with a temporary login for each share."
+---
+
+Windows refused to open a share because the other side asked for a guest (no user name, no password) sign in. This is the Windows 11 24H2 error above.
+
+## What it means
+
+Windows blocks guest logons to remote shares by default. Microsoft's documentation says:
+
+- Since Windows 10 version 1709 and Windows Server 2019, SMB2 and SMB3 clients do not allow guest access to a remote server by default, or a fall back to the Guest account after wrong credentials.
+- In Windows 11 Pro Insider Preview build 25267 and later builds, guest credentials cannot be used to connect to a remote share by default.
+- In Windows 11 version 24H2, SMB signing is required by default on the Pro, Enterprise and Education editions (not on Home). That causes problems with guest authentication, because signing does not work with guest.
+
+The message says "your organization", but on a PC you own it is usually just the Windows default. A managed work PC can also have a policy that sets it.
+
+## Why it happens
+
+You are connecting to something that offers a share without accounts. Typical cases are a NAS, a router with a USB drive, or another PC that shares a folder to "Everyone" with no password. Microsoft's own advice is to upgrade or replace software or devices that only support guest authentication.
+
+## How Devpit fixes or avoids it
+
+Devpit does not change these Windows policies.
+
+[Share Files](/docs/features/share-files) avoids guest access on purpose.
+When you share a folder, Devpit creates a temporary login just for that share, shows its user name and password, and removes it when sharing stops.
+The receiving PC signs in with a real account, so Windows has no reason to block it.
+If Windows still blocks a sign-in (error 1272), Devpit says "Windows blocked the sign-in" and tells you not to turn off SMB signing.
+
+## The manual fix
+
+Best to least safe:
+
+**1. Use a real account (recommended).** On the device that shares, create a user with a password, and sign in with it. If Windows says the user name or password is wrong, see [system error 1326](/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect).
+
+**2. Allow insecure guest logons on your PC.** Only if you must. Microsoft warns that this can expose you to fake servers and other attacks. In PowerShell as administrator:
+
+```powershell
+Set-SmbClientConfiguration -EnableInsecureGuestLogons $true -Force
+```
+
+Or with the Local Group Policy Editor: run `gpedit.msc`, then go to **Computer Configuration**, **Administrative Templates**, **Network**, **Lanman Workstation**, open **Enable insecure guest logons**, select **Enabled** and click **OK**.
+
+Or with the registry: under `HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation` (create the key if needed) add a DWORD (32-bit) value named `AllowInsecureGuestAuth` and set it to `1`.
+
+Microsoft also says that SMB signing and SMB encryption policies must be disabled in Group Policy to use guest logons, and that this can leave you open to credential theft and relay attacks. That is a good reason to prefer option 1.
+
+**3. Turn it off again** when you are done. Set the same policy to **Disabled**, or set `EnableInsecureGuestLogons` back to `$false`.
+
+## Sources
+
+- [Microsoft: Can't access shared folders from File Explorer (this error and the registry and Group Policy fixes)](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: How to enable insecure guest logons in SMB2 and SMB3](https://learn.microsoft.com/windows-server/storage/file-server/enable-insecure-guest-logons-smb2-and-smb3)
+- [Microsoft: Control SMB signing behavior (which 24H2 editions require signing)](https://learn.microsoft.com/windows-server/storage/file-server/smb-signing)
+- [Microsoft Q&A: the error message text](https://learn.microsoft.com/en-us/answers/questions/3857630/you-cant-access-this-shared-folder-because-your-or)

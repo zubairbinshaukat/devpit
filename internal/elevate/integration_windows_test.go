@@ -4,7 +4,6 @@ package elevate
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -23,26 +22,35 @@ func TestRealNamedPipe(t *testing.T) {
 		t.Skip("set DEVPIT_ELEVATE_INTEGRATION=1 to run the real named-pipe integration test")
 	}
 
-	pipeName := fmt.Sprintf(`\\.\pipe\devpit-test-%d-%s`, os.Getpid(), mustHex(t))
+	pn := pipeName(os.Getpid(), mustHex(t))
 
-	h, err := createServerPipe(pipeName)
+	// The production access list admits only an elevated worker; this test
+	// is not elevated, so it adds its own user for the in-process worker.
+	h, err := createPipeWithSDDL(pn, testPipeSDDL(t))
 	if err != nil {
-		t.Fatalf("createServerPipe: %v", err)
+		t.Fatalf("createPipeWithSDDL: %v", err)
 	}
-	conn := &pipeConn{h: h}
+	conn, err := newPipeConn(h)
+	if err != nil {
+		t.Fatalf("newPipeConn: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	serveErr := make(chan error, 1)
 	go func() {
-		serveErr <- Serve(ctx, pipeName, DefaultExecutor{})
+		serveErr <- Serve(ctx, pn, DefaultExecutor{})
 	}()
 
 	connectCtx, connectCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer connectCancel()
 	if connErr := conn.waitForConnect(connectCtx.Done()); connErr != nil {
 		t.Fatalf("waitForConnect: %v", connErr)
+	}
+	// The worker is this very process, which is what the TUI checks.
+	if verr := verifyClient(h, uint32(os.Getpid()), ""); verr != nil { //nolint:gosec // a Windows PID is a DWORD
+		t.Fatalf("verifyClient: %v", verr)
 	}
 
 	client, err := newClient(ctx, conn)

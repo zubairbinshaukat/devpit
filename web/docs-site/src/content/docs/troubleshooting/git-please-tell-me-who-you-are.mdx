@@ -1,0 +1,71 @@
+---
+title: "git: Please tell me who you are"
+description: "Git says 'Please tell me who you are' when user.name and user.email are not set. Set them with git config --global, or use Devpit's Git & SSH Setup."
+sidebar:
+  label: "Please tell me who you are"
+published: 2026-09-29
+related:
+  - features/git-and-ssh
+  - troubleshooting/permission-denied-publickey
+faq:
+  - question: "Do the name and email have to be real?"
+    answer: "Git needs a name that is not empty and an email address to put in each commit. If you push to a service such as GitHub, use the email that the service links to your account so commits are shown as yours."
+  - question: "What is the difference between --global and a single repository?"
+    answer: "With --global git saves the name and email for your Windows account, for every repository. Without --global git saves them only in the current repository. Git's own message says to omit --global to set the identity only in this repository."
+---
+
+```text
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+```
+
+This is Git asking for your name and email. It needs them to write a commit. It does not know them yet.
+
+## What it means
+
+Every Git commit records who made it. Git takes that from two settings, `user.name` and `user.email`. If they are missing and Git cannot work them out, it stops with this message. Often a second line follows, for example `fatal: unable to auto-detect email address`.
+
+## Why it happens
+
+- A new PC, a new Windows user or a fresh Git install. Nothing is set yet.
+- You set the name and email in one repository, and now you are in a different one.
+
+## How Devpit fixes or avoids it
+
+Open [Git & SSH Setup](/docs/features/git-and-ssh):
+
+- **Show git identity** prints the name and email Git will commit as.
+- **Set git identity** asks for a name and email and saves them as your global Git settings, the same as the commands below.
+
+## The manual fix
+
+1. Set your name and email for your whole Windows account:
+
+```powershell
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+2. Check what Git now has:
+
+```powershell
+git config --global --list
+```
+
+3. Try your commit again.
+
+To use a different identity in one repository only, run the same two commands inside that repository without `--global`.
+
+If you push to GitHub over SSH and see a different error, read [Permission denied (publickey)](/docs/troubleshooting/permission-denied-publickey).
+
+## Sources
+
+- [Git source: ident.c (the message text)](https://github.com/git/git/blob/master/ident.c)
+- [Git documentation: git-config (--global, --list)](https://git-scm.com/docs/git-config)

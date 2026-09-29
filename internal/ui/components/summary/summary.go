@@ -9,6 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
@@ -111,13 +112,15 @@ func (m Model) View(ctx uictx.Context) string {
 		b.WriteString(strings.Join(stats, th.Muted.Render("  ·  ")))
 	}
 
+	// The card must fit the terminal: a skipped line wraps under a hanging
+	// indent rather than pushing the border off the edge.
+	room := ctx.Width - th.Card.GetHorizontalFrameSize()
 	if len(r.Skipped) > 0 {
 		b.WriteString("\n\n")
 		b.WriteString(th.Warning.Render(fmt.Sprintf("%s %d skipped", ctx.Icons.Warn, len(r.Skipped))))
 		for _, s := range r.Skipped {
-			b.WriteString("\n  ")
-			b.WriteString(th.Base.Render(s.Name))
-			b.WriteString(th.Muted.Render(" — " + s.Reason))
+			b.WriteString("\n")
+			b.WriteString(skippedLine(ctx, s, room))
 		}
 	}
 
@@ -127,6 +130,29 @@ func (m Model) View(ctx uictx.Context) string {
 	}
 
 	return th.Card.Render(b.String())
+}
+
+// skippedLine draws one skipped item. A reason that already names the item,
+// such as "Couldn't delete app\node_modules — it's open in Code.exe", is shown
+// on its own rather than after the name a second time. It wraps to room.
+func skippedLine(ctx uictx.Context, s Skipped, room int) string {
+	th := ctx.Theme
+	name, reason := s.Name, s.Reason
+	if name != "" && strings.Contains(reason, name) {
+		name = ""
+	}
+	text := reason
+	if name != "" {
+		text = name + " — " + reason
+	}
+	if room > 12 && ansi.StringWidth(text)+2 > room {
+		text = strings.ReplaceAll(ansi.Wrap(text, room-4, " "), "\n", "\n    ")
+	}
+	if name == "" {
+		return "  " + th.Muted.Render(text)
+	}
+	// The name keeps its own colour on the first line.
+	return "  " + th.Base.Render(name) + th.Muted.Render(strings.TrimPrefix(text, name))
 }
 
 // formatDuration renders a duration the way the summary shows it: whole

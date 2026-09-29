@@ -1,0 +1,12 @@
+✗ Windows blocked the sign-in
+
+Windows 11 24H2 does not allow guest sign-in to a shared folder any more. It
+also insists on signed connections.
+
+1. On the sharing PC, use a Devpit share. It has a real user name and password.
+2. Or type the user name and password of an account on the other PC.
+3. Do not turn off SMB signing to work around this. It protects your files.
+
+System error 1272
+
+[keys] r try again

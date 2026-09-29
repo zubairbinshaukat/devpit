@@ -7,8 +7,8 @@
 
   <!-- SEO -->
   <title>Devpit — Dev Machine Cleanup CLI for Windows</title>
-  <meta name="description" content="Devpit is a free, open-source CLI by Zubair bin Shaukat (zubyr) that cleans node_modules, caches and Docker junk, frees stuck ports like 3000 and updates every dev tool on Windows.">
-  <meta name="keywords" content="devpit, devpit cli, devpit by zubair, devpit zubair, devpit by zubyr, clean node_modules windows, free disk space developer, delete node_modules, npm cache clean, docker cleanup windows, port 3000 already in use, kill port windows, scoop cleanup, winget update all, developer tools windows, terminal app windows">
+  <meta name="description" content="Free, open-source Windows CLI by Zubair bin Shaukat (zubyr): clear node_modules and caches, free port 3000, update dev tools, copy big folders between PCs.">
+  <meta name="keywords" content="devpit, devpit cli, devpit by zubair, devpit zubair, devpit by zubyr, clean node_modules windows, free disk space developer, delete node_modules, npm cache clean, docker cleanup windows, port 3000 already in use, kill port windows, scoop cleanup, winget update all, transfer files between two pcs, share files over wifi windows, lan file transfer, robocopy resume, developer tools windows, terminal app windows">
   <link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
   <meta name="author" content="Zubair bin Shaukat">
   <meta name="robots" content="index, follow, max-image-preview:large">
@@ -25,7 +25,7 @@
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Devpit terminal app freeing 8.7 GB of developer junk">
+  <meta property="og:image:alt" content="Devpit: where dev junk disappears. A free terminal app for Windows, installed with irm devpit.zubyr.dev/install | iex">
   <meta property="og:locale" content="en_US">
 
   <!-- Twitter / X -->
@@ -109,6 +109,7 @@
           "Remove old Scoop app versions",
           "Free busy ports such as 3000, 5173 and 8080",
           "Update apps through winget, Scoop, Chocolatey and npm at once",
+          "Copy big folders between two Windows PCs on the same network, with live progress and resume",
           "Set up Git identity and SSH keys"
         ]
       },
@@ -116,10 +117,11 @@
         "@type": "FAQPage",
         "@id": "https://devpit.zubyr.dev/#faq",
         "mainEntity": [
-          { "@type": "Question", "name": "What is Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is a free, open-source command-line app (CLI) for Windows that frees disk space from developer junk such as node_modules and caches, fixes stuck ports, and updates developer tools from one terminal menu." } },
+          { "@type": "Question", "name": "What is Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is a free, open-source command-line app (CLI) for Windows that frees disk space from developer junk such as node_modules and caches, fixes stuck ports, updates developer tools and copies big folders between PCs, from one terminal menu." } },
           { "@type": "Question", "name": "Who made Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is built by Zubair bin Shaukat (zubyr), a software engineer from Lahore, Pakistan. His portfolio is at zubyr.dev and the source is on GitHub under the MIT license." } },
           { "@type": "Question", "name": "Is it safe to delete node_modules?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. node_modules is rebuilt by running npm install (or pnpm or yarn install). Devpit labels it Safe, shows the size first and never deletes anything until you confirm." } },
           { "@type": "Question", "name": "How do I fix 'port 3000 is already in use' on Windows?", "acceptedAnswer": { "@type": "Answer", "text": "Open Devpit, choose Fix Stuck Ports & Apps and type 3000. Devpit shows which app is holding the port and stops it after you confirm." } },
+          { "@type": "Question", "name": "How do I copy a big folder between two PCs on the same Wi-Fi?", "acceptedAnswer": { "@type": "Answer", "text": "On the PC that has the files, open Devpit, choose Share Files, then Share a folder, and approve one admin prompt. Devpit shows the IP address, a temporary user name and a password. On the other PC, choose Copy from a shared folder, or type the two lines from the card (net use, then robocopy) if that PC does not have Devpit. You see live progress, and the copy resumes if the network drops." } },
           { "@type": "Question", "name": "How do I install Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "In PowerShell, run irm devpit.zubyr.dev/install | iex to download the latest release with checksum verification, or add the zubyr Scoop bucket (scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket) and run scoop install devpit." } },
           { "@type": "Question", "name": "Is Devpit free and safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Devpit is free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short and readable." } },
           { "@type": "Question", "name": "Does Devpit collect my data?", "acceptedAnswer": { "@type": "Answer", "text": "Not unless you opt in. Usage stats are off by default and only send totals such as space freed. File names, paths and usernames are never sent. Setting DEVPIT_NO_TELEMETRY=1 always disables it." } },
@@ -151,6 +153,7 @@
         <a href="#features">Features</a>
         <a href="#safety">Safety</a>
         <a href="#faq">FAQ</a>
+        <a href="/docs">Docs</a>
       </nav>
       <a class="star" href="https://github.com/zubairbinshaukat/devpit" rel="noopener">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
@@ -165,7 +168,7 @@
       <div class="wrap hero__copy">
         <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>Free &amp; open source <span class="eyebrow__sep" aria-hidden="true"></span> Windows 10 &amp; 11</p>
         <h1 class="hero__title" id="hero-title">Where dev junk <em>disappears.</em></h1>
-        <p class="hero__lede">Devpit is a free, open-source CLI for Windows that finds <code>node_modules</code>, caches and Docker leftovers, shows you what's safe, and clears gigabytes in one keystroke.</p>
+        <p class="hero__lede">Devpit is a free, open-source CLI for Windows that clears dev junk safely, frees stuck ports, updates your tools and moves big folders between PCs, all from one menu.</p>
 
         <div class="install-group" data-install-group>
           <div class="install__tabs" role="tablist" aria-label="Install method">
@@ -192,6 +195,7 @@
           </div>
         </div>
         <p class="install__alt">or grab the <a href="https://github.com/zubairbinshaukat/devpit/releases/latest" rel="noopener">.exe from GitHub Releases</a> <span aria-hidden="true">·</span> then type <code>devpit</code></p>
+        <a class="hero__docs" href="/docs/getting-started">Read the docs <span aria-hidden="true">→</span></a>
       </div>
 
       <!-- The black hole is drawn centered on this element -->
@@ -287,6 +291,12 @@
             <span class="chore__tag">5 updates waiting</span>
           </li>
           <li class="chore">
+            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="8" height="6" rx="1.5"/><rect x="13.5" y="14" width="8" height="6" rx="1.5"/><path d="M6.5 10v4.5a2 2 0 0 0 2 2H11M9.5 14.5 11.5 16.5l-2 2M17.5 14V9.5a2 2 0 0 0-2-2H13M14.5 9.5l-2-2 2-2"/></svg></span>
+            <h3 class="chore__name">Share big folders</h3>
+            <p class="chore__what">Copy a huge folder from one PC to another over your Wi&#8209;Fi or cable, with live progress. If the network drops, it carries on where it stopped.</p>
+            <span class="chore__tag">No commands to type</span>
+          </li>
+          <li class="chore">
             <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M13.5 9.5l2 2"/></svg></span>
             <h3 class="chore__name">Set up a new machine</h3>
             <p class="chore__what">Install dev apps, set your Git name and SSH key, check your network. The first-day chores, done.</p>
@@ -319,7 +329,7 @@
         <div class="faq__list">
           <details open>
             <summary>What is Devpit?</summary>
-            <p>Devpit (also searched as <em>Devpit CLI</em>) is a free, open-source command-line app for Windows. One terminal menu frees disk space from developer junk, fixes stuck ports and updates your tools.</p>
+            <p>Devpit (also searched as <em>Devpit CLI</em>) is a free, open-source command-line app for Windows. One terminal menu frees disk space from developer junk, fixes stuck ports, updates your tools and copies big folders between PCs.</p>
           </details>
           <details>
             <summary>Who made Devpit?</summary>
@@ -327,15 +337,19 @@
           </details>
           <details>
             <summary>Is it safe to delete node_modules?</summary>
-            <p>Yes. It comes back when you run <code>npm install</code> (or pnpm / yarn). Devpit marks it Safe, shows the size first, and deletes nothing until you confirm.</p>
+            <p>Yes. It comes back when you run <code>npm install</code> (or pnpm / yarn). Devpit marks it <a href="/docs/features/free-up-disk-space">Safe</a>, shows the size first, and deletes nothing until you confirm.</p>
           </details>
           <details>
             <summary>How do I fix "port 3000 is already in use" on Windows?</summary>
-            <p>Open Devpit, choose <b>Fix Stuck Ports &amp; Apps</b> and type <code>3000</code>. It shows which app holds the port and stops it after you confirm.</p>
+            <p>Open Devpit, choose <a href="/docs/features/fix-stuck-ports"><b>Fix Stuck Ports &amp; Apps</b></a> and type <code>3000</code>. It shows which app holds the port and stops it after you confirm.</p>
+          </details>
+          <details>
+            <summary>How do I copy a big folder between two PCs on the same Wi-Fi?</summary>
+            <p>On the PC that has the files, open Devpit, choose <a href="/docs/features/share-files"><b>Share Files</b></a>, then <b>Share a folder</b>, and approve one admin prompt. Devpit shows the IP address, a temporary user name and a password. On the other PC, choose <b>Copy from a shared folder</b>, or type the two lines from the card (<code>net use</code>, then <code>robocopy</code>) if that PC does not have Devpit. You see live progress, and the copy resumes if the network drops. Comparing tools? Read <a href="/docs/blog/transfer-files-between-two-pcs-over-wifi">every way to move files between two PCs</a>.</p>
           </details>
           <details>
             <summary>How do I install Devpit?</summary>
-            <p>Two ways, both in PowerShell. The one-liner <code>irm devpit.zubyr.dev/install | iex</code> downloads the latest release, checks its SHA256 and adds it to your PATH. Scoop users add the <code>zubyr</code> bucket and run <code>scoop install devpit</code>, and <code>scoop update</code> keeps it current.</p>
+            <p>Two ways, both in PowerShell. <a href="/docs/getting-started">The one-liner</a> <code>irm devpit.zubyr.dev/install | iex</code> downloads the latest release, checks its SHA256 and adds it to your PATH. Scoop users add the <code>zubyr</code> bucket and run <code>scoop install devpit</code>, and <code>scoop update</code> keeps it current.</p>
           </details>
           <details>
             <summary>Is Devpit free and safe to install?</summary>
@@ -343,7 +357,7 @@
           </details>
           <details>
             <summary>Does Devpit collect my data?</summary>
-            <p>Not unless you opt in. Stats are off by default and only send totals. Set <code>DEVPIT_NO_TELEMETRY=1</code> and nothing is ever sent.</p>
+            <p><a href="/docs/safety-and-privacy">Not unless you opt in.</a> Stats are off by default and only send totals. Set <code>DEVPIT_NO_TELEMETRY=1</code> and nothing is ever sent.</p>
           </details>
           <details>
             <summary>Does it work on Mac or Linux?</summary>
@@ -428,6 +442,7 @@
             <a href="#demo">Demo</a>
             <a href="#features">Features</a>
             <a href="#faq">FAQ</a>
+            <a href="/docs">Docs</a>
             <a href="https://github.com/zubairbinshaukat/devpit" rel="noopener">GitHub</a>
             <a href="https://github.com/zubairbinshaukat/devpit/releases" rel="noopener">Releases</a>
             <a href="https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md" rel="noopener">Privacy</a>

@@ -288,7 +288,7 @@ func lower(s string) string {
 // both do, so the home menu has icons on a stock terminal, and ascii draws
 // none rather than a letter that would read as a hotkey.
 func TestSectionGlyphs(t *testing.T) {
-	ids := []string{"clean", "ports", "install", "update", "network", "gitssh", "settings"}
+	ids := []string{"clean", "ports", "install", "update", "network", "gitssh", "settings", "share"}
 	for _, tier := range []icons.Tier{icons.TierNerd, icons.TierUnicode} {
 		set := icons.For(tier)
 		seen := map[string]bool{}

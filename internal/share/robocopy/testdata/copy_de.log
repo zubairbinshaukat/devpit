@@ -1,0 +1,21 @@
+
+		   1048576	\\192.168.1.5\Games\a.bin
+		        12	\\192.168.1.5\Games\Übung\b.txt
+29.09.2026 10:15:02 FEHLER 112 (0x00000070) Kopieren von Datei D:\Ziel\c.bin
+Der Speicherplatz auf dem Datenträger reicht nicht aus.
+
+Warte 5 Sekunden... Wiederholung...
+
+		   2097152	\\192.168.1.5\Games\c2.bin
+------------------------------------------------------------------------------
+
+            Insgesamt   Kopiert Übersprungen Keine Übereinst.  FEHLER    Extras
+Verzeichnisse:         3         2         1         0         0         0
+      Dateien:         4         3         0         0         1         0
+        Bytes:   3145740   3145740         0         0         0         0
+       Zeiten:   0:00:05   0:00:03                       0:00:00   0:00:02
+
+
+  Geschwindigkeit:             1048576 Bytes/sec.
+  Geschwindigkeit:              60.000 MegaBytes/min.
+       Beendet: Dienstag, 29. September 2026 10:15:07

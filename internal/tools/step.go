@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"sync/atomic"
 	"time"
 )
 
@@ -52,14 +53,21 @@ type processTracker interface {
 	// more than once, and safe to call even when track was never called or
 	// returned an error.
 	kill()
+	// release lets go of the tracked processes without stopping them. It is
+	// what a step that finished on its own does: anything its installer left
+	// running on purpose (an updated app it restarted, a tray icon) is the
+	// user's, not the step's. Safe to call more than once, and after kill.
+	release()
 }
 
 // StepResult is the outcome of one [RunStep] or [RunStepLines] call.
 type StepResult struct {
-	// OK is true when the command exited with status 0 before the timeout.
+	// OK is true when the command exited with status 0 on its own, before
+	// the timeout and before its context was cancelled. A stopped step is
+	// never OK.
 	OK bool
 	// ExitCode is the process exit code, or -1 if it never started or was
-	// killed by the timeout.
+	// stopped (by the timeout or by its context being cancelled).
 	ExitCode int
 	// LastLines holds up to the last 20 lines of combined stdout+stderr,
 	// oldest first, each already passed through [CleanLine]. Transient
@@ -138,13 +146,28 @@ func RunStepLines(ctx context.Context, argv []string, timeout time.Duration, onL
 	// waitDelay above as the only backstop.
 	tracker := newProcessTracker()
 	_ = tracker.track(cmd)
-	defer tracker.kill()
+	// A stopped step (timeout, skip, Stop) takes its whole tree with it. A
+	// step that ended on its own leaves alone whatever its installer started
+	// and meant to keep running, such as the updated app relaunched: by the
+	// time the output loop below ends, nothing still holds the step's pipes.
+	defer func() {
+		if runCtx.Err() != nil {
+			tracker.kill()
+			return
+		}
+		tracker.release()
+	}()
 
+	// killed records that the tree was stopped. It matters because Windows
+	// gives a process ended by closing its job exit code 0: without it, a step
+	// stopped by a skip or a timeout could read as a success.
+	var killed atomic.Bool
 	trackerStop := make(chan struct{})
 	defer close(trackerStop)
 	go func() {
 		select {
 		case <-runCtx.Done():
+			killed.Store(true)
 			tracker.kill()
 		case <-trackerStop:
 		}
@@ -205,6 +228,10 @@ func RunStepLines(ctx context.Context, argv []string, timeout time.Duration, onL
 	default:
 		// Killed by the timeout, or failed to even run.
 		result.ExitCode = -1
+	}
+	if killed.Load() {
+		// Stopped, whatever exit code the stop left behind.
+		result.OK, result.ExitCode = false, -1
 	}
 	return result
 }

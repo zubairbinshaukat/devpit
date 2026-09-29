@@ -30,6 +30,9 @@ const (
 // Model is the Git & SSH Setup submenu.
 type Model struct {
 	menu menu.Model
+	// hooks replaces the engine calls of the screens this one opens; the
+	// zero value keeps the real ones.
+	hooks Hooks
 }
 
 // New returns the Git & SSH Setup screen.
@@ -64,7 +67,7 @@ func (m Model) FullHelp() [][]key.Binding {
 // Update implements uictx.Screen.
 func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	if sel, ok := msg.(menu.SelectedMsg); ok {
-		return m, open(sel.ID)
+		return m, m.open(sel.ID)
 	}
 	// The lead-in line and the blank line under it sit above the menu.
 	if next, cmd, ok := m.menu.Pointer(ctx, msg, menuTop); ok {
@@ -92,14 +95,14 @@ func (m Model) View(ctx uictx.Context) string {
 }
 
 // open maps a submenu selection to the screen it pushes.
-func open(id string) tea.Cmd {
+func (m Model) open(id string) tea.Cmd {
 	switch id {
 	case itemShow:
-		return uictx.Push(newIdentityScreen())
+		return uictx.Push(m.hooks.identity(newIdentityScreen()))
 	case itemSet:
-		return uictx.Push(newSetIdentityScreen())
+		return uictx.Push(m.hooks.setIdentity(newSetIdentityScreen()))
 	case itemKeygen:
-		return uictx.Push(newKeygenScreen())
+		return uictx.Push(m.hooks.keygen(newKeygenScreen()))
 	default:
 		return nil
 	}

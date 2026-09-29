@@ -1,0 +1,77 @@
+---
+title: "Scoop: \"is held to version\" and \"still running\""
+description: "Why scoop update skips an app: it is held with scoop hold, or it is still running. See the exact messages, how to fix each, and how Devpit shows them."
+sidebar:
+  label: "Scoop held / still running"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/winget-upgrade-all-not-upgrading
+  - troubleshooting/winget-0x8a150101
+faq:
+  - question: "Why does scoop update exit with success when it skipped my app?"
+    answer: "Scoop prints a warning or error message and moves on. It can exit with code 0 even when it refused to touch a held or running app. Devpit therefore reads Scoop's message text as well as the exit code."
+  - question: "How do I update a held Scoop app?"
+    answer: "Run scoop unhold followed by the app name, then scoop update followed by the app name. Use scoop hold to freeze it again later."
+---
+
+Scoop skipped an app on purpose. It prints one of two messages:
+
+- `'app' is held to version 1.2.3`
+- `The following instances of "app" are still running. Close them and try again.`
+
+## What it means
+
+**Held.** You (or a script) ran `scoop hold <app>`. Scoop's own description is "Hold an app to disable updates". `scoop update` then leaves it at its current version. `scoop status` shows "Held package" in its Info column.
+
+**Still running.** Scoop checks whether any running process comes from the app's folder. If one does, it stops for that app and reports "Running process detected, skip updating." It cannot replace files that are in use.
+
+## Why it happens
+
+- You held the app on purpose to keep a working version, and forgot.
+- The app, or a helper of it, is open. This includes background processes and tray apps.
+- A terminal or an editor started a tool from Scoop's folder for that app and is still using it.
+
+## How Devpit fixes or avoids it
+
+In [Update Everything](/docs/features/update-everything), Devpit reads `scoop status` before it starts:
+
+- A held app is listed as **held** and is not ticked, so Devpit never tries to update it.
+- If Scoop still says "is held to version", the row shows **held**.
+- If Scoop says an app "is still running", the row shows **in use, close it and retry**.
+
+Devpit does not run `scoop unhold` for you. Holding is your decision.
+
+## The manual fix
+
+For a held app:
+
+1. See what is held. `scoop status` lists apps and shows "Held package" in the Info column:
+
+```powershell
+scoop status
+```
+
+2. Release the hold, then update the app:
+
+```powershell
+scoop unhold <app>
+scoop update <app>
+```
+
+Replace `<app>` with the name, for example `git`. For a globally installed app, add `-g` (holding a global app needs administrator rights).
+
+For an app that is still running:
+
+1. Close the app completely, including its window in the system tray.
+2. Run `scoop update <app>` again.
+
+Scoop also has a setting to ignore running processes. It prints "Scoop is configured to ignore this condition." when that setting is on. Leave it off unless you know why you need it, because updating files in use can break the app.
+
+## Sources
+
+- [Scoop source: scoop-hold.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-hold.ps1)
+- [Scoop source: scoop-unhold.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-unhold.ps1)
+- [Scoop source: scoop-update.ps1 ("is held to version", "Running process detected")](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-update.ps1)
+- [Scoop source: scoop-status.ps1 ("Held package")](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-status.ps1)
+- [Scoop source: lib/install.ps1 ("are still running. Close them and try again")](https://github.com/ScoopInstaller/Scoop/blob/master/lib/install.ps1)

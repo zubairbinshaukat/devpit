@@ -1,0 +1,61 @@
+---
+// Lists every page inside one docs folder (title + description), so hub pages
+// such as /docs/troubleshooting never need editing when a page is added.
+//
+//   <SectionList dir="troubleshooting" />
+import { getCollection } from 'astro:content';
+import { hrefFor } from '../lib/href';
+
+interface Props {
+  dir: string;
+}
+
+const { dir } = Astro.props;
+const entries = (await getCollection('docs'))
+  .filter((e) => e.id.startsWith(`${dir}/`))
+  .sort(
+    (a, b) =>
+      (a.data.sidebar.order ?? 1000) - (b.data.sidebar.order ?? 1000) ||
+      String(a.data.sidebar.label ?? a.data.title).localeCompare(String(b.data.sidebar.label ?? b.data.title)),
+  );
+---
+
+<ul class="section-list not-content">
+  {
+    entries.map((e) => (
+      <li>
+        <a href={hrefFor(e.id)}>{e.data.title}</a>
+        {e.data.description && <p>{e.data.description}</p>}
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .section-list {
+    list-style: none;
+    margin: 1.5rem 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+  li {
+    padding: 0.9rem 1.1rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg-nav);
+  }
+  a {
+    font-weight: 600;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  p {
+    margin: 0.25rem 0 0;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+</style>

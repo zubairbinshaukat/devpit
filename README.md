@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A pit stop for your dev machine.</b><br>
-  Free disk space, fix stuck ports, and keep your tools up to date, from one terminal menu.
+  Free disk space, fix stuck ports, update your tools and move big folders between PCs, from one terminal menu.
 </p>
 
 <p align="center">
@@ -29,13 +29,17 @@
   <a href="#author">Author</a>
 </p>
 
+<p align="center">
+  <a href="https://devpit.zubyr.dev/docs/getting-started"><img src="web/docs-site/src/assets/screens/home-menu.webp" alt="The Devpit main menu in Windows Terminal: the DEVPIT logo and eight sections, Free Up Disk Space, Fix Stuck Ports and Apps, Install Developer Apps, Update Everything, Network Tools, Git and SSH Setup, Devpit Settings and Share Files" width="820"></a>
+</p>
+
 ---
 
 Devpit (or "Devpit CLI") is a free, open-source terminal app for Windows. One
 menu finds `node_modules`, build folders, package caches, Docker leftovers and
 old app versions, shows you what is safe, and clears gigabytes in one keystroke.
-It also frees busy ports, installs and updates developer tools, and sets up Git
-and SSH on a fresh machine.
+It also frees busy ports, installs and updates developer tools, sets up Git and
+SSH on a fresh machine, and copies big folders between two PCs on your network.
 
 Windows first. Go, Bubble Tea, single executable, no runtime to install.
 
@@ -88,10 +92,11 @@ Other ways:
 | Free Up Disk Space | One scan finds `node_modules`, build folders, package caches, Docker leftovers, old Scoop versions and Windows temp, labels each by risk, and deletes only what you tick |
 | Fix Stuck Ports & Apps | Frees a busy port in two keystrokes; lists busy dev ports and stuck Node processes, with a kill-tree option for npm, pnpm, yarn and node |
 | Install Developer Apps | Installs from a catalog through Scoop, winget or Chocolatey |
-| Update Everything | Updates through every package manager it finds, in one pass |
+| Update Everything | Updates through every package manager it finds, in one pass. Press `s` twice to skip the app that is updating; apps that need admin rights are retried once at the end with one admin prompt |
 | Network Tools | Local and public IP, ping, DNS flush |
 | Git & SSH Setup | Git identity and SSH key generation, copy the public key |
 | Devpit Settings | Theme, icon tier, Nerd Font install, never-touch list, dev port list |
+| Share Files | Moves a big folder between two PCs on the same network with live progress, automatic retry and Resume. The sharing PC gets one admin prompt and a temporary read-only login that is removed when sharing stops. The receiving PC checks the exact size and free space first. No commands to type, and it works in any Windows language |
 
 ## Safety
 

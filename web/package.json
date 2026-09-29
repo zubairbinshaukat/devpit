@@ -1,0 +1,8 @@
+{
+  "name": "devpit-web",
+  "private": true,
+  "description": "The Devpit website: static landing page, Vercel functions in api/, and the Astro docs in docs-site/. Vercel root directory is this folder; see docs/releasing.md.",
+  "engines": {
+    "node": "22.x"
+  }
+}

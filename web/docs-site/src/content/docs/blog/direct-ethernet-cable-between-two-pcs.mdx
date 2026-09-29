@@ -1,0 +1,147 @@
+---
+title: "Connect two PCs with an Ethernet cable to copy files"
+description: "Copy files between two Windows 11 PCs over one Ethernet cable, no router needed: the cable, IP addresses, Private network, sharing and speed checks."
+date: 2026-09-29
+authors: [zubair]
+tags: [networking, file transfer, windows]
+excerpt: "One cable between two PCs gives you a private, steady link for a big copy. Here is how to set the addresses and share files over it."
+related:
+  - blog/move-100gb-between-computers
+  - blog/share-a-folder-on-windows-11
+  - features/share-files
+  - troubleshooting/system-error-53-network-path-not-found
+faq:
+  - question: "Do I need a crossover cable?"
+    answer: "Try a normal cable first. The Ethernet standard for gigabit copper links describes auto-crossover, which lets two devices of the same kind connect with a normal cable when their ports support it. If the link does not come up, the cards may lack it, and a crossover cable is the fix."
+  - question: "Can the PCs stay on Wi-Fi at the same time?"
+    answer: "Yes. Each connection gets its own address. When you use the cable addresses, such as 192.168.50.1, Windows sends that traffic over the cable because that address is on the cable's network. Internet traffic keeps using Wi-Fi."
+  - question: "Why does the PC have a 169.254 address?"
+    answer: "With no router to hand out addresses, Windows gives itself one from 169.254.0.0 to 169.254.255.255. Two PCs with such addresses on the same cable can still talk. A fixed address that you choose is easier to type and remember."
+  - question: "My laptop has no Ethernet port. What now?"
+    answer: "Use a USB to Ethernet adapter. Check its speed rating: a gigabit adapter needs a USB port fast enough to carry it. The rest of this guide works the same."
+---
+
+A single Ethernet cable between two PCs makes a tiny private network. No router, no Wi-Fi, no internet. It is a good way to move a big folder, because a cable does not drop or roam like Wi-Fi.
+
+This guide shows the whole setup on Windows 11: the cable, the addresses, the network type, and the copy.
+
+## What you need
+
+- An Ethernet port on each PC, or a USB to Ethernet adapter.
+- One Ethernet cable long enough to reach.
+- Administrator rights on both PCs, to change network settings.
+
+### Which cable?
+
+Try a normal Ethernet cable first. In the past, two PCs needed a special "crossover" cable. The Ethernet standard for gigabit copper links describes **auto-crossover** (IEEE 802.3, clause 40.4.4): a port that has it works out the wiring by itself, which removes the need for a crossover cable between devices of the same kind. If the link light stays off with a normal cable, the cards may not have it, and a crossover cable is the fix.
+
+For gigabit speed, the IEEE 1000BASE-T standard runs over Category 5 copper cabling.
+
+## Step 1: plug in and check the link
+
+1. Connect the cable to both PCs.
+2. On each PC, open PowerShell and run:
+
+```powershell
+Get-NetAdapter
+```
+
+Find your Ethernet adapter. **Status** should say `Up`, and **LinkSpeed** shows the speed both ports agreed on, for example `1 Gbps`. If it says `100 Mbps` on gigabit hardware, try another cable.
+
+## Step 2: give each PC an address
+
+With no router, nothing hands out addresses. You have two choices.
+
+### Option A: let Windows pick (169.254 addresses)
+
+Microsoft calls this Automatic Private IP Addressing. When no DHCP server answers, Windows gives itself an address between `169.254.0.0` and `169.254.255.255`, and it can talk to other PCs on the same cable that did the same. Wait a minute after plugging in, then run `ipconfig` on each PC and note the **IPv4 Address** of the Ethernet adapter.
+
+It works, but the addresses are random and long. Option B is easier.
+
+### Option B: set fixed addresses (recommended)
+
+Pick a small network that is **not** the same as your Wi-Fi's. If your Wi-Fi uses `192.168.1.x`, use `192.168.50.x` for the cable.
+
+On **PC A**:
+
+1. Open **Settings**, **Network & internet**, **Ethernet**.
+2. Next to **IP assignment**, click **Edit**.
+3. Choose **Manual** and turn on **IPv4**.
+4. **IP address**: `192.168.50.1`. **Subnet mask**: `255.255.255.0`. Leave **Gateway** and **DNS** empty.
+5. Click **Save**.
+
+On **PC B**, do the same with **IP address** `192.168.50.2`.
+
+The gateway stays empty on purpose. The cable is only for these two PCs, so internet traffic keeps using Wi-Fi.
+
+## Step 3: set the cable network to Private
+
+Windows may see the cable link as a new, unknown network and treat it as **Public**, which blocks file sharing. Check in PowerShell:
+
+```powershell
+Get-NetConnectionProfile
+```
+
+If the Ethernet entry shows `NetworkCategory : Public`, set it to Private in PowerShell as administrator (use the **InterfaceAlias** that the command showed, often `Ethernet`):
+
+```powershell
+Set-NetConnectionProfile -InterfaceAlias "Ethernet" -NetworkCategory Private
+```
+
+You can also try **Settings**, **Network & internet**, **Ethernet**, **Network profile type**.
+
+## Step 4: test the connection
+
+From PC B, check that PC A answers on the file sharing port (445):
+
+```powershell
+Test-NetConnection 192.168.50.1 -Port 445
+```
+
+`TcpTestSucceeded : True` means it is ready. If it is `False`, file sharing is not turned on yet on PC A (next step), or a firewall blocks it. A plain `ping` may also fail if the firewall blocks ping, so the port test is the better check.
+
+## Step 5: share and copy
+
+Now the two PCs are on their own network. Use any file sharing method with the cable addresses.
+
+**With a shared folder (built in):**
+
+1. On PC A, share the folder with a real account and Read permission. The full steps are in [share a folder on Windows 11](/docs/blog/share-a-folder-on-windows-11).
+2. On PC B, copy with robocopy so a stop can be resumed:
+
+```text
+robocopy \\192.168.50.1\Games D:\Games /E /Z /R:5 /W:10 /LOG:C:\copy.log /TEE
+```
+
+**With Devpit Share Files:**
+
+[Share Files](/docs/features/share-files) asks which network connection to share on when a PC has more than one. Pick the Ethernet one, and the card shows the cable address, such as `192.168.50.1`. Type that address on the other PC. Devpit handles the firewall rule, a temporary login, the read-only share, progress, retry and resume.
+
+## Step 6: undo when you are done
+
+1. Stop sharing on PC A (or stop sharing in Devpit, which removes what it set up).
+2. On both PCs, open **Settings**, **Network & internet**, **Ethernet**, **IP assignment**, **Edit**, and set it back to **Automatic (DHCP)**. This matters if you later plug the PC into a router.
+3. Unplug the cable.
+
+## How fast is it?
+
+A gigabit link is rated at 1,000 Mb/s, which is 125 MB/s at most (1,000 ÷ 8). So 100 GB can never take less than 800 seconds, about 13 minutes, over it. That is arithmetic, not a measurement. Your real copy is slower, depending mostly on the disks and the number of files. If both PCs have 2.5 Gb/s ports, the ceiling is 2.5 times higher. For the full picture, read [move 100 GB between PCs](/docs/blog/move-100gb-between-computers).
+
+## If it does not work
+
+- **No link light, or `Get-NetAdapter` says Disconnected**: try another cable, or a crossover cable if the cards lack auto-crossover.
+- **"The network path was not found"**: check the addresses, that the network is Private, and that file sharing is on. See [system error 53](/docs/troubleshooting/system-error-53-network-path-not-found).
+- **"Access is denied"**: a permissions problem. See [no permission to access](/docs/troubleshooting/you-do-not-have-permission-to-access).
+
+## Sources
+
+- [UNH-IOL: Auto-Crossover white paper (IEEE 802.3 clause 40.4.4)](https://www.iol.unh.edu/sites/default/files/knowledgebase/ethernet/Auto-Crossover_White_Paper.pdf)
+- [IEEE 802.3ab: 1000BASE-T over Category 5 copper](https://standards.ieee.org/ieee/802.3ab/1086/)
+- [IEEE 802.3bz: 2.5 Gb/s and 5 Gb/s over twisted pair](https://standards.ieee.org/ieee/802.3bz/6130/)
+- [Microsoft: How to use automatic TCP/IP addressing without a DHCP server (APIPA, 169.254)](https://learn.microsoft.com/windows-server/troubleshoot/how-to-use-automatic-tcpip-addressing-without-a-dh)
+- [Microsoft: Essential network settings and tasks in Windows (IP assignment, network profile)](https://support.microsoft.com/windows/essential-network-settings-and-tasks-in-windows-f21a9bbc-c582-55cd-35e0-73431160a1b9)
+- [Microsoft: Get-NetAdapter](https://learn.microsoft.com/powershell/module/netadapter/get-netadapter)
+- [Microsoft: Get-NetConnectionProfile](https://learn.microsoft.com/powershell/module/netconnection/get-netconnectionprofile)
+- [Microsoft: Set-NetConnectionProfile](https://learn.microsoft.com/powershell/module/netconnection/set-netconnectionprofile)
+- [Microsoft: Test-NetConnection](https://learn.microsoft.com/powershell/module/nettcpip/test-netconnection)
+- [Microsoft: robocopy](https://learn.microsoft.com/windows-server/administration/windows-commands/robocopy)

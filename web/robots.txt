@@ -1,6 +1,8 @@
-
 User-agent: *
 Allow: /
+Allow: /docs
 Disallow: /api/
 
+# One sitemap for the whole site: the landing page (web/sitemap.xml) merged with
+# every docs page at build time (web/scripts/build.mjs).
 Sitemap: https://devpit.zubyr.dev/sitemap.xml

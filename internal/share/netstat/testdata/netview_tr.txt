@@ -1,0 +1,11 @@
+
+\\192.168.1.5 üzerindeki paylaşılan kaynaklar
+
+Paylaşım adı  Tür  Kullanım  Açıklama
+
+-------------------------------------------------------------------------------
+Oyunlar        Disk           My games (tr)
+Filmler       Disk
+Yazıcı1    Yazıcı           Office printer
+C$          Disk           
+Komut başarıyla tamamlandı.

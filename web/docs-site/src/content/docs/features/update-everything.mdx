@@ -1,0 +1,131 @@
+---
+title: Update all your Windows apps and dev tools at once
+description: Update your apps and developer tools through winget, Scoop, Chocolatey and npm in one pass, choose what to skip, and see plain reasons when one fails.
+sidebar:
+  label: Update everything
+  order: 4
+published: 2026-09-29
+related:
+  - features/install-developer-apps
+  - troubleshooting
+  - features/settings
+faq:
+  - question: "Which package managers does Update Everything use?"
+    answer: "Scoop, winget, Chocolatey and npm global packages, whichever ones are installed on your PC. Devpit asks each one at the same time what is out of date and lists the answers together."
+  - question: "Can I leave some apps out?"
+    answer: "Yes. Every app starts ticked. Untick what you want to keep as it is. Pinned and held apps are shown but cannot be ticked. Apps that winget says need explicit targeting start unticked."
+  - question: "Why does Chocolatey ask for administrator rights?"
+    answer: "Chocolatey always needs admin. Devpit runs all Chocolatey updates in one helper that asks once, so ten apps are one Windows prompt. If you decline, they are marked skipped, not failed."
+  - question: "What if one app fails to update?"
+    answer: "The others carry on. The summary shows the failed app with a reason in plain words, such as the app is in use and must be closed. Fix that, then run Update Everything again."
+  - question: "Does Devpit update itself?"
+    answer: "It is always updated last, because a program cannot cleanly replace its own running file. Devpit also shows an update label in the header when a newer release exists, and Settings shows the command to upgrade."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Keeping a dev PC current means running `winget`, `scoop`, `choco` and `npm` one after the other.
+Devpit does it in one pass, and lets you leave things out.
+
+Open it from the main menu with <kbd>4</kbd>, or choose **Update Everything**.
+
+## How it works
+
+1. Devpit finds which package managers you have: Scoop, winget, Chocolatey and npm.
+2. It asks each one, at the same time, what is out of date. Each manager shows a spinner, then a result such as "winget 15 updates".
+3. It lists every out-of-date app, grouped by manager. All are ticked to start.
+4. You untick anything you want to leave alone and confirm.
+5. It updates the ticked apps one by one. Each app is one live row.
+6. You get a summary. The full log is one key away.
+
+## Update your tools
+
+1. Press <kbd>4</kbd> on the main menu.
+2. Wait for the checks. This can take a minute on a cold start.
+3. Look at the list. Untick apps with <kbd>Space</kbd>. Press <kbd>n</kbd> to untick all, or <kbd>a</kbd> to tick all.
+
+   <Shot name="update-list" />
+
+4. Press <kbd>Enter</kbd>.
+5. Read the question, for example "Update 12 apps?". It lists the commands. The default answer is **No**.
+6. Press <kbd>y</kbd>.
+7. Watch the rows. Each one ends in a tick, a warning or a cross with a reason.
+
+   <Shot name="update-running" />
+
+8. Read the summary and press <kbd>Enter</kbd>.
+
+### What the rows can say
+
+| Row ends with | Meaning |
+| --- | --- |
+| Tick, "updated" | The app was updated. |
+| Tick, "up to date" | It was already current by the time Devpit got to it. |
+| Warning, "restart needed" | Updated, but Windows needs a restart to finish. |
+| Skipped, "pinned" or "held" | You (or a manager setting) pinned this app, so the manager refused. Devpit leaves it alone. |
+| Skipped, "needs admin" | The Windows admin prompt was declined. |
+| Cross, with a reason | It failed. The reason is in plain words, and the raw output is in the log. |
+
+In the list, some rows cannot be ticked or start unticked:
+
+- **pinned** and **held** apps are shown but locked.
+- **needs explicit upgrade** apps (a winget case) start unticked. `winget upgrade --all` skips them, but Devpit can update them by name if you tick them.
+- If a manager's answer cannot be read, for example on a translated Windows, that manager becomes one row, "Everything winget manages", that runs its normal upgrade-all commands.
+
+## Order matters
+
+Devpit updates in a safe order.
+Most apps first, then Git, then Node.js and npm, then WSL, then the package managers themselves, and Devpit last.
+This stops a manager from replacing itself in the middle of a run, and stops an npm update from running while Node is being replaced.
+
+WSL is late on purpose: updating it shuts down running WSL distros.
+
+## Admin rights
+
+- **Scoop** and **npm** need no admin.
+- **winget** may show a Windows prompt for some packages.
+- **Chocolatey** always needs admin. Devpit launches one helper for the whole Chocolatey part, so ten apps are one prompt. If you decline, the apps are marked "skipped (needs admin)".
+
+Devpit itself never runs as administrator.
+Only that small helper does, and only for the jobs that need it.
+
+## Skip, admin apps and stuck apps
+
+While an app updates, you have these helps:
+
+- **Skip button.** Press <kbd>s</kbd> twice within 5 seconds to skip the app that is updating right now and move to the next one. The first press only asks you to press again. The summary shows "skipped by you" and the command to retry it. A skipped app is never reported as updated. Skipping stops that app's installer part way, so the app may be left half updated.
+- **What Skip cannot stop.** If an installer raises its own Windows admin prompt (UAC), that elevated installer runs outside Devpit's control. Skip stops winget, but that installer may keep running. Close it by hand. Apps that finish normally keep running whatever they started, for example an app that relaunches itself after the update.
+- **Clear crash messages.** If an app's installer crashes, the row says "crashed" with the Windows code, and the summary says what to try, instead of showing a bare number.
+- **Apps that need admin.** Some apps can only be updated as administrator (Windows error `0x80073D28`). Devpit waits, then tries these apps again together at the end, with one admin prompt. The row says "needs admin rights, retrying at the end". If you decline the prompt or it still fails, the summary gives the command to run yourself in an administrator terminal. If an app must be closed first, the row says so, for example "close Contoso App and retry".
+- **Stuck-app hint.** If an app prints nothing for 5 minutes, its row says "no output for 5m" and "press s twice to skip".
+
+A run where a few things went wrong ends like this. Each problem gets one row in plain words, and **What to do next** gives the exact step or command for it, wrapped over two lines if it is long rather than cut off:
+
+<Shot name="update-summary-problems" />
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move |
+| <kbd>Space</kbd> | Tick or untick an app |
+| <kbd>a</kbd> / <kbd>n</kbd> | Tick all / untick all |
+| <kbd>Enter</kbd> | Update the ticked apps, or finish on the summary |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer the question (No is the default) |
+| <kbd>l</kbd> | Show or hide the full log |
+| <kbd>Esc</kbd> | Stop. The app in flight is cut short and the rest are skipped |
+| <kbd>s</kbd> (twice) | Skip the app that is updating now |
+
+See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.
+
+## If an update fails
+
+Common reasons:
+
+- The app is running. Close it and run the update again.
+- The app needs admin rights. See the section above.
+- The manager itself is out of date or cannot reach the internet.
+
+Devpit keeps the raw output for every step.
+Press <kbd>l</kbd> to read it.
+See [Troubleshooting](/docs/troubleshooting) for common errors and what they mean.

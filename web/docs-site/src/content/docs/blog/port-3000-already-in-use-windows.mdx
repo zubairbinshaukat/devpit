@@ -1,0 +1,123 @@
+---
+title: "Port 3000 is already in use on Windows: find it and free it"
+description: "Your dev server says EADDRINUSE on port 3000. Find the process that holds the port with PowerShell, stop it safely, or let Devpit free the port in two steps."
+date: 2026-09-29
+authors: [zubair]
+tags: [ports, node, troubleshooting, windows]
+excerpt: "What EADDRINUSE really says, how to find the process behind a port, and three safe ways to fix it."
+related:
+  - features/fix-stuck-ports
+  - troubleshooting/eaddrinuse-address-already-in-use-3000
+  - troubleshooting/eperm-operation-not-permitted-rmdir
+---
+
+import Shot from '@/components/Shot.astro';
+
+You start your dev server and get this:
+
+```text
+Error: listen EADDRINUSE: address already in use :::3000
+```
+
+The server did not start. Something else already holds port 3000. This post shows you how to find that something, how to stop it safely, and how to avoid the problem next time.
+
+## What the error says
+
+`EADDRINUSE` is short for "address already in use". The Node.js documentation describes it like this: an attempt to bind a server to a local address failed because another server on the same computer already occupies that address.
+
+The `:::3000` at the end is two things joined together:
+
+- `::` is the IPv6 "any address". Node listens there when you give no host name and IPv6 is available (and otherwise on `0.0.0.0`).
+- `3000` is the port number.
+
+A port can have only one owner at a time. That is not a Windows quirk. It is how network ports work.
+
+## Who owns the port?
+
+Most of the time the owner is one of these:
+
+- The same dev server, still running from before. You closed the terminal, but the `node` process lives on.
+- A second project that uses the same default port.
+- A different program that happens to use 3000.
+
+### Find the process
+
+In PowerShell, ask Windows which process listens on the port:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000 -State Listen
+```
+
+The `OwningProcess` column holds the process ID. To see the name of the program in one go:
+
+```powershell
+Get-Process -Id (Get-NetTCPConnection -LocalPort 3000 -State Listen).OwningProcess
+```
+
+If you prefer the older tool, `netstat -ano` lists every connection. `-a` means all, `-n` shows numbers and `-o` adds the owning process ID.
+
+### Read before you kill
+
+Look at the name. If it is `node` and it is your own old dev server, it is safe to stop. If it is something you do not know, do not stop it yet. Search for the name first, or choose another port.
+
+### Stop it
+
+```powershell
+Stop-Process -Id 12345
+```
+
+Replace `12345` with your process ID. The old command-line way is `taskkill /pid 12345`. The `/f` flag forces the end, and `/t` also ends the processes it started.
+
+## The parent process problem
+
+Dev tools often start a child. For example, `npm run dev` starts `node`, which may start another process. If you stop only the child, the parent can start it again, and the port fills up again.
+
+That is why `taskkill /t` exists: it ends the process and any child processes started by it. Stop the whole tree, not just the last leaf.
+
+## The simplest fix: use another port
+
+You are not required to use 3000. Many frameworks read a `PORT` environment variable or have a `--port` option. The exact option depends on your tool, so check its documentation. If two projects fight for the same port, giving each its own port ends the fight for good.
+
+Your own Node code can also handle the error. The Node.js documentation shows a small pattern: listen for the server's `error` event, check `e.code === 'EADDRINUSE'`, and retry after a moment. It is for servers that restart quickly. It does not help if a different program owns the port for a long time.
+
+## Freeing the port with Devpit
+
+Devpit has a section for this: [Fix Stuck Ports & Apps](/docs/features/fix-stuck-ports).
+
+<Shot name="blog-ports-kill" />
+
+1. Open Devpit and choose **Fix Stuck Ports & Apps**.
+2. Choose **Kill a port** and type `3000`.
+3. Devpit shows you which process holds the port. You confirm, and the default answer is No.
+4. It stops the process, then waits up to two seconds to check that the port is really free. It tells you "Port 3000 is free" or "Port 3000 is still busy".
+
+The **Busy dev ports** view checks the common dev ports in one go: 3000 to 3010, 4200, 5000, 5173, 5174, 8000, 8080, 8081, 8888, 9000 and 19000 to 19006. You can change that list in Settings.
+
+If the process belongs to npm, pnpm, yarn or node, you can choose to stop the whole tree. That is the same idea as `taskkill /t` above.
+
+Some protections are built in, because a kill is hard to undo:
+
+- Devpit refuses PID 0 and 4, Windows services, and programs in the Windows System32 folder. It tells you why.
+- The exceptions are `cmd.exe`, `powershell.exe` and `conhost.exe`. They are shells that dev tools start all the time, so Devpit allows them.
+- Devpit itself never runs as administrator. If the process runs as administrator, Devpit says it needs admin. Then you close the program yourself or use an administrator terminal.
+
+## A quick checklist
+
+1. Read the error. `EADDRINUSE` plus a port means another process holds it.
+2. Find the owner with `Get-NetTCPConnection -LocalPort <port> -State Listen`.
+3. Check the name before you stop anything.
+4. Stop the whole process tree if a parent keeps restarting the child.
+5. Or pick another port.
+
+There is a full page for this error with all commands and sources: [EADDRINUSE: address already in use :::3000](/docs/troubleshooting/eaddrinuse-address-already-in-use-3000).
+
+## Sources
+
+- [Node.js: Common system errors (EADDRINUSE)](https://nodejs.org/api/errors.html#common-system-errors)
+- [Node.js: net.Server listen, default host and the `::` address, and handling EADDRINUSE](https://nodejs.org/api/net.html#serverlisten)
+- [Microsoft: Get-NetTCPConnection](https://learn.microsoft.com/powershell/module/nettcpip/get-nettcpconnection)
+- [Microsoft: Get-Process](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/get-process)
+- [Microsoft: Stop-Process](https://learn.microsoft.com/powershell/module/microsoft.powershell.management/stop-process)
+- [Microsoft: netstat](https://learn.microsoft.com/windows-server/administration/windows-commands/netstat)
+- [Microsoft: taskkill](https://learn.microsoft.com/windows-server/administration/windows-commands/taskkill)
+- [Devpit safety rules, rule 16](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md)

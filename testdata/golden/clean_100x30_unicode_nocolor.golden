@@ -1,5 +1,6 @@
  DEVPIT  vdev  ·  Free Up Disk Space                                                 node …   git …
-  Clean    Ports    Apps    Update    Network    Git    Settings                        tab ⇄ · 1–7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share               tab ⇄ · 1–8
 ─━━━━━━━────────────────────────────────────────────────────────────────────────────────────────────
 Pick what to look through. Nothing is deleted without a preview.
 
@@ -14,7 +15,6 @@ Pick what to look through. Nothing is deleted without a preview.
 
     Resume interrupted deletes
     Finish anything a stopped clean left behind
-
 
 
 

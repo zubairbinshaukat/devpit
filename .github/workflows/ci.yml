@@ -99,3 +99,27 @@ jobs:
 
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  # The docs site (web/docs-site, served at /docs) is built exactly the way
+  # Vercel builds it, then checked: links, meta tags, JSON-LD, sitemap, llms.txt.
+  # The Go job above already fails when the generated Command line page is stale.
+  docs:
+    name: Docs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/docs-site/package-lock.json
+
+      - name: Install
+        run: npm ci --prefix web/docs-site
+
+      - name: Build the site
+        run: node web/scripts/build.mjs
+
+      - name: Check the site
+        run: npm --prefix web/docs-site run check

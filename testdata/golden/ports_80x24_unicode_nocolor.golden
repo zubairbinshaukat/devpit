@@ -1,5 +1,6 @@
  DEVPIT  vdev  ·  Ports                                          node …   git …
-  Clean    Ports    Apps    Update    Network    Git    Settings    tab ⇄ · 1–7
+
+  Clean    Ports    Apps    Update    Network    Git    Settings    Share
 ──────────━━━━━━━───────────────────────────────────────────────────────────────
 Free a busy port or stop a stuck process.
 
@@ -11,7 +12,6 @@ Free a busy port or stop a stuck process.
 
     Node processes
     List and stop node, npm, pnpm or yarn
-
 
 
 

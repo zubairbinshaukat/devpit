@@ -1,0 +1,175 @@
+---
+title: Is Devpit safe? What it protects and what it sends
+description: How Devpit protects your files with previews, confirmations and a default of No, and exactly what anonymous usage stats send and how to turn them off.
+sidebar:
+  label: Safety and privacy
+  order: 11
+published: 2026-09-29
+related:
+  - features/free-up-disk-space
+  - features/settings
+  - getting-started
+faq:
+  - question: "Can Devpit delete something by accident?"
+    answer: "It is built so it cannot. Nothing is deleted without a preview and an explicit yes, the default answer is always No, and Careful items also need a typed word. Safe items are renamed before they are removed, and the other items go to the Recycle Bin."
+  - question: "Does Devpit collect my data?"
+    answer: "Not unless you turn usage stats on. They are off by default. If you turn them on, one small report of totals is sent after a clean-up that removed something. It never contains file names, paths, your user name or your machine name."
+  - question: "How do I make sure nothing is ever sent?"
+    answer: "Set the environment variable DEVPIT_NO_TELEMETRY=1 or DO_NOT_TRACK=1. Either one turns usage stats off whatever the setting says. Keep Usage stats off in Settings too."
+  - question: "Does Devpit connect to the internet at other times?"
+    answer: "Only for things you can see: a once-a-day check of GitHub for a new version, the public IP lookup when you open My IP addresses, the icon font download when you install it, and the package managers you run. The page lists each one."
+  - question: "Is Devpit code-signed?"
+    answer: "Not yet. Windows SmartScreen may warn about an unknown publisher. Releases have SHA256 checksums and a build attestation so you can check that a file is the one GitHub built."
+---
+
+Devpit deletes files, so the rules about deleting are strict.
+They are not settings and not advice.
+The code enforces them, and a test pins each one.
+
+## How deleting is protected
+
+1. **You see a preview first.** Nothing is deleted before you have seen the list and the sizes.
+2. **You must confirm.** Deleting only starts after you answer a question.
+3. **The default answer is No.** Pressing <kbd>Enter</kbd> on a fresh question answers No. There is no way to build a dialog that starts on Yes.
+4. **Careful items need a typed word.** You must type `DELETE` first. Pressing <kbd>y</kbd> is not enough.
+5. **You are told how to get it back.** Every confirmation says how, for example run `npm install`.
+
+### What is never pre-ticked
+
+- Careful items.
+- Projects you touched in the last 7 days.
+- Folders Devpit could not fully verify.
+- Cloud placeholder files (OneDrive, Dropbox). Devpit skips them and never downloads them.
+
+### What Devpit checks before it deletes
+
+- **The marker file.** A folder only counts as junk when its marker sits beside it: `package.json` for `node_modules`, `Cargo.toml` for `target`, a `.csproj` or `.sln` for `bin` and `obj`. Devpit checks again right before it deletes.
+- **Links are never followed.** Junctions, symlinks and other reparse points are treated as dead ends. Following them is the bug that made other cleaners delete real source code.
+- **Places that are always refused:** drive roots, anything inside the Windows folder, network paths, and every folder on your never-touch list.
+- **Devpit's own program file** is always refused.
+- **Current app versions** are never removed. For Scoop, Devpit leaves the version that `current` points to, and never touches `persist`.
+- **Docker volumes** are never touched. Devpit does not run any Docker command that includes volumes, in any spelling.
+
+### How deleting works
+
+- **Safe items** are first renamed to a temporary name in the same folder. The rename is instant. It shows straight away that the space is freed, and it makes a crash harmless: you can never be left with a half-emptied folder that looks like a working one. A small marker file inside says which folder it was. Devpit finishes the removal later, from **Resume interrupted deletes**, and only for folders with that marker.
+- **Review and Careful items** go to the **Recycle Bin**, so you can restore them.
+
+### Stopping is safe
+
+Press <kbd>Esc</kbd> during a delete.
+Devpit finishes the item it is on and shows what was done.
+Finished deletions stay done.
+Nothing is left half removed.
+
+### Nothing fails quietly
+
+A locked folder, a folder you cannot read, a cancelled scan: each one is counted, named and explained on the summary, with what to do about it.
+For example: "Couldn't delete api\node_modules — it's open in Code.exe. Close it and press R to retry."
+
+## Other protections
+
+- **Processes.** Devpit never stops PID 0 or 4, Windows services, or other programs in `C:\Windows\System32`. The shells `cmd`, PowerShell and `conhost` are the one exception, because dev tools start them all the time. See [Fix stuck ports and apps](/docs/features/fix-stuck-ports).
+- **SSH keys.** An existing key is never replaced unless you type `OVERWRITE`. See [Git and SSH setup](/docs/features/git-and-ssh).
+- **Admin rights.** The app you type into never runs as administrator. Jobs that need it, such as Chocolatey updates, run in a separate small helper that asks Windows for permission once. The helper only accepts a short list of jobs, and only deletes inside a short list of Windows temp folders.
+- **Settings file.** A damaged file is renamed and kept, never silently thrown away. A file from a newer Devpit is refused, not half applied. Saving is done in a way that never leaves a half-written file.
+
+## What Devpit sends
+
+Short version: **usage stats are off until you turn them on.**
+
+Everything else runs on your PC: the scan, the sizes, the deleting, the port list and your settings.
+Devpit reads and writes two folders, and nothing in them is uploaded:
+
+| What | Where |
+| --- | --- |
+| Settings | `%APPDATA%\devpit\config.toml` |
+| Caches and logs | `%LOCALAPPDATA%\devpit\` |
+
+### Usage stats (off by default)
+
+On first run Devpit asks, with the answer already on No:
+
+> Help show how much space Devpit saves? Only totals are sent — no file names or paths.
+
+You can change your mind in **Settings**, then **Usage stats**.
+
+If you turn it on, Devpit sends **one small report after a clean-up that removed something**. It is sent in the background to `https://devpit.zubyr.dev/api/report`. This is the whole report:
+
+| Field | What it holds |
+| --- | --- |
+| `v` | The version of the report format (1) |
+| `installId` | A random ID made on your PC. It is not made from your machine, user or network |
+| `version` | The Devpit version, for example `0.2.0` |
+| `os` | The operating system name, `windows` |
+| `osVersion` | The Windows version number, for example `10.0.26100` |
+| `freedBytes` | How many bytes were freed |
+| `items` | How many items were removed |
+| `types` | How many items of each kind were removed, by the short name of the rule that found them, for example `node_modules`. A name that is not a short plain name is dropped, not sent. At most 32 kinds |
+
+**What is never sent:**
+
+- File, folder or project names
+- Any path
+- Your user name, machine name or domain
+- The contents of any file
+- The apps or tools you have installed
+- Anything at all when a scan finds nothing, or when you cancel
+
+**How it behaves.** A report never slows you down. If you are offline or the server is slow, it is dropped quietly. It is not retried and not saved to disk. The server rejects impossible numbers. It keeps a hashed form of your IP address for at most one hour, only to limit how many reports one connection can send.
+
+The totals are shown on the Devpit website as public counters: space freed, items by type and how many people use it.
+
+### Turn stats off for good
+
+Any one of these:
+
+- Leave **Usage stats** off in Settings.
+- Set `DEVPIT_NO_TELEMETRY=1` in your environment.
+- Set `DO_NOT_TRACK=1` in your environment.
+
+The two variables always win, even if the setting is on.
+Devpit never asks in a run without a screen, and never turns stats on by itself.
+
+```powershell
+# for this terminal only
+$env:DEVPIT_NO_TELEMETRY = "1"
+
+# for your user account, from now on
+[Environment]::SetEnvironmentVariable("DEVPIT_NO_TELEMETRY", "1", "User")
+```
+
+### Every other connection Devpit makes
+
+These are not usage stats. Each one happens only for the reason given.
+
+| When | Where to | What it is for |
+| --- | --- | --- |
+| Once a day, if the update check is on | `api.github.com` (public releases of Devpit) | To see if a newer version exists. Nothing but the web request is sent. The answer is cached on your PC. Turn it off in Settings or with `DEVPIT_NO_UPDATE_CHECK=1`. A build made from source never checks |
+| You open **My IP addresses** | `api.ipify.org`, then `ifconfig.me` | To show your public IP address |
+| You install the icon font | `github.com` (a fixed Nerd Fonts release) | To download the icon font. The file is checked against a fixed SHA256 before it is used |
+| You run the installer or update | `github.com` | To download the release and its checksums |
+| You use Install or Update | The sources of Scoop, winget, Chocolatey or npm | These tools contact their own servers. Devpit only runs their commands |
+| You ping a host | The host you typed | That is what ping does |
+
+Devpit never downloads or replaces itself.
+When a newer version exists it only tells you the command to run.
+
+## Check what you download
+
+- The install script is short and readable at [`devpit.zubyr.dev/install`](/install).
+- It checks the SHA256 of the zip against the `checksums.txt` that comes with the release.
+- Releases are built on GitHub Actions and carry a build attestation and a software bill of materials.
+- Devpit is **not code-signed yet**, so Windows SmartScreen may warn about an unknown publisher. Devpit is never packed with UPX, because packed programs trip antivirus scanners.
+
+To check a zip yourself, see [Getting started](/docs/getting-started#check-your-download-optional).
+
+## Read the rules
+
+The full table of safety rules, and the test that pins each one, is in the repository:
+
+- [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md)
+- [Privacy policy](https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md)
+- [Security policy](https://github.com/zubairbinshaukat/devpit/blob/main/SECURITY.md)
+
+If what Devpit collects ever changes, the privacy policy changes in the same release, the release notes say so, and anyone who had opted in is asked again.

@@ -175,6 +175,7 @@ var sections = []struct {
 	{"update", 3, "updates available"},
 	{"network", 4, "IP, connectivity and DNS helpers"},
 	{"gitssh", 5, "Get a fresh machine ready to push code"},
+	{"share", 7, "Move big folders between two PCs on the same Wi-Fi"},
 }
 
 // TestScreenGoldens captures the first frame of every screen the main menu

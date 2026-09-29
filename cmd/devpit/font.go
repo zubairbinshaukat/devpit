@@ -73,7 +73,9 @@ func newFontCmdWith(env fontEnv) *cobra.Command {
 	install := &cobra.Command{
 		Use:   "install",
 		Short: "Install Symbols Nerd Font Mono for the current user",
-		Args:  cobra.NoArgs,
+		Example: "devpit font install\n" +
+			"devpit font install --quiet",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			w := cmd.OutOrStdout()
 			if !env.windows {
@@ -97,9 +99,10 @@ func newFontCmdWith(env fontEnv) *cobra.Command {
 	install.Flags().BoolVarP(&quiet, "quiet", "q", false, "print only the one-line result")
 
 	remove := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove the icon font and undo the terminal patch",
-		Args:  cobra.NoArgs,
+		Use:     "remove",
+		Short:   "Remove the icon font and undo the terminal patch",
+		Example: "devpit font remove",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			w := cmd.OutOrStdout()
 			if !env.windows {
@@ -115,9 +118,10 @@ func newFontCmdWith(env fontEnv) *cobra.Command {
 	}
 
 	status := &cobra.Command{
-		Use:   "status",
-		Short: "Report whether the icon font is installed",
-		Args:  cobra.NoArgs,
+		Use:     "status",
+		Short:   "Report whether the icon font is installed",
+		Example: "devpit font status",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			w := cmd.OutOrStdout()
 			if !env.windows {

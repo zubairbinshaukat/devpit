@@ -15,6 +15,11 @@
 // blocks. Each app is one live row while it installs (a spinner, a bar when
 // the manager reports progress, the last thing it said), and the raw output
 // is kept behind the l key rather than scrolled past the user.
+//
+// While an app installs, s (pressed twice, to confirm) skips it: only that
+// app's process tree is stopped, the run goes on, and the summary says how to
+// install it later. An app that says nothing for [activity.StuckAfter] gets a
+// hint on its row to do exactly that.
 package install
 
 import (
@@ -103,6 +108,10 @@ type outcome struct {
 	SkipReason string
 	ExitCode   int
 	LastLines  []string
+	// Next is what to do about an app that was skipped, in plain words.
+	Next string
+	// Retry is the command that installs the app by hand.
+	Retry string
 }
 
 // row is one line of the multiselect list: either a category header or one
@@ -126,6 +135,7 @@ type keyMap struct {
 	Toggle key.Binding
 	Select key.Binding
 	Stop   key.Binding
+	Skip   key.Binding
 	Log    key.Binding
 }
 
@@ -136,6 +146,7 @@ func defaultKeys() keyMap {
 		Toggle: key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle")),
 		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install")),
 		Stop:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "stop")),
+		Skip:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "skip app")),
 		Log:    key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "log")),
 	}
 }
@@ -152,11 +163,64 @@ type runHandle struct {
 
 	mu     sync.Mutex
 	client elevatedClient
+	// job is the index of the app in flight, or -1, and cancelJob stops
+	// just that app's process tree. skipped is set when the stop came from
+	// [runHandle.skip] rather than from the whole run being cancelled.
+	job       int
+	cancelJob context.CancelFunc
+	skipped   bool
 }
 
 // newRunHandle returns a handle wired to cancel.
 func newRunHandle(cancel context.CancelFunc) *runHandle {
-	return &runHandle{cancel: cancel}
+	return &runHandle{cancel: cancel, job: -1}
+}
+
+// beginJob records the app now installing and the func that stops only it.
+func (h *runHandle) beginJob(i int, cancel context.CancelFunc) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	h.job, h.cancelJob, h.skipped = i, cancel, false
+	h.mu.Unlock()
+}
+
+// endJob forgets the app in flight, releases its context, and reports
+// whether the user skipped it.
+func (h *runHandle) endJob() (skipped bool) {
+	if h == nil {
+		return false
+	}
+	h.mu.Lock()
+	cancel, skipped := h.cancelJob, h.skipped
+	h.job, h.cancelJob, h.skipped = -1, nil, false
+	h.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return skipped
+}
+
+// skip stops app i, and only app i, if it is the one in flight, and reports
+// whether there was anything to stop. It never blocks: it cancels the app's
+// context, which kills its process tree (or, for an elevated install, makes
+// the worker cancel that one command).
+func (h *runHandle) skip(i int) bool {
+	if h == nil {
+		return false
+	}
+	h.mu.Lock()
+	cancel := h.cancelJob
+	ok := h.job == i && cancel != nil
+	if ok {
+		h.skipped = true
+	}
+	h.mu.Unlock()
+	if ok {
+		cancel()
+	}
+	return ok
 }
 
 // setClient records the elevated worker client once a run connects to one,
@@ -226,6 +290,10 @@ func WithLaunchElevatedFunc(f LaunchElevatedFunc) Option {
 	return func(m *Model) { m.launchElevatedFn = f }
 }
 
+// WithClock overrides the clock used for the skip confirmation and the
+// stuck hint, so tests can step through both.
+func WithClock(now func() time.Time) Option { return func(m *Model) { m.now = now } }
+
 // Model implements uictx.Screen, checked here so a signature change is a
 // compile error in this package rather than a nil interface at the router.
 var (
@@ -242,6 +310,7 @@ type Model struct {
 	isElevatedFn     IsElevatedFunc
 	loadCatalogFn    LoadCatalogFunc
 	launchElevatedFn LaunchElevatedFunc
+	now              func() time.Time
 
 	keys keyMap
 
@@ -268,6 +337,11 @@ type Model struct {
 	jobs    []activity.Row
 	frame   int
 	showLog bool
+
+	// gate is the press-twice rule of the skip key; lastOut is when the app
+	// in flight last said anything, for the stuck hint.
+	gate    activity.SkipGate
+	lastOut time.Time
 
 	summary summary.Model
 }
@@ -298,6 +372,7 @@ func New(opts ...Option) Model {
 		// launchElevatedFn is only reached for a manager that needs
 		// elevation; every other install never goes near the worker.
 		launchElevatedFn: launchWorker,
+		now:              time.Now,
 		keys:             defaultKeys(),
 		state:            stateDetecting,
 	}
@@ -336,12 +411,22 @@ func (m Model) ShortHelp() []key.Binding {
 	case stateConfirm:
 		return m.confirm.Keys.ShortHelp()
 	case stateRunning:
-		return []key.Binding{m.keys.Stop, m.keys.Log}
+		return []key.Binding{m.skipBinding(), m.keys.Stop, m.keys.Log}
 	case stateSummary:
 		return append(m.summary.Keys.ShortHelp(), m.keys.Log)
 	default:
 		return nil
 	}
+}
+
+// skipBinding is the skip key's hint, which asks for the second press once
+// the first has been made.
+func (m Model) skipBinding() key.Binding {
+	b := m.keys.Skip
+	if m.gate.Armed(m.runIdx, m.now()) {
+		b.SetHelp("s", "press s again to skip")
+	}
+	return b
 }
 
 // FullHelp implements uictx.Screen.
@@ -352,7 +437,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	case stateConfirm:
 		return m.confirm.Keys.FullHelp()
 	case stateRunning:
-		return [][]key.Binding{{m.keys.Stop}}
+		return [][]key.Binding{{m.keys.Skip, m.keys.Stop, m.keys.Log}}
 	case stateSummary:
 		return m.summary.Keys.FullHelp()
 	default:
@@ -432,15 +517,44 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 // summary card, same as Ctrl+C via [Model.Stop].
 func (m Model) updateRunning(msg tea.Msg) (uictx.Screen, tea.Cmd) {
 	km, ok := msg.(tea.KeyPressMsg)
-	if ok && key.Matches(km, m.keys.Log) {
+	if !ok {
+		return m, nil
+	}
+	if !key.Matches(km, m.keys.Skip) {
+		// Any other key means the user changed their mind about skipping.
+		m.gate = m.gate.Disarm()
+	}
+	switch {
+	case key.Matches(km, m.keys.Log):
 		m.showLog = !m.showLog
-		return m, nil
+	case key.Matches(km, m.keys.Skip):
+		return m.onSkipKey()
+	case key.Matches(km, m.keys.Stop):
+		m.run.stop()
+		return m, uictx.Status("warning", "Stopping: the app in flight is cut short, the rest are skipped…")
 	}
-	if !ok || !key.Matches(km, m.keys.Stop) {
-		return m, nil
+	return m, nil
+}
+
+// onSkipKey is the skip key. The first press arms the gate and says so; the
+// second press, inside [activity.SkipWindow], stops the app in flight and
+// that app only. Skipping cuts an installer off partway, so it is never one
+// keystroke.
+func (m Model) onSkipKey() (uictx.Screen, tea.Cmd) {
+	if m.runIdx >= len(m.jobs) || m.jobs[m.runIdx].State != activity.Running {
+		return m, uictx.Status("warning", "Nothing is installing right now.")
 	}
-	m.run.stop()
-	return m, uictx.Status("warning", "Stopping: the app in flight is cut short, the rest are skipped…")
+	name := m.jobs[m.runIdx].Label
+	var fire bool
+	m.gate, fire = m.gate.Press(m.runIdx, m.now())
+	if !fire {
+		return m, uictx.Status("warning", "Press s again to skip "+name+". Its installer is stopped partway.")
+	}
+	if !m.run.skip(m.runIdx) {
+		// The install ended between the screen's last update and the key.
+		return m, uictx.Status("info", name+" has already finished.")
+	}
+	return m, uictx.Status("warning", "Skipping "+name+"…")
 }
 
 // onDetected resolves the preferred manager, builds the app rows and moves
@@ -554,9 +668,10 @@ func (m Model) onAnswered(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 	m.outLines = nil
 	m.runIdx = 0
 	m.runTotal = len(m.pendingApps)
-	m.runStart = time.Now()
+	m.runStart = m.now()
 	m.events = make(chan runEvent, 256)
 	m.showLog = false
+	m.gate = activity.SkipGate{}
 	m.jobs = make([]activity.Row, len(m.pendingApps))
 	for i, app := range m.pendingApps {
 		m.jobs[i] = activity.Row{Label: app.Name, State: activity.Queued, Percent: -1}
@@ -564,6 +679,7 @@ func (m Model) onAnswered(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 	if len(m.jobs) > 0 {
 		m.jobs[0].State = activity.Running
 	}
+	m.lastOut = m.now()
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	m.run = newRunHandle(cancel)
@@ -595,13 +711,18 @@ func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
 			m.runIdx++
 			if m.runIdx < len(m.jobs) && m.jobs[m.runIdx].State == activity.Queued {
 				m.jobs[m.runIdx].State = activity.Running
+				m.lastOut = m.now()
 			}
 		case ev.line != "":
 			m.noteLine(ev.line)
 		}
 	}
 	if m.runIdx < len(m.jobs) && m.jobs[m.runIdx].State == activity.Running {
-		m.jobs[m.runIdx].Elapsed = time.Since(m.runStart) - m.doneTime()
+		m.jobs[m.runIdx].Elapsed = m.now().Sub(m.runStart) - m.doneTime()
+		m.jobs[m.runIdx].Stuck = 0
+		if silent := m.now().Sub(m.lastOut); silent >= activity.StuckAfter {
+			m.jobs[m.runIdx].Stuck = silent
+		}
 	}
 	if finished {
 		// Anything the run never reported on was cut short by a Stop.
@@ -610,7 +731,7 @@ func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
 				m.jobs[i].State, m.jobs[i].Detail, m.jobs[i].Percent = activity.Skipped, "cancelled", -1
 			}
 		}
-		m.runElapse = time.Since(m.runStart)
+		m.runElapse = m.now().Sub(m.runStart)
 		m.state = stateSummary
 		m.summary = summary.New(m.buildResult())
 		m.run = nil
@@ -626,6 +747,7 @@ func (m *Model) noteLine(line string) {
 	if line == "" {
 		return
 	}
+	m.lastOut = m.now()
 	if m.runIdx < len(m.jobs) {
 		// A progress redraw moves the bar and nothing else: it is not
 		// worth a log line, and a fast one would push the real output out.
@@ -647,21 +769,27 @@ func (m *Model) finishJob(i int, o outcome) {
 		return
 	}
 	r := &m.jobs[i]
-	r.Percent = -1
-	r.Elapsed = max(0, time.Since(m.runStart)-m.doneTime())
+	r.Percent, r.Stuck, r.Next = -1, 0, o.Next
+	r.Elapsed = max(0, m.now().Sub(m.runStart)-m.doneTime())
 	switch {
 	case o.Skipped || o.SkipReason == "cancelled":
 		r.State, r.Detail = activity.Skipped, o.SkipReason
 	case o.OK:
-		v := managers.Explain(m.manager.Name(), o.ExitCode, o.LastLines)
+		v := managers.ExplainApp(m.manager.Name(), r.Label, o.ExitCode, o.LastLines)
 		r.State, r.Detail = activity.Done, ""
 		if v.Kind == managers.VerdictRestart {
-			r.State, r.Detail = activity.Warn, v.Text
+			r.State, r.Detail, r.Next = activity.Warn, v.Text, v.Next
 		}
 	default:
-		v := managers.Explain(m.manager.Name(), o.ExitCode, o.LastLines)
+		v := managers.ExplainApp(m.manager.Name(), r.Label, o.ExitCode, o.LastLines)
 		r.State = activity.Failed
 		r.Detail = v.Text
+		r.Next = v.Next
+		if v.Kind == managers.VerdictNeedsAdmin {
+			// The Update screen retries these as administrator; here the
+			// install is left for the user to run from an admin terminal.
+			r.Next = "Open Windows Terminal as administrator and run: " + o.Retry
+		}
 		if v.Kind == managers.VerdictOK {
 			// The command never reported an exit code (the admin helper
 			// failed to start, or died): a zero there means "no code",
@@ -851,21 +979,33 @@ func runInstallSteps(ctx context.Context, runStepFn RunStepFunc, launchElevatedF
 		}
 		id := managerAppID(app, manager.Name())
 		argv := manager.InstallCmd(id)
-		res := runStepFn(ctx, argv, tools.DefaultStepTimeout, func(line string) {
+		retry := managers.RetryFor(manager, id, true, false).String()
+		jobCtx, cancelJob := context.WithCancel(ctx)
+		handle.beginJob(i, cancelJob)
+		res := runStepFn(jobCtx, argv, tools.DefaultStepTimeout, func(line string) {
 			sendEvent(ctx, events, runEvent{line: line})
 		})
-		if ctx.Err() != nil {
+		skipped := handle.endJob()
+		// An install that finished cleanly counts, even when a skip or Stop
+		// came in the same instant: RunStepLines never reports OK for a
+		// command it had to stop. The loop's own check then cancels the rest.
+		if ctx.Err() != nil && !res.OK {
 			sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{
 				Name: app.Name, SkipReason: "cancelled", LastLines: res.LastLines,
 			}})
 			cancelRemainingApps(ctx, events, apps[i+1:])
 			break
 		}
+		if skipped && !res.OK {
+			sendEvent(ctx, events, runEvent{stepDone: true, outcome: skippedOutcome(app.Name, retry)})
+			continue
+		}
 		sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{
 			Name:      app.Name,
 			OK:        res.OK,
 			ExitCode:  res.ExitCode,
 			LastLines: res.LastLines,
+			Retry:     retry,
 		}})
 	}
 	sendEvent(ctx, events, runEvent{allDone: true})
@@ -912,12 +1052,19 @@ func runElevatedInstalls(ctx context.Context, launchElevatedFn LaunchElevatedFun
 		}
 		id := managerAppID(app, manager.Name())
 		argv := manager.InstallCmd(id)
+		retry := managers.RetryFor(manager, id, true, false).String()
 		var lastLines []string
-		code, execErr := client.Exec(ctx, argv, tools.DefaultStepTimeout, func(_, text string) {
+		jobCtx, cancelJob := context.WithCancel(ctx)
+		handle.beginJob(i, cancelJob)
+		code, execErr := client.Exec(jobCtx, argv, tools.DefaultStepTimeout, func(_, text string) {
 			lastLines = append(lastLines, text)
 			sendEvent(ctx, events, runEvent{line: text})
 		})
-		if ctx.Err() != nil {
+		if skipped := handle.endJob(); skipped && ctx.Err() == nil && (execErr != nil || code != 0) {
+			sendEvent(ctx, events, runEvent{stepDone: true, outcome: skippedOutcome(app.Name, retry)})
+			continue
+		}
+		if ctx.Err() != nil && (execErr != nil || code != 0) {
 			lines := lastLines
 			var died *elevate.WorkerDiedError
 			if errors.As(execErr, &died) {
@@ -936,12 +1083,18 @@ func runElevatedInstalls(ctx context.Context, launchElevatedFn LaunchElevatedFun
 				lines = died.LastLines
 			}
 			sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{
-				Name: app.Name, ExitCode: code, LastLines: lines,
+				Name: app.Name, ExitCode: code, LastLines: lines, Retry: retry,
 			}})
 			continue
 		}
 		sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{Name: app.Name, OK: true, ExitCode: code}})
 	}
+}
+
+// skippedOutcome is the outcome of an app the user skipped: not an error,
+// with the command to install it later.
+func skippedOutcome(name, retry string) outcome {
+	return outcome{Name: name, Skipped: true, SkipReason: "skipped by you", Next: "To install it later, run: " + retry}
 }
 
 // cancelRemainingApps marks every app in apps "cancelled" without running it.
@@ -1071,7 +1224,7 @@ func (m Model) renderRow(ctx uictx.Context, r row, atCursor bool) string {
 // or the raw log when asked for.
 func (m Model) viewRunning(ctx uictx.Context) string {
 	var b strings.Builder
-	b.WriteString(activity.Header(ctx, "Installing", m.runIdx, m.runTotal, "via "+m.manager.Name(), time.Since(m.runStart), ctx.Width))
+	b.WriteString(activity.Header(ctx, "Installing", m.runIdx, m.runTotal, "via "+m.manager.Name(), m.now().Sub(m.runStart), ctx.Width))
 	b.WriteString("\n\n")
 	b.WriteString(m.runBody(ctx, ctx.BodyHeight-3))
 	return b.String()
@@ -1090,13 +1243,31 @@ func (m Model) runBody(ctx uictx.Context, height int) string {
 	return activity.View(ctx, m.jobs, m.frame, ctx.Width, height)
 }
 
+// minSummaryRows is how many finished rows a summary keeps on screen however
+// many next steps there are to list under them.
+const minSummaryRows = 4
+
 // viewSummary is the done box over the finished rows.
 func (m Model) viewSummary(ctx uictx.Context) string {
 	var b strings.Builder
 	b.WriteString(activity.DoneBox(ctx, "Installed", activity.Count(m.jobs), m.runElapse, ctx.Width))
 	b.WriteString("\n\n")
 	// Box (3 rows), a blank line, the rows, a blank line and the hint.
-	b.WriteString(m.runBody(ctx, ctx.BodyHeight-6))
+	// The next steps get what the rows leave over, cut short if need be.
+	height := ctx.BodyHeight - 6
+	next, nextLines := "", 0
+	if !m.showLog {
+		next, nextLines = activity.NextSteps(ctx, m.jobs, ctx.Width)
+		if nextLines > 0 {
+			next, nextLines = activity.FitNextSteps(ctx, next, nextLines, height-min(len(m.jobs), minSummaryRows)-1)
+			height -= nextLines + 1
+		}
+	}
+	b.WriteString(m.runBody(ctx, max(1, height)))
+	if nextLines > 0 {
+		b.WriteString("\n\n")
+		b.WriteString(next)
+	}
 	b.WriteString("\n\n")
 	b.WriteString(ctx.KeyHint("enter", "done") + "   " + ctx.KeyHint("l", "full log"))
 	return b.String()

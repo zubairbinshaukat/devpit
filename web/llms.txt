@@ -1,15 +1,14 @@
 # Devpit
 
-> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and sets up Git and SSH.
+> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, sets up Git and SSH, and copies big folders between two Windows PCs on the same network.
 
-Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit and the website is https://devpit.zubyr.dev.
+Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is https://devpit.zubyr.dev and the documentation is at https://devpit.zubyr.dev/docs.
 
 ## Install
 
-- PowerShell one-liner: `irm https://devpit.zubyr.dev/install | iex` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH)
+- PowerShell one-liner: `irm https://devpit.zubyr.dev/install | iex` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH, installs the icon font; pass -NoFont to skip the font)
 - Scoop: `scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket` then `scoop install devpit`
 - Manual: download the zip for x64 or ARM64 from https://github.com/zubairbinshaukat/devpit/releases/latest
-- Or download the executable from https://github.com/zubairbinshaukat/devpit/releases/latest
 - Then run `devpit`
 
 ## What it does
@@ -20,6 +19,7 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 - Update Everything: runs winget, Scoop, npm and Chocolatey updates in one pass, each step can be unticked
 - Network Tools: local and public IP, ping, DNS flush
 - Git & SSH Setup: git identity, SSH key generation (never overwrites an existing key without a typed confirmation), copy public key
+- Share Files: copies a folder from one Windows PC to another on the same Wi-Fi or wired network. The sharing PC gets a read-only SMB share and a temporary login after one admin prompt (never the user's own password), shown on a card with the IP, share name, user name and password plus `net use` and `robocopy` lines for a PC without Devpit. The receiving PC checks the total size and free space first, shows live progress, retries when the network blips and resumes an interrupted copy. Stop sharing and quitting Devpit remove everything it set up; after a crash, the next launch offers the clean-up, and `devpit share cleanup` does it from the command line
 - Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
 
 ## Safety rules (enforced in code and tests)
@@ -32,7 +32,7 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 - Drive roots, the Windows directory, network paths and the user's never-touch list are refused
 - Safe items are renamed to a tombstone before removal so an interrupted delete can be finished later; Review and Careful items go to the Recycle Bin
 - Docker volumes are never touched
-- Nothing leaves the machine unless usage stats are turned on; DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
+- Usage stats are off by default and only send totals (never paths or names); DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
 
 ## Author
 
@@ -43,9 +43,82 @@ Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
 - LinkedIn: https://www.linkedin.com/in/zubairbinshaukat
 - X: https://x.com/zubairbinshaukt
 
+## Documentation
+
+- [Get started with Devpit on Windows](https://devpit.zubyr.dev/docs/getting-started): Install Devpit with one PowerShell line, Scoop or a zip file, then take the first-launch tour and set up the icon font.
+- [Devpit documentation](https://devpit.zubyr.dev/docs): Learn how to install Devpit, the free Windows terminal app that frees disk space, fixes stuck ports and updates your developer tools from one menu.
+
+## Features
+
+- [All features](https://devpit.zubyr.dev/docs/features): Everything Devpit can do on Windows, one short guide per feature, from freeing disk space to sharing big folders.
+- [Fix "port 3000 is already in use" on Windows](https://devpit.zubyr.dev/docs/features/fix-stuck-ports): Free a busy port such as 3000 or 5173 in two keystrokes, list busy dev ports, and stop stuck Node processes safely with Devpit.
+- [Free up disk space and delete node_modules on Windows](https://devpit.zubyr.dev/docs/features/free-up-disk-space): Find and delete node_modules, build folders, caches and other developer junk safely, with a preview, risk labels and a confirmation before anything goes.
+- [Set up your Git identity and an SSH key on Windows](https://devpit.zubyr.dev/docs/features/git-and-ssh): Set your Git name and email, generate an ed25519 SSH key that never overwrites an old one by accident, and copy the public key for GitHub.
+- [Install developer apps on Windows with Devpit](https://devpit.zubyr.dev/docs/features/install-developer-apps): Pick developer tools from a short list and let Devpit install them through Scoop, winget or Chocolatey, one at a time, with live progress.
+- [Check your IP, ping a host and flush DNS on Windows](https://devpit.zubyr.dev/docs/features/network-tools): See your local and public IP address, ping a host to test your connection, and clear the Windows DNS cache from one Devpit menu.
+- [Devpit settings, themes, icons and the never-touch list](https://devpit.zubyr.dev/docs/features/settings): Every Devpit setting explained, from themes and icons to usage stats, the never-touch list, dev ports and the icon font, and where the settings file lives.
+- [Copy big folders between two PCs on your network](https://devpit.zubyr.dev/docs/features/share-files): Move large folders such as a game between two Windows PCs on the same Wi-Fi or office network, with live progress, automatic retry and resume.
+- [Update all your Windows apps and dev tools at once](https://devpit.zubyr.dev/docs/features/update-everything): Update your apps and developer tools through winget, Scoop, Chocolatey and npm in one pass, choose what to skip, and see plain reasons when one fails.
+
+## Reference
+
+- [Command line reference](https://devpit.zubyr.dev/docs/command-line): Every devpit command and flag, generated from the app itself. Open the app, install the icon font, check the version and more from a terminal.
+- [Devpit keyboard shortcuts and mouse controls](https://devpit.zubyr.dev/docs/keyboard-and-mouse): Every Devpit shortcut in one place, from the main menu keys to the results table, plus what clicking, scrolling and hovering do with the mouse.
+- [Is Devpit safe? What it protects and what it sends](https://devpit.zubyr.dev/docs/safety-and-privacy): How Devpit protects your files with previews, confirmations and a default of No, and exactly what anonymous usage stats send and how to turn them off.
+- [What's new in Devpit](https://devpit.zubyr.dev/docs/whats-new): What changed in each Devpit release, from new screens to fixes, taken straight from the GitHub release notes.
+
+## Troubleshooting
+
+- [Troubleshooting](https://devpit.zubyr.dev/docs/troubleshooting): Plain-words fixes for real Devpit and Windows problems, from winget error codes to stuck ports and icons that show as boxes.
+- [EADDRINUSE: address already in use :::3000](https://devpit.zubyr.dev/docs/troubleshooting/eaddrinuse-address-already-in-use-3000): Fix Node's EADDRINUSE :::3000 error on Windows: find the process that holds port 3000, stop it, and see how Devpit frees a stuck port in two keys.
+- [EPERM: operation not permitted, rmdir (node_modules)](https://devpit.zubyr.dev/docs/troubleshooting/eperm-operation-not-permitted-rmdir): Fix EPERM and EBUSY errors when deleting node_modules on Windows: find the program that holds the files, close it, and delete the folder safely.
+- [Flush the DNS cache on Windows: ipconfig /flushdns](https://devpit.zubyr.dev/docs/troubleshooting/flush-dns-ipconfig-flushdns): What ipconfig /flushdns and Clear-DnsClientCache do, when clearing the Windows DNS cache helps, and how to do it in one step from Devpit's Network Tools.
+- [git: Please tell me who you are](https://devpit.zubyr.dev/docs/troubleshooting/git-please-tell-me-who-you-are): Git says 'Please tell me who you are' when user.name and user.email are not set. Set them with git config --global, or use Devpit's Git & SSH Setup.
+- [You can't access this shared folder because your organization's security policies block unauthenticated guest access](https://devpit.zubyr.dev/docs/troubleshooting/guest-access-blocked-windows-11-24h2): Fix the Windows error that says security policies block unauthenticated guest access to a shared folder, with the safer options on Windows 11 24H2.
+- [MSI error 1603: a fatal error occurred during installation](https://devpit.zubyr.dev/docs/troubleshooting/msi-error-1603-fatal-error-during-installation): Windows Installer error 1603 is a general failure. Learn how to read the MSI log with msiexec /L*V, see how winget reports it, and how Devpit shows the failure.
+- [MSI error 1618: another installation is already in progress](https://devpit.zubyr.dev/docs/troubleshooting/msi-error-1618-another-installation-in-progress): Windows Installer error 1618 means another install holds the installer lock. Wait for it, retry, and see how winget and Devpit report this state.
+- [Nerd Font icons show as boxes in Windows Terminal](https://devpit.zubyr.dev/docs/troubleshooting/nerd-font-icons-show-as-boxes-windows-terminal): Icons look like empty boxes in Windows Terminal? Add a Nerd Font symbols fallback to font.face, or run devpit font install to do it for you in one step.
+- [Network discovery is turned off. Network computers and devices are not visible](https://devpit.zubyr.dev/docs/troubleshooting/network-discovery-is-turned-off): Fix 'Network discovery is turned off' on Windows 11, why it keeps turning off, and how to open a shared PC by its IP address without it.
+- [npm ERR! code EACCES: permission denied](https://devpit.zubyr.dev/docs/troubleshooting/npm-err-code-eacces): Fix npm ERR! code EACCES on Windows: check the npm prefix folder, change it to a folder you own, and see how Devpit shows a failed global npm update.
+- [Permission denied (publickey)](https://devpit.zubyr.dev/docs/troubleshooting/permission-denied-publickey): Fix git and SSH 'Permission denied (publickey)' on Windows: use the git user, check that a key is loaded, and add the public key to GitHub.
+- [robocopy exit codes: what 0, 1, 2, 3, 8 and 16 mean](https://devpit.zubyr.dev/docs/troubleshooting/robocopy-exit-codes): Robocopy exit codes are a bitmask. Codes 0 to 7 mean no failure, 8 and above mean a failure. See the full table for 1, 2, 4, 8 and 16, and how to read them.
+- [Scoop: "is held to version" and "still running"](https://devpit.zubyr.dev/docs/troubleshooting/scoop-is-held-to-version-still-running): Why scoop update skips an app: it is held with scoop hold, or it is still running. See the exact messages, how to fix each, and how Devpit shows them.
+- [The source file name(s) are larger than is supported by the file system](https://devpit.zubyr.dev/docs/troubleshooting/source-file-names-are-larger-than-supported): Windows can't delete or move a folder because the path is too long. Learn about the 260 character limit, LongPathsEnabled, rd /s /q and the robocopy /MIR trick.
+- [The specified network name is no longer available (error 64)](https://devpit.zubyr.dev/docs/troubleshooting/specified-network-name-no-longer-available): A big copy from a shared folder stopped with 'The specified network name is no longer available' (error 64, 0x80070040). Why it happens and how to resume.
+- [System error 1219: multiple connections by the same user](https://devpit.zubyr.dev/docs/troubleshooting/system-error-1219-multiple-connections): Fix Windows system error 1219, 'Multiple connections to a server or shared resource by the same user', by disconnecting old connections with net use.
+- [System error 1326: user name or password is incorrect](https://devpit.zubyr.dev/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect): Fix Windows system error 1326, 'The user name or password is incorrect', when you open a shared folder: check the account on the sharing PC and sign in again.
+- [System error 53: The network path was not found](https://devpit.zubyr.dev/docs/troubleshooting/system-error-53-network-path-not-found): Fix Windows 'System error 53. The network path was not found' and error 0x80070035 when you open a shared folder: check reachability, sharing, services.
+- [Windows cannot access \\PC: error 0x80004005 Unspecified error](https://devpit.zubyr.dev/docs/troubleshooting/windows-cannot-access-0x80004005): Fix 'Windows cannot access \\PC' with error 0x80004005 on a shared folder: get the real error number with net use, then apply the right fix.
+- [winget error 0x80073D28: needs administrator rights](https://devpit.zubyr.dev/docs/troubleshooting/winget-0x80073d28): What winget error 0x80073D28 means when an upgrade fails, why some apps need administrator rights, and how to update them.
+- [winget 0x8A15002B: no applicable update found](https://devpit.zubyr.dev/docs/troubleshooting/winget-0x8a15002b): Winget error 0x8A15002B means there is no applicable update for the package. It is not a failure. Learn what it means and how Devpit reports it as up to date.
+- [winget 0x8A150101: application is currently running](https://devpit.zubyr.dev/docs/troubleshooting/winget-0x8a150101): Winget error 0x8A150101 means the app is running and cannot be replaced. Close it, retry, and see how Devpit marks the app as in use so you can retry.
+- [The term 'winget' is not recognized](https://devpit.zubyr.dev/docs/troubleshooting/winget-term-not-recognized): Fix "The term 'winget' is not recognized" in PowerShell: check App Installer, the App execution alias and PATH, then register or reset the package.
+- [winget upgrade --all does not upgrade some apps](https://devpit.zubyr.dev/docs/troubleshooting/winget-upgrade-all-not-upgrading): Why winget upgrade --all skips apps: unknown versions, pins and packages that need explicit targeting. Winget's own messages, flags, and Devpit's view.
+- [You do not have permission to access \\PC. Contact your network administrator to request access](https://devpit.zubyr.dev/docs/troubleshooting/you-do-not-have-permission-to-access): Fix 'You do not have permission to access \\PC' and system error 5 'Access is denied' on a Windows shared folder: set share and folder permissions safely.
+
 ## Links
 
 - [Website](https://devpit.zubyr.dev): landing page with an animated demo and FAQ
+- [Full documentation as one text file](https://devpit.zubyr.dev/llms-full.txt): every docs page in plain text
 - [Source code](https://github.com/zubairbinshaukat/devpit): Go source, issues and releases
+- [Releases](https://github.com/zubairbinshaukat/devpit/releases): what changed in each version
 - [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md): every rule and the test that pins it
-- [Privacy](https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md): exactly what opt-in usage stats would send
+- [Privacy](https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md): exactly what opt-in usage stats send
+
+## Optional
+
+- [Copy a huge folder between two PCs and resume with robocopy](https://devpit.zubyr.dev/docs/blog/copy-huge-folders-between-pcs-robocopy-resume): Copy a very large folder between two Windows PCs with robocopy, resume after a failure, read the exit code, and see what Devpit's Share Files adds.
+- [Connect two PCs with an Ethernet cable to copy files](https://devpit.zubyr.dev/docs/blog/direct-ethernet-cable-between-two-pcs): Copy files between two Windows 11 PCs over one Ethernet cable, no router needed: the cable, IP addresses, Private network, sharing and speed checks.
+- [Keep a Windows dev machine updated: winget, Scoop and npm](https://devpit.zubyr.dev/docs/blog/keep-windows-dev-machine-updated-winget-scoop-npm): The exact commands to update apps with winget, Scoop and global npm packages, what gets skipped and why, and how to do all three in one pass with Devpit.
+- [LocalSend vs Quick Share vs Syncthing: which to use](https://devpit.zubyr.dev/docs/blog/localsend-vs-quick-share-vs-syncthing): A fair comparison of LocalSend, Quick Share, Nearby sharing, Syncthing, PairDrop, croc and Devpit Share Files for moving files on a local network.
+- [Move 100 GB between PCs: what sets the speed](https://devpit.zubyr.dev/docs/blog/move-100gb-between-computers): How long does 100 GB take over Wi-Fi, Ethernet or USB? The simple size-divided-by-speed math, what really limits a transfer, and the fastest choice.
+- [Port 3000 is already in use on Windows: find it and free it](https://devpit.zubyr.dev/docs/blog/port-3000-already-in-use-windows): Your dev server says EADDRINUSE on port 3000. Find the process that holds the port with PowerShell, stop it safely, or let Devpit free the port in two steps.
+- [How to see and reclaim node_modules space on Windows](https://devpit.zubyr.dev/docs/blog/reclaim-space-from-node-modules-on-windows): Measure how much disk space node_modules uses with one PowerShell command, decide which folders are safe to delete, and reclaim the space safely.
+- [Resume an interrupted file copy on Windows](https://devpit.zubyr.dev/docs/blog/resume-interrupted-file-copy-windows): A big copy stopped halfway? File Explorer cannot resume it. Carry on where it stopped with robocopy /Z, BITS for one huge file, or Devpit Share Files.
+- [Set up a local FTP server on Windows 11](https://devpit.zubyr.dev/docs/blog/set-up-ftp-server-windows-11): Set up an FTP server on Windows 11 for your local network with IIS or FileZilla Server, open the firewall, add FTPS, and see when SFTP or SMB is better.
+- [Share a folder on Windows 11 with another PC](https://devpit.zubyr.dev/docs/blog/share-a-folder-on-windows-11): Share a folder between two PCs on the same network in Windows 11, step by step: Private network, sharing settings, a real account, permissions and 24H2.
+- [SMB vs FTP vs HTTP for moving files on a LAN](https://devpit.zubyr.dev/docs/blog/smb-vs-ftp-vs-http-local-network): SMB, FTP and HTTP compared in plain words for local file transfer: what is built into Windows, encryption, resume, ports, and which to pick.
+- [Transfer files between two PCs over Wi-Fi (Windows 11)](https://devpit.zubyr.dev/docs/blog/transfer-files-between-two-pcs-over-wifi): Every way to copy files from one PC to another on the same Wi-Fi in Windows 11, compared: shared folder, Nearby sharing, LocalSend, cable, USB and cloud.
+- [What Devpit sends, and what it never sends](https://devpit.zubyr.dev/docs/blog/what-devpit-sends-privacy): A plain guide to Devpit's privacy: usage stats are off until you turn them on, the exact fields of a report, the update check, and how to switch each one off.
+- [Why Windows can't delete some folders, and what to do](https://devpit.zubyr.dev/docs/blog/why-windows-cannot-delete-some-folders): The 260 character path limit, files locked by another program, and links that lead elsewhere: why folders refuse to delete on Windows, and safe fixes.
+- [Windows Terminal and Nerd Fonts, done right](https://devpit.zubyr.dev/docs/blog/windows-terminal-nerd-fonts-done-right): Why icons show as boxes in Windows Terminal, two ways to fix it with a Nerd Font, and how a symbols-only fallback keeps your own font. With settings.json.

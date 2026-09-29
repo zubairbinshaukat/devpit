@@ -1,0 +1,115 @@
+---
+title: Set up your Git identity and an SSH key on Windows
+description: Set your Git name and email, generate an ed25519 SSH key that never overwrites an old one by accident, and copy the public key for GitHub.
+sidebar:
+  label: Git and SSH setup
+  order: 6
+published: 2026-09-29
+related:
+  - features/install-developer-apps
+  - safety-and-privacy
+  - features/network-tools
+faq:
+  - question: "Will Devpit overwrite my existing SSH key?"
+    answer: "Not without a typed confirmation. If a key already exists, Devpit asks you to type OVERWRITE first, and warns that the old key stops working everywhere it was added. Answering No leaves everything as it was."
+  - question: "Does the SSH key have a passphrase?"
+    answer: "No. Devpit creates the key without a passphrase, so it can be used without typing one. Anyone who can read the file can use the key. If you want a passphrase, run ssh-keygen -p -f on the key file afterwards."
+  - question: "Where is the key saved?"
+    answer: "In the .ssh folder of your user profile: id_ed25519 for the private key and id_ed25519.pub for the public key. The private key never leaves that folder."
+  - question: "Does Set git identity change every repository?"
+    answer: "Yes. It changes your global Git settings in your .gitconfig file, so it applies to every repository that has no setting of its own."
+  - question: "Devpit says git is not installed. What do I do?"
+    answer: "Install Git first. You can do that from Install Developer Apps in Devpit, then come back to this screen."
+---
+
+import Shot from '@/components/Shot.astro';
+
+A fresh PC needs two things before you can push code: who you are, and a key for GitHub.
+Devpit sets both up in a few keystrokes.
+
+Open it from the main menu with <kbd>6</kbd>, or choose **Git & SSH Setup**.
+You need Git installed.
+If it is missing, Devpit says so.
+You can install it with [Install developer apps](/docs/features/install-developer-apps).
+
+<Shot name="gitssh-menu" />
+
+## Show git identity
+
+Choose **Show git identity**.
+Devpit shows the name and email Git will use for your commits.
+If one is missing it says "(not set)".
+
+## Set git identity
+
+1. Choose **Set git identity**.
+2. Type your name. Press <kbd>Tab</kbd> to move to the email field and type your email. Devpit fills in what is already set.
+3. Press <kbd>Enter</kbd> to review.
+4. Read the question. It says the change applies to every repository, through your `.gitconfig`. The default answer is **No**.
+5. Press <kbd>y</kbd>. Devpit saves both values and says "Git identity saved."
+
+This is the same as running:
+
+```powershell
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+Use the email that your GitHub account uses, so commits are linked to you.
+
+## Generate an SSH key
+
+Devpit creates an **ed25519** key, a modern and short key type.
+It needs `ssh-keygen`, which comes with the OpenSSH client that is part of Windows.
+
+1. Choose **Generate SSH key**.
+2. Devpit checks whether a key already exists at `%USERPROFILE%\.ssh\id_ed25519`.
+   - **No key:** it creates one at once. The comment in the key is your Git email, if one is set.
+   - **A key exists:** it stops and asks you to type `OVERWRITE`. Read the warning first: the old key stops working everywhere it was added. Answer No to keep it.
+3. When it is done you see the path and the **public key**.
+
+   <Shot name="gitssh-key" />
+
+4. Press <kbd>c</kbd> to copy the public key to the clipboard.
+5. Press <kbd>Enter</kbd> to go back.
+
+:::caution[No passphrase]
+Devpit creates the key without a passphrase.
+That is easy to use, but anyone who can read your `id_ed25519` file can use the key.
+Never share the file with the plain name (the private key).
+Only the `.pub` file is safe to share.
+To add a passphrase later, run `ssh-keygen -p -f $env:USERPROFILE\.ssh\id_ed25519`.
+:::
+
+### Add the key to GitHub
+
+1. Open [github.com/settings/keys](https://github.com/settings/keys).
+2. Click **New SSH key**.
+3. Give it a title, for example the name of your PC.
+4. Paste the public key you copied and save.
+5. Test it in a terminal:
+
+   ```powershell
+   ssh -T git@github.com
+   ```
+
+   The first time, SSH asks if you trust the host. Check that it is GitHub, then type `yes`. GitHub answers with a "successfully authenticated" message and your user name.
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move in the menu |
+| <kbd>Enter</kbd> | Choose, review or go back |
+| <kbd>Tab</kbd> | Switch between the name and email fields |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer a question (No is the default) |
+| <kbd>c</kbd> | Copy the public key |
+| <kbd>Esc</kbd> | Go back |
+
+See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.
+
+## Safety
+
+- An existing SSH key is never replaced without you typing `OVERWRITE`.
+- Nothing is written to your Git settings until you answer Yes.
+- Devpit never uploads your key. It only shows it and copies it to your clipboard when you press <kbd>c</kbd>.

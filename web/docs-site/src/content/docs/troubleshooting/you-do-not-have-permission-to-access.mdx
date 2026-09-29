@@ -1,0 +1,89 @@
+---
+title: "You do not have permission to access \\\\PC. Contact your network administrator to request access"
+seoTitle: "You do not have permission to access \\\\PC: fix"
+description: "Fix 'You do not have permission to access \\\\PC' and system error 5 'Access is denied' on a Windows shared folder: set share and folder permissions safely."
+sidebar:
+  label: "No permission / error 5"
+published: 2026-09-29
+related:
+  - features/share-files
+  - blog/share-a-folder-on-windows-11
+  - troubleshooting/windows-cannot-access-0x80004005
+  - troubleshooting/system-error-1326-user-name-or-password-incorrect
+faq:
+  - question: "I shared the folder with Everyone. Why is access still denied?"
+    answer: "A shared folder has two sets of permissions: the share permissions and the folder's own security permissions on the Security tab. Windows applies the more restrictive of the two. Sharing with Everyone opens only the first one, so check the Security tab too."
+  - question: "Is error 5 a wrong password?"
+    answer: "No. With a wrong password you get system error 1326. Error 5, Access is denied, means you signed in, but that account may not open the folder."
+  - question: "Do I need Full Control for Everyone?"
+    answer: "No. To copy files from a share, Read is enough. Give Read to the one account that needs it. Full Control lets that account change permissions and take ownership, so give it only when you mean to."
+---
+
+File Explorer says: "You do not have permission to access \\\\PC. Contact your network administrator to request access." With `net use` the same problem is **System error 5 has occurred. Access is denied.**
+
+The other PC was found and you signed in, but the account you used may not open that folder. On a home network, "network administrator" means you.
+
+## What it means
+
+Error 5 is `ERROR_ACCESS_DENIED`. It is a permission problem, not a network problem.
+
+A shared folder on Windows has **two** sets of permissions:
+
+1. **Share permissions**, set in **Advanced Sharing**, **Permissions**. They apply only to people who come in over the network.
+2. **Folder (NTFS) permissions**, set on the **Security** tab. They apply to everyone, on the PC and over the network.
+
+Microsoft says Windows looks at both and applies the more restrictive one. So both must allow at least Read for your account.
+
+## Why it happens
+
+- The share permissions do not list your account, or list it with **Deny**.
+- The share allows you, but the **Security** tab does not. A folder inside another user's profile (for example `C:\Users\Anna\Videos`) does not let other accounts read it.
+- You signed in with a different account than you think. Windows keeps one sign-in per PC, so an older connection can still be in use. See [system error 1219](/docs/troubleshooting/system-error-1219-multiple-connections).
+- You were let in as a guest, and guests have no rights on that folder.
+
+## How Devpit fixes or avoids it
+
+[Share Files](/docs/features/share-files) sets both permissions for you, and only as much as needed.
+It creates a temporary login for the share, shares the folder with **Read** for that login only, and gives that login read access to the folder and everything inside it.
+Then it reads back the share's access list and stops if anyone other than that login has access.
+When you stop sharing it removes the share, the folder permission and the login.
+
+If Windows still says access is denied on the receiving PC, Devpit shows "Access denied" and tells you to start the share again on the sharing PC.
+
+## The manual fix
+
+Do this on the PC that **shares** the folder.
+
+### 1. Check the share permissions
+
+1. Right-click the folder, choose **Properties**, then the **Sharing** tab.
+2. Click **Advanced Sharing**. Make sure **Share this folder** is ticked.
+3. Click **Permissions**.
+4. Click **Add**, type the user name the other PC signs in with, and click **OK**.
+5. Select that user and tick **Allow** for **Read**. Tick **Change** too only if the other PC must write files.
+6. Click **OK** twice.
+
+### 2. Check the folder permissions
+
+1. In the same **Properties** window, open the **Security** tab and click **Edit**.
+2. Click **Add**, type the same user name, and click **OK**.
+3. Tick **Allow** for **Read & execute** (this also ticks **List folder contents** and **Read**).
+4. Click **OK** twice.
+
+Microsoft's File Explorer guide shows the same two places with **Everyone** and **Full Control**. That works, but it lets anyone who can sign in change and delete the files. Giving Read to one account is enough to copy files.
+
+### 3. Sign in again on the other PC
+
+1. On the PC that receives, run `net use * /delete` in Command Prompt to drop old connections.
+2. Open the share again and sign in with that user name and password.
+3. If it now says the password is wrong, see [system error 1326](/docs/troubleshooting/system-error-1326-user-name-or-password-incorrect).
+
+If the message talks about **unauthenticated guest access** instead, see [guest access blocked](/docs/troubleshooting/guest-access-blocked-windows-11-24h2).
+
+## Sources
+
+- [Microsoft: Can't access shared folders from File Explorer ("You do not have permission to access")](https://learn.microsoft.com/troubleshoot/windows-client/networking/cannot-access-shared-folder-file-explorer)
+- [Microsoft: Managing permissions for shared folders (the more restrictive permission applies)](https://learn.microsoft.com/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/cc753731(v=ws.10))
+- [Microsoft: System error codes 0 to 499 (ERROR_ACCESS_DENIED, 5)](https://learn.microsoft.com/windows/win32/debug/system-error-codes--0-499-)
+- [Microsoft: New-SmbShare (ReadAccess)](https://learn.microsoft.com/powershell/module/smbshare/new-smbshare)
+- [Microsoft: icacls](https://learn.microsoft.com/windows-server/administration/windows-commands/icacls)

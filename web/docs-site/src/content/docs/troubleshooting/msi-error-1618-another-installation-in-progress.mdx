@@ -1,0 +1,50 @@
+---
+title: "MSI error 1618: another installation is already in progress"
+description: "Windows Installer error 1618 means another install holds the installer lock. Wait for it, retry, and see how winget and Devpit report this state."
+sidebar:
+  label: "MSI error 1618"
+published: 2026-09-29
+related:
+  - features/update-everything
+  - troubleshooting/msi-error-1603-fatal-error-during-installation
+  - troubleshooting/winget-0x8a150101
+faq:
+  - question: "Why do I get 1618 when nothing seems to be installing?"
+    answer: "Windows Installer allows one installation at a time. Something else may be running in the background, for example another installer or an update. Winget-cli users have reported 1618 when an MSI installer was running in the background. Wait a few minutes and retry."
+  - question: "Can I run two winget upgrades at once?"
+    answer: "It is safer not to. Two MSI installs cannot run at the same time. Devpit runs its package steps one after another for this reason."
+---
+
+**Error 1618: Another installation is already in progress. Complete that installation before proceeding with this install.** Windows Installer only runs one install at a time.
+
+## What it means
+
+Microsoft lists 1618 as `ERROR_INSTALL_ALREADY_RUNNING`. Windows Installer sets a lock (a mutex named `_MSIExecute`) while it processes an install. Two installations cannot run in the same process, so a new attempt returns 1618 while the lock is set.
+
+Winget has its own code for the same idea, `0x8A150102`: "Another installation is already in progress. Try again later."
+
+## Why it happens
+
+- Another MSI installer or updater is running, maybe in the background.
+- Windows is installing an update.
+- A previous install is still finishing.
+- You started two installs or upgrades at the same time.
+
+## How Devpit fixes or avoids it
+
+[Update Everything](/docs/features/update-everything) runs one package-manager step at a time, so Devpit does not start two installs by itself. If something else on your PC holds the installer, the winget code `0x8A150102` shows in the summary as **another install is running**, and you can retry when the other install has ended.
+
+## The manual fix
+
+1. Wait a few minutes. If you started an installer, finish it or close it.
+2. Check Windows Update in Settings for an update that is installing.
+3. Run your command again.
+4. If nothing at all is installing and it still fails, restart Windows and try again before you open other programs.
+
+## Sources
+
+- [Microsoft: Windows Installer error codes (1618)](https://learn.microsoft.com/windows/win32/msi/error-codes)
+- [Microsoft: _MSIExecute Mutex](https://learn.microsoft.com/windows/win32/msi/-msiexecute-mutex)
+- [winget return codes (0x8A150102)](https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md)
+- [winget-cli issue #433: Installer failed with exit code 1618](https://github.com/microsoft/winget-cli/issues/433)
+- [winget-cli issue #376: Error 1618, cause and request for a clearer message](https://github.com/microsoft/winget-cli/issues/376)
