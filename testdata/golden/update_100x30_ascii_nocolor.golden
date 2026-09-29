@@ -1,30 +1,30 @@
  DEVPIT  vdev  -  Update Everything                                              node ...   git ...
-  Clean   Ports   Apps   Update   Network   Git   Settings                     tab / shift+tab - 1-7
+  Clean    Ports    Apps    Update    Network    Git    Settings                      tab <-> - 1-7
+---------------------------========-----------------------------------------------------------------
+ 4 updates available  -  scoop 4
+ Everything is ticked. Untick anything you'd rather keep as it is.
+
+    [x] scoop                                                                                 3 of 3
+| >   [x] pnpm        9.11.0 > 9.14.2
+      [x] git         2.46.0 > 2.47.1
+      [x] nodejs-lts  22.9.0 > 22.11.0
+          nvm         1.1.12 > 1.2.2                                                            held
+
+ Selected 3 of 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ----------------------------------------------------------------------------------------------------
-Space unticks a manager, Enter runs the rest.
-
-> [x] scoop
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-----------------------------------------------------------------------------------------------------
-esc back  -  ^v move  -  space toggle  -  enter update  -  ? help
+esc back  -  ^v move  -  space toggle  -  a all  -  n none  -  enter update  -  ? help

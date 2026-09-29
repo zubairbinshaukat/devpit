@@ -1,16 +1,16 @@
  DEVPIT  vdev  -  Network Tools                              node ...   git ...
-  Clean   Ports   Apps   Update   Network   Git   Settings
---------------------------------------------------------------------------------
+  Clean    Ports    Apps    Update    Network    Git    Settings  tab <-> - 1-7
+-------------------------------------=========----------------------------------
 IP, connectivity and DNS helpers.
 
-  > My IP addresses
-    (Local interfaces and your public IP)
+| > My IP addresses
+|   Local interfaces and your public IP
 
     Ping a host
-    (Check connectivity, default 1.1.1.1)
+    Check connectivity, default 1.1.1.1
 
     Flush DNS cache
-    (Clear the resolver cache)
+    Clear the resolver cache
 
 
 

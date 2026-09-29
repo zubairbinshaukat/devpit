@@ -3,6 +3,12 @@
 // small labelled pills at its right edge, the section tabs on the second row,
 // and a rule under both.
 //
+// The tab row only exists inside a section. The home screen is itself the
+// list of sections, so a tab bar above it would say everything twice; there
+// the header is the badge row and the rule, and the menu gets the row back.
+// Under the open tab the rule turns into a short accent underline, which is
+// what makes the bar read as tabs rather than as a row of words.
+//
 // Nothing here runs at startup. The version is a link-time constant; the
 // toolchain versions, the disk figure and the update notice arrive later as
 // messages produced by commands, so the first frame is drawn without a single
@@ -32,15 +38,23 @@ const (
 	PendingASCII = "..."
 )
 
-// Rows is how many lines the header occupies: the badge row, the tab row and
-// the rule under them.
-const Rows = 3
+// Rows is how many lines the header occupies with its tab bar: the badge
+// row, the tab row and the rule under them. RowsCompact is the header
+// without tabs, on the home and first-run screens.
+const (
+	Rows        = 3
+	RowsCompact = 2
+)
 
 // TabRow is the terminal row the tabs are drawn on, for hit-testing clicks.
 const TabRow = 1
 
-// tabPad is the blank column before the first tab and between tabs.
-const tabPad = 1
+// tabPad is the blank column before the first tab; tabGap is the air between
+// two tabs. Two columns keep neighbouring labels from reading as one phrase.
+const (
+	tabPad = 1
+	tabGap = 2
+)
 
 // DiskMsg carries the result of the free-space probe.
 type DiskMsg struct {
@@ -82,6 +96,9 @@ type Model struct {
 	Tabs []Tab
 	// Active is the ID of the open section, or "" on the home screen.
 	Active string
+	// ShowTabs draws the tab row. The root model turns it on inside a
+	// section and off on home, where the menu already is the list of tabs.
+	ShowTabs bool
 
 	node   string
 	git    string
@@ -126,7 +143,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // Height is the number of rows the header occupies, including its rule.
-func (m Model) Height() int { return Rows }
+func (m Model) Height() int {
+	if m.tabsShown() {
+		return Rows
+	}
+	return RowsCompact
+}
+
+// tabsShown reports whether the tab row is drawn this frame.
+func (m Model) tabsShown() bool { return m.ShowTabs && len(m.Tabs) > 0 }
 
 // UpdateAvailable is the newer version the header was told about, or "".
 func (m Model) UpdateAvailable() string { return m.update }
@@ -150,42 +175,76 @@ func (m Model) View(ctx uictx.Context) string {
 	}
 
 	badgeRow := fit(ctx.Width, name.String(), m.pills(th, ascii), ascii)
-	tabRow := fit(ctx.Width, m.tabs(th), th.Muted.Render(tabHint(ascii)), ascii)
-	rule := th.Rule.Render(strings.Repeat(ruleRune(ascii), max(0, ctx.Width)))
-
-	return badgeRow + "\n" + tabRow + "\n" + rule
+	if !m.tabsShown() {
+		return badgeRow + "\n" + m.rule(th, ctx.Width, ascii)
+	}
+	tabRow := fit(ctx.Width, m.tabs(ctx), th.Muted.Render(tabHint(ascii)), ascii)
+	return badgeRow + "\n" + tabRow + "\n" + m.rule(th, ctx.Width, ascii)
 }
 
-// tabs draws the section bar. The open section wears the badge style so it
-// reads as pressed; the rest are muted so the bar never competes with the
-// screen under it.
-func (m Model) tabs(th *theme.Theme) string {
-	if len(m.Tabs) == 0 {
-		return ""
-	}
+// tabs draws the section bar. The open section sits on the selection band in
+// the accent, with the section's own icon beside it when the tier has one;
+// the rest are muted so the bar never competes with the screen under it.
+func (m Model) tabs(ctx uictx.Context) string {
+	th := ctx.Theme
 	var b strings.Builder
+	b.WriteString(strings.Repeat(" ", tabPad))
 	for i, t := range m.Tabs {
 		if i > 0 {
-			b.WriteString(strings.Repeat(" ", tabPad))
+			b.WriteString(strings.Repeat(" ", tabGap))
 		}
 		label := " " + t.Label + " "
 		if t.ID == m.Active {
-			b.WriteString(th.Badge.Render(label))
+			b.WriteString(th.TabActive.Render(label))
 		} else {
-			b.WriteString(th.Muted.Render(label))
+			b.WriteString(th.TabIdle.Render(label))
 		}
 	}
-	return strings.Repeat(" ", tabPad) + b.String()
+	return b.String()
+}
+
+// rule is the line under the header. Under the open tab it turns into a
+// heavy accent stroke as wide as the tab, the underline that makes the bar
+// read as tabs.
+func (m Model) rule(th *theme.Theme, width int, ascii bool) string {
+	width = max(0, width)
+	from, w, ok := m.activeSpan()
+	if !m.tabsShown() || !ok || from+w > width {
+		return th.Rule.Render(strings.Repeat(ruleRune(ascii), width))
+	}
+	return th.Rule.Render(strings.Repeat(ruleRune(ascii), from)) +
+		th.Accent.Render(strings.Repeat(underlineRune(ascii), w)) +
+		th.Rule.Render(strings.Repeat(ruleRune(ascii), width-from-w))
+}
+
+// activeSpan is the first column and the width of the open tab, walking the
+// same widths tabs draws.
+func (m Model) activeSpan() (from, width int, ok bool) {
+	col := tabPad
+	for i, t := range m.Tabs {
+		if i > 0 {
+			col += tabGap
+		}
+		w := ansi.StringWidth(t.Label) + 2
+		if t.ID == m.Active {
+			return col, w, true
+		}
+		col += w
+	}
+	return 0, 0, false
 }
 
 // TabAt returns the tab drawn under column x of the tab row, and whether
 // there is one. It walks the same widths tabs draws, so a click lands on the
 // label the user saw.
 func (m Model) TabAt(x int) (Tab, bool) {
+	if !m.tabsShown() {
+		return Tab{}, false
+	}
 	col := tabPad
 	for i, t := range m.Tabs {
 		if i > 0 {
-			col += tabPad
+			col += tabGap
 		}
 		w := ansi.StringWidth(t.Label) + 2
 		if x >= col && x < col+w {
@@ -223,9 +282,9 @@ func (m Model) Next(step int) (Tab, bool) {
 // tabHint is the muted reminder at the right of the tab row.
 func tabHint(ascii bool) string {
 	if ascii {
-		return "tab / shift+tab - 1-7"
+		return "tab <-> - 1-7 "
 	}
-	return "tab / shift+tab · 1-7"
+	return "tab ⇄ · 1–7 "
 }
 
 // pills draws the machine's vital signs: the toolchain versions Devpit found,
@@ -269,6 +328,14 @@ func ruleRune(ascii bool) string {
 		return "-"
 	}
 	return "─"
+}
+
+// underlineRune is the stroke under the open tab.
+func underlineRune(ascii bool) string {
+	if ascii {
+		return "="
+	}
+	return "━"
 }
 
 // separator divides the version from the breadcrumb after it.

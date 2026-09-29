@@ -32,6 +32,45 @@ type Outdated struct {
 	Current string
 	// Latest is the version available to upgrade to.
 	Latest string
+	// Explicit is true for a winget package listed under "The following
+	// packages have an upgrade available, but require explicit targeting
+	// for upgrade": `winget upgrade --all` skips it, but upgrading it by
+	// id ([Manager.UpgradeCmd]) works.
+	Explicit bool
+	// Held is true for a Scoop app whose `scoop status` Info column says
+	// "Held package": `scoop hold` froze it at its current version, and
+	// `scoop update <app>` will refuse until it is unheld.
+	Held bool
+	// Pinned is true for a package its manager reports as pinned
+	// (Chocolatey's "pinned?" column): an upgrade would be refused or
+	// skipped until the pin is removed.
+	Pinned bool
+}
+
+// OutdatedReport is everything a manager's check says about what needs
+// updating: the packages, plus whether the output was understood at all and
+// winget's counts of packages it left out of the list.
+type OutdatedReport struct {
+	// Packages is every package with an update available, in the order
+	// the manager listed them (sorted by name for npm, whose JSON has no
+	// order).
+	Packages []Outdated
+	// Parsed is true when the output was recognised: a table was found,
+	// or the manager said there is nothing to update. False means the
+	// output was something else entirely (an error, a format this
+	// version of Devpit has never seen, a localized "nothing to update"
+	// message) and the caller should fall back to the manager's
+	// [Manager.UpgradeAllCmds] rather than conclude there is nothing to
+	// do.
+	Parsed bool
+	// Unknown is winget's "N package(s) have version numbers that cannot
+	// be determined" count: installed packages it cannot compare, so
+	// cannot list or upgrade without --include-unknown.
+	Unknown int
+	// Pinned is winget's "N package(s) are pinned and need to be
+	// explicitly upgraded" count: packages left out of the list because a
+	// `winget pin` holds them back.
+	Pinned int
 }
 
 // Manager is one package manager Devpit can list, check and drive updates
@@ -55,10 +94,33 @@ type Manager interface {
 	// InstallCmd is the argv that installs the given manager-specific
 	// package id.
 	InstallCmd(id string) []string
+	// UpgradeCmd is the argv that upgrades one package, by its
+	// manager-specific id, to its latest version. It is what lets the
+	// Update screen upgrade the packages a user picked one at a time,
+	// with a verdict for each, instead of all-or-nothing through
+	// UpgradeAllCmds.
+	UpgradeCmd(id string) []string
+	// CheckCmds is the ordered argv steps that find outdated packages.
+	// Only the LAST step's output is parsed, by ParseOutdatedReport;
+	// earlier steps exist for their side effects (Scoop refreshes its
+	// bucket manifests first, or `scoop status` would compare against
+	// stale ones).
+	CheckCmds() [][]string
+	// ParseOutdatedReport parses the last CheckCmds step's captured
+	// output. Unlike ParseOutdated it also says whether the output was
+	// recognised at all ([OutdatedReport.Parsed]), so a caller can tell
+	// "nothing to update" from "could not read the answer".
+	ParseOutdatedReport(out string) OutdatedReport
+	// CleanupCmds is what runs after upgrading ids: Scoop removes the
+	// versions those apps no longer use and their cached downloads. It
+	// returns nil for managers with nothing to clean, and for an empty
+	// ids.
+	CleanupCmds(ids []string) [][]string
 	// ParseList parses ListCmd's captured output into installed packages.
 	ParseList(out string) []Installed
 	// ParseOutdated parses OutdatedCmd's captured output into packages
-	// with an update available.
+	// with an update available. It is ParseOutdatedReport's Packages,
+	// for callers that do not need the rest of the report.
 	ParseOutdated(out string) []Outdated
 	// NeedsElevation reports whether this manager's commands must run
 	// through the elevated worker (true for Chocolatey by default).

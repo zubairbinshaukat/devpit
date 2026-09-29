@@ -1,0 +1,5 @@
+Nome           Id                   Versione Disponibile Origine
+----------------------------------------------------------------
+Git            Git.Git              2.42.0   2.43.0      winget
+Docker Desktop Docker.DockerDesktop 4.87.0   4.91.0      winget
+2 aggiornamenti disponibili.

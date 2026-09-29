@@ -119,6 +119,14 @@ type Item struct {
 	// project root for project junk, the parent directory otherwise. The
 	// results table groups rows by it.
 	Project string
+	// Repo is the absolute path of the git repository Project sits in: the
+	// nearest directory at or above it holding a .git directory or file, so
+	// a submodule or worktree is its own repository. The search stops at the
+	// scan root and never looks above it, so a scan that starts inside a
+	// repository reports none. Empty when there is none, and always empty
+	// for a fixed location such as a package cache. The results table uses
+	// it to nest a monorepo's projects under one heading.
+	Repo string
 	// Size is the number of bytes the item occupies locally, in uint64
 	// because a node_modules tree can pass 4 GB.
 	Size uint64

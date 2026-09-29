@@ -107,67 +107,118 @@ func (m Model) heading(ctx uictx.Context, l columns) string {
 	return ctx.Theme.Muted.Render(strings.TrimRight(b.String(), " "))
 }
 
-// renderRow draws one line, either a project heading or an item.
+// renderRow draws one line, either a heading or an item.
 func (m Model) renderRow(ctx uictx.Context, l columns, r row, cursor bool) string {
 	if r.kind == rowGroup {
-		return m.renderGroup(ctx, l, r.group, cursor)
+		return m.renderGroup(ctx, l, r, cursor)
 	}
-	return m.renderItem(ctx, l, r.item, cursor)
+	return m.renderItem(ctx, l, r, cursor)
 }
 
-// renderGroup draws a project heading: the fold arrow, the project name, the
-// project's total size and how many items it holds.
-func (m Model) renderGroup(ctx uictx.Context, l columns, gi int, cursor bool) string {
+// seg is one piece of a row: plain text and the style it is drawn in. A row
+// is kept as pieces until the last moment because the cursor row draws every
+// piece on the selection band, and a piece rendered on its own would end
+// with a reset that punches a hole in it.
+type seg struct {
+	text string
+	// style is the piece's own style; nil draws it unstyled.
+	style *lipgloss.Style
+	// pre, when set, is the piece already rendered for an ordinary row. The
+	// tick box uses it so ordinary rows go through [uictx.Context.Checkbox],
+	// the one place a tick box's look is decided.
+	pre string
+}
+
+// line is a row under construction.
+type line []seg
+
+// add appends a styled piece.
+func (ln *line) add(text string, style lipgloss.Style) {
+	*ln = append(*ln, seg{text: text, style: &style})
+}
+
+// plain appends an unstyled piece.
+func (ln *line) plain(text string) { *ln = append(*ln, seg{text: text}) }
+
+// render draws the row. An ordinary row is its pieces after the left margin,
+// as long as they are. The cursor row puts the selection bar glyph in the
+// margin's first cell, draws every piece on the band in its own colour, and
+// fills the band out to exactly the table's width.
+func (ln line) render(ctx uictx.Context, cursor bool, total int) string {
 	th := ctx.Theme
-	g := m.groups[gi]
+	var b strings.Builder
+	if !cursor {
+		b.WriteString(pad(leftPad))
+		for _, s := range ln {
+			switch {
+			case s.pre != "":
+				b.WriteString(s.pre)
+			case s.text == "":
+			case s.style == nil:
+				b.WriteString(s.text)
+			default:
+				b.WriteString(s.style.Render(s.text))
+			}
+		}
+		return b.String()
+	}
+
+	barGlyph := ctx.Icons.SelectBar
+	used := cellWidth(barGlyph)
+	b.WriteString(th.SelectBar.Render(barGlyph))
+	if n := leftPad - used; n > 0 {
+		b.WriteString(th.SelBand.Render(pad(n)))
+		used += n
+	}
+	for _, s := range ln {
+		if s.text == "" {
+			continue
+		}
+		used += ansi.StringWidth(s.text)
+		if s.style == nil {
+			b.WriteString(th.SelBand.Render(s.text))
+			continue
+		}
+		b.WriteString(th.OnBand(*s.style).Render(s.text))
+	}
+	if used < total {
+		b.WriteString(th.SelBand.Render(pad(total - used)))
+	}
+	return b.String()
+}
+
+// renderGroup draws a heading: the fold arrow, the label, the total size and
+// what the heading holds.
+func (m Model) renderGroup(ctx uictx.Context, l columns, r row, cursor bool) string {
+	th := ctx.Theme
+	g := m.node(r)
 
 	fold := ctx.Icons.FolderOpen
 	if m.collapsed[g.key] {
 		fold = ctx.Icons.Folder
 	}
 
-	count := fmt.Sprintf("%d item", len(g.items))
-	if len(g.items) != 1 {
-		count += "s"
+	count := countWord(len(g.items), "item")
+	if len(g.kids) > 0 {
+		count = countWord(len(g.kids), "project")
 	}
 
-	prefix := m.prefix(ctx, l, cursor, m.groupMark(ctx, g), fold)
-	name := padRight(g.label, l.name)
-	size := padLeft(header.FormatBytes(g.size), sizeCol)
-	mid := pad(barCells + gap + riskCol)
-	notes := m.notesFor(g.lastUsed, g.active, []string{count}, l.notes)
-
-	if cursor {
-		line := prefix + name + pad(gap) + size + pad(gap) + mid
-		if l.notes > 0 {
-			line += pad(gap) + padRight(notes, l.notes)
-		}
-		return th.Selected.Render(padRight(line, l.total))
-	}
-
-	var b strings.Builder
-	b.WriteString(prefix)
-	b.WriteString(th.Subtitle.Render(name))
-	b.WriteString(pad(gap))
-	b.WriteString(th.Base.Render(size))
-	b.WriteString(pad(gap))
-	b.WriteString(mid)
-	if l.notes > 0 && notes != "" {
-		b.WriteString(pad(gap))
-		b.WriteString(m.notesStyle(ctx, g.active).Render(truncate(notes, l.notes)))
-	}
-	return b.String()
+	ln := m.prefix(ctx, l, r, cursor, m.ticked(g), len(g.items), fold)
+	name := fitLabel(g.label, l.name-indent(r))
+	ln.add(name.dir, th.Muted)
+	ln.add(name.base, th.Subtitle)
+	ln.plain(pad(gap))
+	ln.add(padLeft(header.FormatBytes(g.size), sizeCol), th.Base)
+	ln.plain(pad(gap + barCells + gap + riskCol))
+	m.addNotes(ctx, &ln, l, m.notesFor(g.lastUsed, g.active, []string{count}, l.notes), g.active, cursor)
+	return ln.render(ctx, cursor, l.total)
 }
 
 // renderItem draws one reclaimable item.
-func (m Model) renderItem(ctx uictx.Context, l columns, idx int, cursor bool) string {
+func (m Model) renderItem(ctx uictx.Context, l columns, r row, cursor bool) string {
 	th := ctx.Theme
+	idx := r.item
 	it := m.items[idx]
-
-	mark := ctx.Icons.Unchecked
-	if m.marks[idx] {
-		mark = ctx.Icons.Checked
-	}
 
 	// Only the nerd tier has a folder glyph that is not the fold arrow; the
 	// other tiers leave the cell blank rather than repeat the arrow.
@@ -178,70 +229,94 @@ func (m Model) renderItem(ctx uictx.Context, l columns, idx int, cursor bool) st
 			glyph = ctx.Icons.FileIcon(it.Name)
 		}
 	}
-	prefix := m.prefix(ctx, l, cursor, mark, glyph)
-	name := padRight("  "+it.Name, l.name)
-	size := padLeft(header.FormatBytes(it.Size), sizeCol)
-	bar := m.barFor(ctx, it.Size)
+	ticked := 0
+	if m.marks[idx] {
+		ticked = 1
+	}
+	ln := m.prefix(ctx, l, r, cursor, ticked, 1, glyph)
+
+	// A plain project's items step in two cells under its heading; under a
+	// repository the indent has already done that.
+	name := it.Name
+	if r.sub < 0 {
+		name = "  " + name
+	}
+	ln.add(padRight(name, l.name-indent(r)), th.Base)
+	ln.plain(pad(gap))
+	ln.add(padLeft(header.FormatBytes(it.Size), sizeCol), th.Info)
+	ln.plain(pad(gap))
+	m.addBar(ctx, &ln, it.Size)
+	ln.plain(pad(gap))
 	riskGlyph, riskWord, riskStyle := risk(ctx, it.Tier)
-	riskText := padRight(riskGlyph+" "+riskWord, riskCol)
-	notes := m.notesFor(it.LastUsed, it.Active, itemNotes(it), l.notes)
-
-	if cursor {
-		line := prefix + name + pad(gap) + size + pad(gap) + bar.plain + pad(gap) + riskText
-		if l.notes > 0 {
-			line += pad(gap) + padRight(notes, l.notes)
-		}
-		return th.Selected.Render(padRight(line, l.total))
-	}
-
-	var b strings.Builder
-	b.WriteString(prefix)
-	b.WriteString(th.Base.Render(name))
-	b.WriteString(pad(gap))
-	b.WriteString(th.Info.Render(size))
-	b.WriteString(pad(gap))
-	b.WriteString(bar.styled)
-	b.WriteString(pad(gap))
-	b.WriteString(riskStyle.Render(riskText))
-	if l.notes > 0 && notes != "" {
-		b.WriteString(pad(gap))
-		b.WriteString(m.notesStyle(ctx, it.Active).Render(truncate(notes, l.notes)))
-	}
-	return b.String()
+	ln.add(padRight(riskGlyph+" "+riskWord, riskCol), riskStyle)
+	m.addNotes(ctx, &ln, l, m.notesFor(it.LastUsed, it.Active, itemNotes(it), l.notes), it.Active, cursor)
+	return ln.render(ctx, cursor, l.total)
 }
 
-// prefix draws the cursor cell, the tick box and the row's glyph.
-func (m Model) prefix(ctx uictx.Context, l columns, cursor bool, mark, glyph string) string {
-	caret := " "
-	if cursor {
-		caret = ctx.Icons.Cursor
+// addNotes appends the last-used column. An ordinary row stops at the end of
+// its text; the cursor row pads it so the band runs on to the edge.
+func (m Model) addNotes(ctx uictx.Context, ln *line, l columns, notes string, active, cursor bool) {
+	if l.notes <= 0 || notes == "" {
+		return
 	}
+	ln.plain(pad(gap))
+	text := truncate(notes, l.notes)
+	if cursor {
+		text = padRight(notes, l.notes)
+	}
+	ln.add(text, m.notesStyle(ctx, active))
+}
+
+// prefix starts a row: the caret, the indent, the tick box and the row's
+// glyph. The margin before the caret is added by [line.render], because the
+// cursor row draws its selection bar there.
+func (m Model) prefix(ctx uictx.Context, l columns, r row, cursor bool, ticked, total int, glyph string) line {
+	th := ctx.Theme
+	ln := make(line, 0, 16)
+	if cursor {
+		ln.add(ctx.Icons.Cursor, th.Cursor)
+	} else {
+		ln.plain(" ")
+	}
+	ln.plain(" " + pad(indent(r)))
+
+	boxGlyph, boxStyle := checkbox(ctx, ticked, total)
+	fill := pad(l.mark - cellWidth(boxGlyph))
+	ln = append(ln, seg{text: boxGlyph, style: &boxStyle, pre: ctx.CheckboxState(ticked, total)})
 	if glyph == "" {
 		glyph = " "
 	}
-	return pad(leftPad) + caret + " " + padRight(mark, l.mark) + " " + glyph + " "
+	ln.plain(fill + " " + glyph + " ")
+	return ln
 }
 
-// groupMark is the heading's tick box: ticked when every item under it is
-// ticked, empty otherwise.
-func (m Model) groupMark(ctx uictx.Context, g group) string {
-	for _, i := range g.items {
-		if !m.marks[i] {
-			return ctx.Icons.Unchecked
-		}
+// checkbox is the glyph and style [uictx.Context.CheckboxState] draws, taken
+// apart so the cursor row can put the same box on the selection band.
+func checkbox(ctx uictx.Context, ticked, total int) (string, lipgloss.Style) {
+	th := ctx.Theme
+	switch {
+	case total > 0 && ticked >= total:
+		return ctx.Icons.Checked, th.CheckOn
+	case ticked > 0:
+		return ctx.Icons.Partial, th.Warning
+	default:
+		return ctx.Icons.Unchecked, th.CheckOff
 	}
-	return ctx.Icons.Checked
 }
 
-// bar is a relative size bar in both its plain and its styled form; the
-// cursor row needs the plain one because it is styled as a whole line.
-type bar struct {
-	plain  string
-	styled string
+// countWord is "1 item", "3 items", "4 projects".
+func countWord(n int, noun string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, noun)
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
-// barFor draws the size bar, relative to the largest item on screen.
-func (m Model) barFor(ctx uictx.Context, size uint64) bar {
+// addBar appends the relative size bar, scaled to the largest item on
+// screen: the filled part in the accent, the rest in the rule colour, which
+// is quieter than muted text so a column of bars reads as shapes rather than
+// as a second column of text.
+func (m Model) addBar(ctx uictx.Context, ln *line, size uint64) {
 	full := 0
 	if m.maxSize > 0 {
 		full = int(float64(size)/float64(m.maxSize)*float64(barCells) + 0.5)
@@ -250,11 +325,11 @@ func (m Model) barFor(ctx uictx.Context, size uint64) bar {
 		}
 	}
 	full = min(barCells, max(0, full))
-	filled := strings.Repeat(ctx.Icons.BarFull, full)
-	empty := strings.Repeat(ctx.Icons.BarEmpty, barCells-full)
-	return bar{
-		plain:  filled + empty,
-		styled: ctx.Theme.Accent.Render(filled) + ctx.Theme.Muted.Render(empty),
+	if full > 0 {
+		ln.add(strings.Repeat(ctx.Icons.BarFull, full), ctx.Theme.Accent)
+	}
+	if full < barCells {
+		ln.add(strings.Repeat(ctx.Icons.BarEmpty, barCells-full), ctx.Theme.Rule)
 	}
 }
 

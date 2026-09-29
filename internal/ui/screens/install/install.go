@@ -10,9 +10,11 @@
 // worker is launched once for the whole run rather than once per app, so a
 // ten-app Chocolatey install is one UAC prompt and not ten. A declined prompt
 // marks every app in that run "skipped (needs admin)" rather than failed.
-// Long-running steps stream output back over a channel, drained by a 150ms
+// Long-running steps stream output back over a channel, drained by a 100ms
 // [tea.Tick] into one batch message per tick — [Model.Update] itself never
-// blocks.
+// blocks. Each app is one live row while it installs (a spinner, a bar when
+// the manager reports progress, the last thing it said), and the raw output
+// is kept behind the l key rather than scrolled past the user.
 package install
 
 import (
@@ -26,20 +28,22 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
 	"github.com/zubairbinshaukat/devpit/internal/tools"
 	"github.com/zubairbinshaukat/devpit/internal/tools/catalog"
 	"github.com/zubairbinshaukat/devpit/internal/tools/managers"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/activity"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/checklist"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/summary"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
-// tickEvery is how often the running state drains the event channel.
-const tickEvery = 150 * time.Millisecond
+// tickEvery is how often the running state drains the event channel and
+// advances the spinner: ten frames a second.
+const tickEvery = 100 * time.Millisecond
 
 // maxOutLines caps how many streamed lines the output pane keeps, so a
 // chatty installer never grows the view without bound.
@@ -122,6 +126,7 @@ type keyMap struct {
 	Toggle key.Binding
 	Select key.Binding
 	Stop   key.Binding
+	Log    key.Binding
 }
 
 func defaultKeys() keyMap {
@@ -131,6 +136,7 @@ func defaultKeys() keyMap {
 		Toggle: key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle")),
 		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install")),
 		Stop:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "stop")),
+		Log:    key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "log")),
 	}
 }
 
@@ -258,6 +264,10 @@ type Model struct {
 	results   []outcome
 	outLines  []string
 	events    chan runEvent
+	// jobs is one live row per app in the run, in run order.
+	jobs    []activity.Row
+	frame   int
+	showLog bool
 
 	summary summary.Model
 }
@@ -309,8 +319,14 @@ func (m Model) Init() tea.Cmd {
 	}
 }
 
-// Title implements uictx.Screen.
-func (m Model) Title() string { return "Install Developer Apps" }
+// Title implements uictx.Screen. While a run is going the breadcrumb names
+// the app in flight.
+func (m Model) Title() string {
+	if m.state == stateRunning && m.runIdx < len(m.jobs) {
+		return "Install Developer Apps › " + m.jobs[m.runIdx].Label
+	}
+	return "Install Developer Apps"
+}
 
 // ShortHelp implements uictx.Screen.
 func (m Model) ShortHelp() []key.Binding {
@@ -320,9 +336,9 @@ func (m Model) ShortHelp() []key.Binding {
 	case stateConfirm:
 		return m.confirm.Keys.ShortHelp()
 	case stateRunning:
-		return []key.Binding{m.keys.Stop}
+		return []key.Binding{m.keys.Stop, m.keys.Log}
 	case stateSummary:
-		return m.summary.Keys.ShortHelp()
+		return append(m.summary.Keys.ShortHelp(), m.keys.Log)
 	default:
 		return nil
 	}
@@ -359,9 +375,11 @@ type runEvent struct {
 	allDone  bool
 }
 
-// runBatchMsg is one tick's worth of drained [runEvent]s.
+// runBatchMsg is one tick's worth of drained [runEvent]s. closed reports
+// that the run's goroutine has finished and closed the channel.
 type runBatchMsg struct {
 	events []runEvent
+	closed bool
 }
 
 // Update implements uictx.Screen.
@@ -379,8 +397,13 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 
 	switch m.state {
 	case stateList:
-		return m.updateList(msg)
+		return m.updateList(msg, ctx)
 	case stateConfirm:
+		if cm, ok := msg.(tea.MouseClickMsg); ok && cm.Button == tea.MouseLeft {
+			var cmd tea.Cmd
+			m.confirm, cmd = m.confirm.Click(ctx, cm.X, ctx.BodyRow(cm.Y))
+			return m, cmd
+		}
 		var cmd tea.Cmd
 		m.confirm, cmd = m.confirm.Update(msg)
 		return m, cmd
@@ -389,6 +412,10 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	case stateSummary:
 		if _, ok := msg.(summary.DismissedMsg); ok {
 			return m, uictx.Pop()
+		}
+		if km, ok := msg.(tea.KeyPressMsg); ok && key.Matches(km, m.keys.Log) {
+			m.showLog = !m.showLog
+			return m, nil
 		}
 		var cmd tea.Cmd
 		m.summary, cmd = m.summary.Update(msg)
@@ -405,11 +432,15 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 // summary card, same as Ctrl+C via [Model.Stop].
 func (m Model) updateRunning(msg tea.Msg) (uictx.Screen, tea.Cmd) {
 	km, ok := msg.(tea.KeyPressMsg)
+	if ok && key.Matches(km, m.keys.Log) {
+		m.showLog = !m.showLog
+		return m, nil
+	}
 	if !ok || !key.Matches(km, m.keys.Stop) {
 		return m, nil
 	}
 	m.run.stop()
-	return m, uictx.Status("warning", "Finishing the app in flight, then stopping…")
+	return m, uictx.Status("warning", "Stopping: the app in flight is cut short, the rest are skipped…")
 }
 
 // onDetected resolves the preferred manager, builds the app rows and moves
@@ -436,8 +467,52 @@ func (m Model) onDetected(msg detectResultMsg, ctx uictx.Context) (uictx.Screen,
 	return m, nil
 }
 
+// listTop is the body row the first list row is drawn on: under the
+// manager line and the blank line after it.
+const listTop = 2
+
+// rowAt maps a body row to the list row drawn there.
+func (m Model) rowAt(ctx uictx.Context, bodyRow int) (int, bool) {
+	start, end := visibleWindow(len(m.rows), m.cursor, ctx.BodyHeight-listTop)
+	i := start + bodyRow - listTop
+	if bodyRow < listTop || i >= end {
+		return 0, false
+	}
+	return i, true
+}
+
 // updateList handles navigation, toggling and moving to the confirm dialog.
-func (m Model) updateList(msg tea.Msg) (uictx.Screen, tea.Cmd) {
+func (m Model) updateList(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
+	switch pm := msg.(type) {
+	case tea.MouseClickMsg:
+		// A click ticks the app under it; headings and installed apps only
+		// ever take the keyboard's word for it.
+		if i, ok := m.rowAt(ctx, ctx.BodyRow(pm.Y)); ok && pm.Button == tea.MouseLeft && !m.rows[i].disabled() {
+			m.cursor = i
+			m.rows[i].selected = !m.rows[i].selected
+		}
+		return m, nil
+	case tea.MouseMotionMsg:
+		// Hover highlights without scrolling: a highlight that would slide
+		// the list under a still pointer is not applied.
+		if i, ok := m.rowAt(ctx, ctx.BodyRow(pm.Y)); ok && !m.rows[i].disabled() {
+			height := ctx.BodyHeight - listTop
+			before, _ := visibleWindow(len(m.rows), m.cursor, height)
+			if after, _ := visibleWindow(len(m.rows), i, height); after == before {
+				m.cursor = i
+			}
+		}
+		return m, nil
+	case tea.MouseWheelMsg:
+		step := 1
+		if pm.Button == tea.MouseWheelUp {
+			step = -1
+		}
+		if i := nextSelectable(m.rows, m.cursor, step); i >= 0 {
+			m.cursor = i
+		}
+		return m, nil
+	}
 	km, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
@@ -480,7 +555,15 @@ func (m Model) onAnswered(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 	m.runIdx = 0
 	m.runTotal = len(m.pendingApps)
 	m.runStart = time.Now()
-	m.events = make(chan runEvent, 64)
+	m.events = make(chan runEvent, 256)
+	m.showLog = false
+	m.jobs = make([]activity.Row, len(m.pendingApps))
+	for i, app := range m.pendingApps {
+		m.jobs[i] = activity.Row{Label: app.Name, State: activity.Queued, Percent: -1}
+	}
+	if len(m.jobs) > 0 {
+		m.jobs[0].State = activity.Running
+	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	m.run = newRunHandle(cancel)
@@ -497,24 +580,36 @@ func (m Model) onAnswered(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 	return m, waitForEvents(m.events)
 }
 
-// onBatch folds one tick's worth of streamed events into the model.
+// onBatch folds one tick's worth of streamed events into the model: the
+// raw log, and the live row of the app in flight.
 func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
-	finished := false
+	m.frame++
+	finished := msg.closed
 	for _, ev := range msg.events {
 		switch {
 		case ev.allDone:
 			finished = true
 		case ev.stepDone:
 			m.results = append(m.results, ev.outcome)
+			m.finishJob(m.runIdx, ev.outcome)
 			m.runIdx++
-		case ev.line != "":
-			m.outLines = append(m.outLines, ev.line)
-			if len(m.outLines) > maxOutLines {
-				m.outLines = m.outLines[len(m.outLines)-maxOutLines:]
+			if m.runIdx < len(m.jobs) && m.jobs[m.runIdx].State == activity.Queued {
+				m.jobs[m.runIdx].State = activity.Running
 			}
+		case ev.line != "":
+			m.noteLine(ev.line)
 		}
 	}
+	if m.runIdx < len(m.jobs) && m.jobs[m.runIdx].State == activity.Running {
+		m.jobs[m.runIdx].Elapsed = time.Since(m.runStart) - m.doneTime()
+	}
 	if finished {
+		// Anything the run never reported on was cut short by a Stop.
+		for i := range m.jobs {
+			if !m.jobs[i].State.Final() {
+				m.jobs[i].State, m.jobs[i].Detail, m.jobs[i].Percent = activity.Skipped, "cancelled", -1
+			}
+		}
 		m.runElapse = time.Since(m.runStart)
 		m.state = stateSummary
 		m.summary = summary.New(m.buildResult())
@@ -522,6 +617,82 @@ func (m Model) onBatch(msg runBatchMsg) (uictx.Screen, tea.Cmd) {
 		return m, nil
 	}
 	return m, waitForEvents(m.events)
+}
+
+// noteLine files one output line: a progress redraw moves the running row's
+// bar, anything else becomes its detail and goes into the log.
+func (m *Model) noteLine(line string) {
+	line = tools.CleanLine(line)
+	if line == "" {
+		return
+	}
+	if m.runIdx < len(m.jobs) {
+		// A progress redraw moves the bar and nothing else: it is not
+		// worth a log line, and a fast one would push the real output out.
+		if p, ok := tools.ParseProgress(line); ok && p.Percent >= 0 {
+			m.jobs[m.runIdx].Percent = p.Percent
+			return
+		}
+		m.jobs[m.runIdx].Detail = line
+	}
+	m.outLines = append(m.outLines, line)
+	if len(m.outLines) > maxOutLines {
+		m.outLines = m.outLines[len(m.outLines)-maxOutLines:]
+	}
+}
+
+// finishJob settles an app's row from its outcome, in plain words.
+func (m *Model) finishJob(i int, o outcome) {
+	if i < 0 || i >= len(m.jobs) {
+		return
+	}
+	r := &m.jobs[i]
+	r.Percent = -1
+	r.Elapsed = max(0, time.Since(m.runStart)-m.doneTime())
+	switch {
+	case o.Skipped || o.SkipReason == "cancelled":
+		r.State, r.Detail = activity.Skipped, o.SkipReason
+	case o.OK:
+		v := managers.Explain(m.manager.Name(), o.ExitCode, o.LastLines)
+		r.State, r.Detail = activity.Done, ""
+		if v.Kind == managers.VerdictRestart {
+			r.State, r.Detail = activity.Warn, v.Text
+		}
+	default:
+		v := managers.Explain(m.manager.Name(), o.ExitCode, o.LastLines)
+		r.State = activity.Failed
+		r.Detail = v.Text
+		if v.Kind == managers.VerdictOK {
+			// The command never reported an exit code (the admin helper
+			// failed to start, or died): a zero there means "no code",
+			// not success, and the reason is in the last line below.
+			r.Detail = "failed"
+		}
+		if v.Kind == managers.VerdictRestart || v.Kind == managers.VerdictUpToDate {
+			r.State = activity.Warn
+			if v.Kind == managers.VerdictUpToDate {
+				r.State = activity.Done
+			}
+		}
+		for j := len(o.LastLines) - 1; j >= 0 && r.State == activity.Failed; j-- {
+			if l := strings.TrimSpace(o.LastLines[j]); l != "" {
+				r.Detail += " · " + l
+				break
+			}
+		}
+	}
+}
+
+// doneTime is how long the finished apps took between them, so the running
+// row's clock starts when its own install did.
+func (m Model) doneTime() time.Duration {
+	var d time.Duration
+	for _, r := range m.jobs {
+		if r.State.Final() {
+			d += r.Elapsed
+		}
+	}
+	return d
 }
 
 // buildResult turns the collected outcomes into a summary card result.
@@ -814,22 +985,26 @@ func launchWorker(ctx context.Context) (elevatedClient, error) {
 // paces it.
 func waitForEvents(ch chan runEvent) tea.Cmd {
 	return tea.Tick(tickEvery, func(time.Time) tea.Msg {
-		return runBatchMsg{events: drainEvents(ch)}
+		evs, closed := drainEvents(ch)
+		return runBatchMsg{events: evs, closed: closed}
 	})
 }
 
-// drainEvents reads everything currently buffered on ch without blocking.
-func drainEvents(ch chan runEvent) []runEvent {
+// drainEvents reads everything currently buffered on ch without blocking,
+// and reports whether ch has been closed. The close is what ends a run for
+// certain: after a Stop, a full channel can drop the run's last events, but
+// the goroutine always closes it on the way out.
+func drainEvents(ch chan runEvent) ([]runEvent, bool) {
 	var batch []runEvent
 	for {
 		select {
 		case ev, ok := <-ch:
 			if !ok {
-				return batch
+				return batch, true
 			}
 			batch = append(batch, ev)
 		default:
-			return batch
+			return batch, false
 		}
 	}
 }
@@ -875,104 +1050,56 @@ func (m Model) viewList(ctx uictx.Context) string {
 	return b.String()
 }
 
-// renderRow draws one row of the multiselect list.
+// renderRow draws one row of the multiselect list: a category heading, or
+// an app with its tick box, green when ticked.
 func (m Model) renderRow(ctx uictx.Context, r row, atCursor bool) string {
 	th := ctx.Theme
 	if r.isHeader {
-		return th.Subtitle.Render(r.category)
+		return " " + th.Subtitle.Render(r.category)
 	}
-
-	box := ctx.Icons.Unchecked
+	line := checklist.Line{Selected: atCursor, Box: checklist.BoxOf(r.selected), Indent: 2, Text: r.app.Name}
 	switch {
 	case r.installed:
-		box = ctx.Icons.Tick
-	case r.selected:
-		box = ctx.Icons.Checked
-	}
-
-	cursor := "  "
-	if atCursor {
-		cursor = ctx.Icons.Cursor + " "
-	}
-
-	line := "  " + cursor + box + " " + r.app.Name
-	switch {
-	case r.installed:
-		line += " (already installed)"
+		line.Box, line.Dim, line.Note = checklist.Blank, true, ctx.Icons.Tick+" installed"
 	case r.unavailable:
-		line += fmt.Sprintf(" (not available via %s)", m.manager.Name())
+		line.Box, line.Dim, line.Note = checklist.Blank, true, "not available via "+m.manager.Name()
 	}
-	text := ctx.Truncate(line)
-
-	switch {
-	case r.disabled():
-		return th.Muted.Render(text)
-	case atCursor:
-		return th.Selected.Render(text)
-	default:
-		return th.Base.Render(text)
-	}
+	return checklist.Render(ctx, line, ctx.Width)
 }
 
-// viewRunning renders the progress bar and the streamed output pane.
+// viewRunning draws the run: the overall bar, then one live row per app,
+// or the raw log when asked for.
 func (m Model) viewRunning(ctx uictx.Context) string {
-	th := ctx.Theme
 	var b strings.Builder
-	b.WriteString(th.Subtitle.Render(fmt.Sprintf("Installing %d/%d", m.runIdx, m.runTotal)))
-	b.WriteString("\n")
-	b.WriteString(renderBar(ctx, m.runIdx, m.runTotal, 30))
+	b.WriteString(activity.Header(ctx, "Installing", m.runIdx, m.runTotal, "via "+m.manager.Name(), time.Since(m.runStart), ctx.Width))
 	b.WriteString("\n\n")
-
-	width := ctx.Width - 2
-	if width < 10 {
-		width = 10
-	}
-	height := ctx.BodyHeight - 4
-	if height < 3 {
-		height = 3
-	}
-	out := viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
-	out.SetContent(strings.Join(m.outLines, "\n"))
-	out.GotoBottom()
-	b.WriteString(out.View())
+	b.WriteString(m.runBody(ctx, ctx.BodyHeight-3))
 	return b.String()
 }
 
-// viewSummary renders the summary card plus the last output lines of every
-// failed app.
+// runBody is the app rows, or the log when it is showing.
+func (m Model) runBody(ctx uictx.Context, height int) string {
+	if m.showLog {
+		th := ctx.Theme
+		if len(m.outLines) == 0 {
+			return th.Muted.Render("  Nothing logged yet.")
+		}
+		return th.Subtitle.Render(" Full log") + th.Muted.Render("  (l hides it)") + "\n" +
+			activity.LogView(ctx, m.outLines, ctx.Width, max(1, height-1))
+	}
+	return activity.View(ctx, m.jobs, m.frame, ctx.Width, height)
+}
+
+// viewSummary is the done box over the finished rows.
 func (m Model) viewSummary(ctx uictx.Context) string {
-	th := ctx.Theme
 	var b strings.Builder
-	b.WriteString(m.summary.View(ctx))
-	for _, r := range m.results {
-		if r.OK {
-			continue
-		}
-		b.WriteString("\n\n")
-		b.WriteString(th.Danger.Render(ctx.Icons.Fail + " " + r.Name))
-		for _, line := range r.LastLines {
-			b.WriteString("\n  ")
-			b.WriteString(th.Muted.Render(ctx.Truncate(line)))
-		}
-	}
+	b.WriteString(activity.DoneBox(ctx, "Installed", activity.Count(m.jobs), m.runElapse, ctx.Width))
+	b.WriteString("\n\n")
+	// Box (3 rows), a blank line, the rows, a blank line and the hint.
+	b.WriteString(m.runBody(ctx, ctx.BodyHeight-6))
+	b.WriteString("\n\n")
+	b.WriteString(ctx.KeyHint("enter", "done") + "   " + ctx.KeyHint("l", "full log"))
 	return b.String()
-}
-
-// renderBar draws a fixed-width relative bar for a "done/total" progress.
-func renderBar(ctx uictx.Context, done, total, width int) string {
-	if width <= 0 {
-		width = 20
-	}
-	filled := 0
-	if total > 0 {
-		filled = width * done / total
-	}
-	if filled > width {
-		filled = width
-	}
-	th := ctx.Theme
-	return th.Accent.Render(strings.Repeat(ctx.Icons.BarFull, filled)) +
-		th.Muted.Render(strings.Repeat(ctx.Icons.BarEmpty, width-filled))
 }
 
 // visibleWindow returns the [start,end) slice of rows to draw so the cursor

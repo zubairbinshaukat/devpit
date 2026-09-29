@@ -1,6 +1,8 @@
 // Package restable is the scan results table: one row per reclaimable item,
 // grouped by the project that owns it, with a tick box, a size, a relative
-// bar and a risk label on every row.
+// bar and a risk label on every row. The projects of one git repository are
+// gathered under a heading of their own, so a monorepo reads as one tree
+// rather than a scatter of folders all called "web" (see tree.go).
 //
 // Three things shape the design.
 //
@@ -115,7 +117,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// rowKind says whether a row is a project heading or an item under one.
+// rowKind says whether a row is a heading or an item under one.
 type rowKind int
 
 const (
@@ -123,21 +125,50 @@ const (
 	rowItem
 )
 
-// row is one printable line: either a group heading or one item in a group.
+// row is one printable line: a heading or one item.
+//
+// group indexes the top-level heading the row sits under. sub indexes the
+// project heading inside a repository heading, and is -1 for the top-level
+// heading itself and for everything under a heading with no second level. A
+// heading row is the heading those two name; an item row is item, under it.
 type row struct {
 	kind  rowKind
 	group int
+	sub   int
 	item  int
 }
 
-// group is one project's items, with the aggregates the heading shows.
+// Indentation, in cells, of each level of the tree. A top-level heading and
+// the items of a plain project sit at zero, which keeps a scan with no
+// monorepo in it laid out exactly as before nesting existed. Under a
+// repository heading each level steps in by nestStep.
+const nestStep = 4
+
+// group is one heading and everything under it, with the aggregates the
+// heading shows. A repository heading holds its projects in kids; every
+// other heading holds items directly. items is every item under the heading
+// either way, in display order, so ticking, counting and Selected never need
+// to know which kind of heading they are looking at.
 type group struct {
 	key      string
-	label    string
+	label    label
 	items    []int
+	kids     []group
 	size     uint64
 	lastUsed time.Time
 	active   bool
+}
+
+// add counts one item into the heading's aggregates.
+func (g *group) add(i int, it scan.Item) {
+	g.items = append(g.items, i)
+	g.size += it.Size
+	if it.Active {
+		g.active = true
+	}
+	if it.LastUsed.After(g.lastUsed) {
+		g.lastUsed = it.LastUsed
+	}
 }
 
 // Model is the results table.
@@ -147,6 +178,7 @@ type Model struct {
 
 	items []scan.Item
 	marks []bool
+	shape treeShape
 
 	collapsed map[string]bool
 
@@ -229,6 +261,7 @@ func (m Model) SetStreaming(streaming bool) Model {
 func (m Model) SetItems(items []scan.Item) Model {
 	m.items = append([]scan.Item(nil), items...)
 	m.marks = preselect(m.items)
+	m.shape = shapeOf(m.items)
 	m.cursor, m.top = 0, 0
 	m.rebuild()
 	return m
@@ -249,6 +282,7 @@ func (m Model) Append(items []scan.Item) Model {
 	marks = append(marks, preselect(items)...)
 
 	m.items, m.marks = next, marks
+	m.shape = shapeOf(m.items)
 	m.rebuild()
 	return m
 }
@@ -301,9 +335,23 @@ func (m Model) Filtering() bool { return m.filtering }
 // OlderOnly reports whether the "older than" filter is on.
 func (m Model) OlderOnly() bool { return m.olderOnly }
 
-// Update handles the table's keys. It never blocks and never touches the
-// filesystem.
+// wheelStep is how many rows one notch of the mouse wheel scrolls: the
+// usual terminal step, small enough to keep one's place.
+const wheelStep = 3
+
+// Update handles the table's keys and the mouse wheel. It never blocks and
+// never touches the filesystem. Clicks go through [Model.Click] instead,
+// because only the screen knows where on the terminal the table was drawn.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if wm, ok := msg.(tea.MouseWheelMsg); ok {
+		switch wm.Button {
+		case tea.MouseWheelUp:
+			m.scroll(-wheelStep)
+		case tea.MouseWheelDown:
+			m.scroll(wheelStep)
+		}
+		return m, nil
+	}
 	km, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
@@ -385,6 +433,22 @@ func (m *Model) moveCursor(delta int) {
 	m.clampCursor()
 }
 
+// scroll moves the window and the cursor together by delta rows, so the
+// wheel scrolls the page with the cursor riding at the same height on it.
+// At either end the window stops and the cursor carries on to the last row,
+// which is what the arrow keys would do there.
+func (m *Model) scroll(delta int) {
+	if len(m.rows) == 0 {
+		m.cursor, m.top = 0, 0
+		return
+	}
+	h := max(1, m.bodyHeight())
+	m.top = min(max(0, m.top+delta), max(0, len(m.rows)-h))
+	m.cursor = min(max(0, m.cursor+delta), len(m.rows)-1)
+	m.cursor = min(max(m.cursor, m.top), m.top+h-1)
+	m.clampCursor()
+}
+
 // clampCursor keeps the cursor inside the row list and the window around the
 // cursor.
 func (m *Model) clampCursor() {
@@ -413,21 +477,55 @@ func (m *Model) clampCursor() {
 	}
 }
 
-// toggleAt ticks the item on a row, or every item in the group when the row
-// is a heading.
+// node is the heading a row names, or the one an item row sits directly
+// under.
+func (m *Model) node(r row) *group {
+	g := &m.groups[r.group]
+	if r.sub >= 0 {
+		return &g.kids[r.sub]
+	}
+	return g
+}
+
+// headingRow is the heading an item row sits directly under, or the row
+// itself when it is a heading.
+func headingRow(r row) row { return row{kind: rowGroup, group: r.group, sub: r.sub} }
+
+// indent is how far a row's tick box sits to the right of a top-level
+// heading's: a project under a repository one step, its items two. The items
+// of a plain project stay at zero, as they always were.
+func indent(r row) int {
+	switch {
+	case r.sub < 0:
+		return 0
+	case r.kind == rowGroup:
+		return nestStep
+	default:
+		return 2 * nestStep
+	}
+}
+
+// ticked counts how many of a heading's items are ticked.
+func (m Model) ticked(g *group) int {
+	n := 0
+	for _, i := range g.items {
+		if m.marks[i] {
+			n++
+		}
+	}
+	return n
+}
+
+// toggleAt ticks the item on a row, or every item under the heading when the
+// row is one. A heading that is fully ticked is cleared; one that is empty or
+// only partly ticked is filled, so one press always means "all of this".
 func (m *Model) toggleAt(r row) {
 	if r.kind == rowItem {
 		m.marks[r.item] = !m.marks[r.item]
 		return
 	}
-	g := m.groups[r.group]
-	all := true
-	for _, i := range g.items {
-		if !m.marks[i] {
-			all = false
-			break
-		}
-	}
+	g := m.node(r)
+	all := m.ticked(g) == len(g.items)
 	for _, i := range g.items {
 		m.marks[i] = !all
 	}
@@ -460,28 +558,50 @@ func (m *Model) toggleAll() {
 	}
 }
 
-// fold collapses or expands the group the cursor is in. Collapsing from an
-// item row moves the cursor up to the heading so it stays visible.
+// fold collapses or expands the heading the cursor is on, or the one the
+// cursor's item sits under. Collapsing from an item row moves the cursor up
+// to the heading so it stays visible. Collapsing a project heading that is
+// already folded folds its repository instead, the way a tree view climbs a
+// level, so holding ← walks all the way out.
 func (m *Model) fold(collapse bool) {
 	if m.cursor < 0 || m.cursor >= len(m.rows) {
 		return
 	}
-	r := m.rows[m.cursor]
-	g := m.groups[r.group]
-	if m.collapsed[g.key] == collapse {
+	target := headingRow(m.rows[m.cursor])
+	if collapse && target.sub >= 0 && m.rows[m.cursor].kind == rowGroup && m.collapsed[m.node(target).key] {
+		target.sub = -1
+	}
+	key := m.node(target).key
+	if m.collapsed[key] == collapse {
 		return
 	}
-	m.collapsed[g.key] = collapse
+	m.collapsed[key] = collapse
 	m.rebuildRows()
 	if collapse {
-		for i, rr := range m.rows {
-			if rr.kind == rowGroup && rr.group == r.group {
-				m.cursor = i
-				break
-			}
-		}
+		m.cursor = m.rowOf(target)
 	}
 	m.clampCursor()
+}
+
+// toggleFold flips one heading between folded and unfolded, which is what a
+// click on its arrow does. The heading's own row index cannot change, since
+// only rows after it come or go, so the cursor stays on it.
+func (m *Model) toggleFold(r row) {
+	key := m.node(r).key
+	m.collapsed[key] = !m.collapsed[key]
+	m.rebuildRows()
+	m.clampCursor()
+}
+
+// rowOf is the index of a heading row, or the cursor's current index when
+// the heading is not on the list.
+func (m Model) rowOf(heading row) int {
+	for i, rr := range m.rows {
+		if rr.kind == rowGroup && rr.group == heading.group && rr.sub == heading.sub {
+			return i
+		}
+	}
+	return m.cursor
 }
 
 // bodyHeight is how many item rows fit, once the column heading and the
@@ -494,8 +614,13 @@ func (m Model) bodyHeight() int {
 	return max(0, h)
 }
 
-// rebuild recomputes the groups and the printable rows from the items, the
+// rebuild recomputes the headings and the printable rows from the items, the
 // filters and the sort order.
+//
+// The tree's shape, which repositories nest and what every heading is called,
+// comes from [treeShape] and so from every item the table holds; only which
+// headings appear depends on the filters. A heading appears as soon as one
+// item under it passes them.
 func (m *Model) rebuild() {
 	if m.collapsed == nil {
 		m.collapsed = map[string]bool{}
@@ -503,28 +628,34 @@ func (m *Model) rebuild() {
 
 	keep := m.keepers()
 
-	byKey := map[string]int{}
-	m.groups = m.groups[:0]
+	byTop := map[string]int{}
+	byKid := map[string]int{}
+	m.groups = make([]group, 0, len(m.groups))
 	m.maxSize, m.shownBytes, m.shownCount = 0, 0, 0
 
 	for _, i := range keep {
 		it := m.items[i]
-		k := groupKey(it)
-		gi, ok := byKey[k]
+		tk, tp := m.shape.top(it)
+		gi, ok := byTop[tk]
 		if !ok {
 			gi = len(m.groups)
-			byKey[k] = gi
-			m.groups = append(m.groups, group{key: k, label: groupLabel(it)})
+			byTop[tk] = gi
+			m.groups = append(m.groups, group{key: tk, label: m.shape.labelFor(tk, tp)})
 		}
 		g := &m.groups[gi]
-		g.items = append(g.items, i)
-		g.size += it.Size
-		if it.Active {
-			g.active = true
+		g.add(i, it)
+
+		if m.shape.nested(it) {
+			pk := projectKeyPrefix + projectKey(it)
+			ki, ok := byKid[pk]
+			if !ok {
+				ki = len(g.kids)
+				byKid[pk] = ki
+				g.kids = append(g.kids, group{key: pk, label: relLabel(it.Repo, projectPath(it))})
+			}
+			g.kids[ki].add(i, it)
 		}
-		if it.LastUsed.After(g.lastUsed) {
-			g.lastUsed = it.LastUsed
-		}
+
 		if it.Size > m.maxSize {
 			m.maxSize = it.Size
 		}
@@ -534,6 +665,18 @@ func (m *Model) rebuild() {
 
 	if m.sorting() {
 		m.applySort()
+	}
+	// A repository heading's items follow its projects' order, sorted or
+	// not, so Selected and a heading toggle walk them as they are drawn.
+	for gi := range m.groups {
+		g := &m.groups[gi]
+		if len(g.kids) == 0 {
+			continue
+		}
+		g.items = g.items[:0]
+		for _, k := range g.kids {
+			g.items = append(g.items, k.items...)
+		}
 	}
 	m.rebuildRows()
 	m.clampCursor()
@@ -572,7 +715,9 @@ func (m Model) keepers() []int {
 // middle of a scan, unless the user asked for a sort explicitly.
 func (m Model) sorting() bool { return !m.streaming || m.sortAsked }
 
-// applySort orders the groups and the items inside each of them.
+// applySort orders the headings at every level and the items inside each
+// of them, by the same key: a repository among the top-level headings, its
+// projects among themselves, each project's items among theirs.
 func (m *Model) applySort() {
 	less := func(a, b int) bool {
 		x, y := m.items[a], m.items[b]
@@ -595,16 +740,33 @@ func (m *Model) applySort() {
 		}
 		return x.Path < y.Path
 	}
-	for gi := range m.groups {
-		g := &m.groups[gi]
+	sortItems := func(g *group) {
 		sort.SliceStable(g.items, func(a, b int) bool { return less(g.items[a], g.items[b]) })
 	}
-	sort.SliceStable(m.groups, func(a, b int) bool {
-		x, y := m.groups[a], m.groups[b]
+	for gi := range m.groups {
+		g := &m.groups[gi]
+		if len(g.kids) == 0 {
+			sortItems(g)
+			continue
+		}
+		for ki := range g.kids {
+			sortItems(&g.kids[ki])
+		}
+		m.sortGroups(g.kids)
+	}
+	m.sortGroups(m.groups)
+}
+
+// sortGroups orders one level of headings by the table's sort mode, falling
+// back to size and then to the key so the order is total and stable.
+func (m Model) sortGroups(gs []group) {
+	sort.SliceStable(gs, func(a, b int) bool {
+		x, y := gs[a], gs[b]
 		switch m.sortMode {
 		case SortName:
-			if !strings.EqualFold(x.label, y.label) {
-				return strings.ToLower(x.label) < strings.ToLower(y.label)
+			xl, yl := x.label.String(), y.label.String()
+			if !strings.EqualFold(xl, yl) {
+				return strings.ToLower(xl) < strings.ToLower(yl)
 			}
 		case SortAge:
 			if !x.lastUsed.Equal(y.lastUsed) {
@@ -622,17 +784,29 @@ func (m *Model) applySort() {
 	})
 }
 
-// rebuildRows turns the groups into the printable row list, honouring which
-// groups are folded.
+// rebuildRows turns the headings into the printable row list, honouring
+// which headings are folded at either level.
 func (m *Model) rebuildRows() {
 	m.rows = m.rows[:0]
 	for gi, g := range m.groups {
-		m.rows = append(m.rows, row{kind: rowGroup, group: gi})
+		m.rows = append(m.rows, row{kind: rowGroup, group: gi, sub: -1})
 		if m.collapsed[g.key] {
 			continue
 		}
-		for _, i := range g.items {
-			m.rows = append(m.rows, row{kind: rowItem, group: gi, item: i})
+		if len(g.kids) == 0 {
+			for _, i := range g.items {
+				m.rows = append(m.rows, row{kind: rowItem, group: gi, sub: -1, item: i})
+			}
+			continue
+		}
+		for ki, k := range g.kids {
+			m.rows = append(m.rows, row{kind: rowGroup, group: gi, sub: ki})
+			if m.collapsed[k.key] {
+				continue
+			}
+			for _, i := range k.items {
+				m.rows = append(m.rows, row{kind: rowItem, group: gi, sub: ki, item: i})
+			}
 		}
 	}
 }
@@ -645,34 +819,15 @@ func (m Model) clock() time.Time {
 	return m.now()
 }
 
-// matches reports whether an item passes the text filter.
+// matches reports whether an item passes the text filter. The project path
+// holds the repository's, so typing a repository's name keeps everything in
+// it.
 func matches(it scan.Item, needle string) bool {
 	return strings.Contains(strings.ToLower(it.Name), needle) ||
 		strings.Contains(strings.ToLower(it.Path), needle) ||
 		strings.Contains(strings.ToLower(it.Project), needle) ||
+		strings.Contains(strings.ToLower(it.Repo), needle) ||
 		strings.Contains(strings.ToLower(it.Rule), needle)
-}
-
-// groupKey is the identity of the project a row belongs under, compared
-// without regard to case because Windows paths are case-insensitive.
-func groupKey(it scan.Item) string {
-	p := it.Project
-	if p == "" {
-		p = parentPath(it.Path)
-	}
-	return strings.ToLower(p)
-}
-
-// groupLabel is the heading text for a project.
-func groupLabel(it scan.Item) string {
-	p := it.Project
-	if p == "" {
-		p = parentPath(it.Path)
-	}
-	if b := baseName(p); b != "" {
-		return b
-	}
-	return p
 }
 
 // parentPath is the directory holding path, for both separators, so the

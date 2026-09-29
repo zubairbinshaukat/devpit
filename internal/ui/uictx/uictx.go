@@ -45,7 +45,16 @@ type Context struct {
 	// Update describes a newer published Devpit, once the background check
 	// has found one. Its zero value means none is known.
 	Update UpdateInfo
+	// ReducedMotion freezes every animation on its first frame. The root
+	// model sets it from DEVPIT_REDUCED_MOTION, the ascii tier and NO_COLOR:
+	// there is no standard variable for motion, so Devpit reads its own and
+	// treats the other two as a terminal that would rather stay still.
+	ReducedMotion bool
 }
+
+// ReducedMotionEnv is the environment variable that turns animation off.
+// Any non-empty value other than "0" counts as on.
+const ReducedMotionEnv = "DEVPIT_REDUCED_MOTION"
 
 // UpdateInfo is what the settings screen tells the user about a newer
 // release: which version, where it is, and the one command that installs it
@@ -86,6 +95,73 @@ func (c Context) Truncate(s string) string {
 		return s
 	}
 	return ansi.Truncate(s, c.Width, "…")
+}
+
+// Checkbox is a styled tick box: green when on, a quiet grey when off, so a
+// long list reads at a glance as "what will happen".
+func (c Context) Checkbox(on bool) string {
+	if on {
+		return c.Theme.CheckOn.Render(c.Icons.Checked)
+	}
+	return c.Theme.CheckOff.Render(c.Icons.Unchecked)
+}
+
+// CheckboxPartial is the box of a group where only some of the items under
+// it are ticked. It wears the warning hue: something is ticked, not all.
+func (c Context) CheckboxPartial() string {
+	return c.Theme.Warning.Render(c.Icons.Partial)
+}
+
+// CheckboxState is [Context.Checkbox] for a group: all, none or some ticked.
+func (c Context) CheckboxState(ticked, total int) string {
+	switch {
+	case total > 0 && ticked >= total:
+		return c.Checkbox(true)
+	case ticked > 0:
+		return c.CheckboxPartial()
+	default:
+		return c.Checkbox(false)
+	}
+}
+
+// SpinnerFrame is frame n of the busy spinner, unstyled, or the first frame
+// when motion is reduced.
+func (c Context) SpinnerFrame(n int) string {
+	if c.ReducedMotion {
+		n = 0
+	}
+	return c.Icons.SpinnerFrame(n)
+}
+
+// Track draws a progress bar of width cells, frac of it filled: a heavy
+// accent line over a light grey one. frac is clamped to [0, 1].
+func (c Context) Track(frac float64, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	frac = min(max(frac, 0), 1)
+	filled := int(frac*float64(width) + 0.5)
+	return c.Theme.Accent.Render(repeat(c.Icons.Track, filled)) +
+		c.Theme.Rule.Render(repeat(c.Icons.TrackEmpty, width-filled))
+}
+
+// KeyHint renders "[key] label" with the key in its own colour, the house
+// style for an inline instruction.
+func (c Context) KeyHint(k, label string) string {
+	th := c.Theme
+	return th.Muted.Render("[") + th.KeyCap.Render(k) + th.Muted.Render("] "+label)
+}
+
+// repeat is strings.Repeat that tolerates a negative count.
+func repeat(s string, n int) string {
+	if n <= 0 || s == "" {
+		return ""
+	}
+	out := make([]byte, 0, len(s)*n)
+	for range n {
+		out = append(out, s...)
+	}
+	return string(out)
 }
 
 // Screen is one page of the UI. Screens are values: Update returns the next

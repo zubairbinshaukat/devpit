@@ -1,16 +1,16 @@
  DEVPIT  vdev  ·  Git & SSH Setup                                node …   git …
-  Clean   Ports   Apps   Update   Network   Git   Settings
-────────────────────────────────────────────────────────────────────────────────
+  Clean    Ports    Apps    Update    Network    Git    Settings    tab ⇄ · 1–7
+────────────────────────────────────────────────━━━━━───────────────────────────
 Get a fresh machine ready to push code.
 
-  ▸ Show git identity
-    (See the name and email git will commit as)
+▌ ▸ Show git identity
+▌   See the name and email git will commit as
 
     Set git identity
-    (Set your global git name and email)
+    Set your global git name and email
 
     Generate SSH key
-    (Create an ed25519 key and copy the public half)
+    Create an ed25519 key and copy the public half
 
 
 

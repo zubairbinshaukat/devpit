@@ -103,9 +103,11 @@ shape are inspired by lazygit's `file_icons.go`, attributed in `NOTICE`.
 
 ## The icon font
 
-Devpit bundles no font. Milestone 4 adds an installer that downloads
-Symbols Nerd Font Mono from a pinned Nerd Fonts release, verifies its SHA256,
-installs it for the current user without administrator rights, and appends it
-as a **fallback** to Windows Terminal's font list. The user's own font is never
-replaced, the original `settings.json` is backed up first, and
-`devpit font remove` reverses all of it.
+Devpit bundles no font. `devpit font install` downloads Symbols Nerd Font Mono
+from a pinned Nerd Fonts release, verifies its SHA256, installs it for the
+current user without administrator rights, and appends it as a **fallback** to
+Windows Terminal's font list. The user's own font is never replaced, the
+original `settings.json` is backed up first, and `devpit font remove` reverses
+all of it. `web/install.ps1` runs it right after installing `devpit.exe`
+(skip with `-NoFont`), and Settings › Icon font does the same thing: both go
+through `internal/fonts/setup`, so they cannot drift apart.

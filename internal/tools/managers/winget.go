@@ -1,6 +1,10 @@
 package managers
 
-import "strings"
+import (
+	"regexp"
+	"strconv"
+	"strings"
+)
 
 // Winget drives the winget package manager. Installs and updates run as the
 // current user; each package prompts for UAC individually unless the
@@ -40,12 +44,61 @@ func (Winget) InstallCmd(id string) []string {
 // NeedsElevation implements [Manager].
 func (Winget) NeedsElevation() bool { return false }
 
+// UpgradeCmd implements [Manager]. -e makes --id an exact match, so
+// upgrading "Git.Git" can never pick up "Git.Git.Preview"; --silent and
+// --disable-interactivity keep the package's own installer from showing a
+// wizard or prompt Devpit can't answer; and both --accept-*-agreements
+// flags stop winget itself from waiting on a "Do you agree? [Y/N]" nobody
+// will see.
+func (Winget) UpgradeCmd(id string) []string {
+	return []string{
+		"winget", "upgrade", "--id", id, "-e", "--silent",
+		"--accept-package-agreements", "--accept-source-agreements",
+		"--disable-interactivity",
+	}
+}
+
+// CheckCmds implements [Manager]. One step: `winget upgrade` with no
+// package lists what has an update, refreshing its sources as it goes.
+func (w Winget) CheckCmds() [][]string { return [][]string{w.OutdatedCmd()} }
+
+// CleanupCmds implements [Manager]. winget removes an old version as part
+// of upgrading it and keeps no download cache worth clearing.
+func (Winget) CleanupCmds([]string) [][]string { return nil }
+
 // noPackagesPhrases are the messages winget prints instead of a table when
-// there is nothing to report, across the list and upgrade commands.
+// there is nothing to report, across the list and upgrade commands. They
+// are English: a localized "nothing to update" is not recognised, which
+// leaves [OutdatedReport.Parsed] false and the caller falling back to
+// upgrading everything, the safe direction to be wrong in.
 var noPackagesPhrases = []string{
 	"no installed package found",
 	"no applicable update found",
+	"no applicable upgrade found",
 	"no available upgrade",
+}
+
+// wingetUnknownRE and wingetPinnedRE match winget's footer counts of
+// packages it left out of the upgrade table. English only: the counts are
+// a nice-to-have, while the table itself is read without depending on the
+// display language (see [parseWingetTables]). Newer winget words the
+// pinned footer "have pins that prevent upgrade", older builds "are
+// pinned and need to be explicitly upgraded"; both are accepted.
+var (
+	wingetUnknownRE = regexp.MustCompile(`(?i)^(\d+)\s+package\(s\)\s+have version numbers that cannot be determined`)
+	wingetPinnedRE  = regexp.MustCompile(`(?i)^(\d+)\s+package\(s\)\s+(?:are pinned|have pins)`)
+)
+
+// hasNoPackagesPhrase reports whether out contains one of
+// [noPackagesPhrases].
+func hasNoPackagesPhrase(out string) bool {
+	lower := strings.ToLower(out)
+	for _, phrase := range noPackagesPhrases {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
 }
 
 // ParseList implements [Manager]. winget's output is a fixed-width table:
@@ -53,145 +106,91 @@ var noPackagesPhrases = []string{
 //	Name                 Id                      Version      Source
 //	-----------------------------------------------------------------
 //	7-Zip                7zip.7zip               23.01        winget
-//	Git                  Git.Git                 2.43.0        winget
+//	Git                  Git.Git                 2.43.0       winget
 //
-// Column boundaries are found from the header row's word offsets, then
-// every following row is sliced at those offsets: winget pads each cell
-// with spaces to a fixed width per invocation rather than using a
-// delimiter, so a delimiter-based split would break on any value
-// containing a space.
+// The table is found and sliced by [parseWingetTables], which goes by the
+// dashed separator and column positions rather than the header's words, so
+// it reads the same on a German or Japanese Windows. The first three
+// columns are always Name, Id and Version; any Available and Source columns
+// after them are ignored.
 func (Winget) ParseList(out string) []Installed {
-	rows := parseWingetTable(out, []string{"Name", "Id", "Version"})
-	if rows == nil {
+	tables := parseWingetTables(out)
+	if len(tables) == 0 {
 		return nil
 	}
-	result := make([]Installed, 0, len(rows))
-	for _, r := range rows {
-		result = append(result, Installed{
-			Name:    r["Name"],
-			ID:      r["Id"],
-			Version: r["Version"],
-		})
+	var result []Installed
+	for _, t := range tables {
+		if t.columns < 3 {
+			continue
+		}
+		for _, r := range t.rows {
+			result = append(result, Installed{Name: r[0], ID: r[1], Version: r[2]})
+		}
 	}
 	return result
 }
 
-// ParseOutdated implements [Manager]. winget upgrade's table adds an
-// "Available" column holding the version an upgrade would install:
+// ParseOutdated implements [Manager]. It is [Winget.ParseOutdatedReport]'s
+// Packages.
+func (w Winget) ParseOutdated(out string) []Outdated {
+	return w.ParseOutdatedReport(out).Packages
+}
+
+// ParseOutdatedReport implements [Manager]. winget upgrade's table adds an
+// "Available" column holding the version an upgrade would install, and may
+// be followed by a second table of packages that `--all` skips:
 //
 //	Name            Id              Version      Available    Source
 //	------------------------------------------------------------------
 //	Git             Git.Git         2.42.0       2.43.0       winget
-func (Winget) ParseOutdated(out string) []Outdated {
-	rows := parseWingetTable(out, []string{"Name", "Id", "Version", "Available"})
-	if rows == nil {
-		return nil
-	}
-	result := make([]Outdated, 0, len(rows))
-	for _, r := range rows {
-		result = append(result, Outdated{
-			Name:    r["Name"],
-			ID:      r["Id"],
-			Current: r["Version"],
-			Latest:  r["Available"],
-		})
-	}
-	return result
-}
-
-// parseWingetTable finds the header line containing every column in want,
-// in order, tokenizes it to learn every column's name and start offset
-// (not only the wanted ones, so a value in an unwanted trailing column
-// never bleeds into the last wanted column), slices every following data
-// row at those offsets, and returns one map[column]value per row. It stops
-// at the first blank line after the table starts, and returns nil if
-// winget reported no packages or no header line was found at all.
-func parseWingetTable(out string, want []string) []map[string]string {
-	lower := strings.ToLower(out)
-	for _, phrase := range noPackagesPhrases {
-		if strings.Contains(lower, phrase) {
-			return nil
-		}
-	}
-
-	lines := strings.Split(out, "\n")
-	headerIdx := -1
-	var cols []string
-	var offsets []int
-	for i, line := range lines {
-		names, offs := tokenizeHeader(line)
-		if containsInOrder(names, want) {
-			headerIdx, cols, offsets = i, names, offs
-			break
-		}
-	}
-	if headerIdx == -1 {
-		return nil
-	}
-
-	var rows []map[string]string
-	// headerIdx+1 is the dashed separator line; data starts after that.
-	for _, line := range lines[headerIdx+2:] {
-		trimmed := strings.TrimRight(line, "\r\n")
-		if strings.TrimSpace(trimmed) == "" {
-			break
-		}
-		rows = append(rows, sliceRow(trimmed, cols, offsets))
-	}
-	return rows
-}
-
-// tokenizeHeader splits a header line into whitespace-separated column
-// names and each one's byte offset in the line.
-func tokenizeHeader(line string) (names []string, offsets []int) {
-	n := len(line)
-	i := 0
-	for i < n {
-		for i < n && (line[i] == ' ' || line[i] == '\t') {
-			i++
-		}
-		if i >= n {
-			break
-		}
-		start := i
-		for i < n && line[i] != ' ' && line[i] != '\t' {
-			i++
-		}
-		names = append(names, line[start:i])
-		offsets = append(offsets, start)
-	}
-	return names, offsets
-}
-
-// containsInOrder reports whether every entry of want appears in cols, in
-// the same relative order, as an exact token match (not merely a
-// substring, so "Id" never matches inside "Available").
-func containsInOrder(cols, want []string) bool {
-	j := 0
-	for _, c := range cols {
-		if j < len(want) && c == want[j] {
-			j++
-		}
-	}
-	return j == len(want)
-}
-
-// sliceRow cuts line at each known column's offset (using the next
-// column's offset, or end of line for the last column) and trims the
-// result, returning every column in names, not only a caller's subset.
-func sliceRow(line string, names []string, offsets []int) map[string]string {
-	row := make(map[string]string, len(names))
-	for i, name := range names {
-		start := offsets[i]
-		if start > len(line) {
-			row[name] = ""
+//	1 upgrades available.
+//
+//	The following packages have an upgrade available, but require explicit targeting for upgrade:
+//	Name            Id              Version      Available    Source
+//	------------------------------------------------------------------
+//	Node.js         OpenJS.NodeJS   20.10.0      22.1.0       winget
+//	1 package(s) have version numbers that cannot be determined. Use --include-unknown to see all results.
+//
+// Columns are positional (Name, Id, Version, Available, then an optional
+// Source), never looked up by their header text, so the parser works under
+// any display language. Every table after the first is the
+// explicit-targeting one, and so is a table introduced by a sentence ending
+// in a colon (which is how winget prints it when it is the only table); its
+// rows are marked [Outdated.Explicit].
+func (Winget) ParseOutdatedReport(out string) OutdatedReport {
+	var rep OutdatedReport
+	for i, t := range parseWingetTables(out) {
+		if t.columns < 4 {
+			// Not an upgrade table: nothing with fewer columns than
+			// Name, Id, Version, Available can say what to upgrade to.
 			continue
 		}
-		end := len(line)
-		if i+1 < len(offsets) && offsets[i+1] < end {
-			end = offsets[i+1]
+		rep.Parsed = true
+		for _, r := range t.rows {
+			rep.Packages = append(rep.Packages, Outdated{
+				Name:     r[0],
+				ID:       r[1],
+				Current:  r[2],
+				Latest:   r[3],
+				Explicit: i > 0 || t.introduced,
+			})
 		}
-		row[name] = strings.TrimSpace(line[start:end])
 	}
-	return row
+
+	for _, line := range normalizeWingetLines(out) {
+		line = strings.TrimSpace(line)
+		if m := wingetUnknownRE.FindStringSubmatch(line); m != nil {
+			rep.Unknown, _ = strconv.Atoi(m[1])
+			rep.Parsed = true
+		}
+		if m := wingetPinnedRE.FindStringSubmatch(line); m != nil {
+			rep.Pinned, _ = strconv.Atoi(m[1])
+			rep.Parsed = true
+		}
+	}
+
+	if hasNoPackagesPhrase(out) {
+		rep.Parsed = true
+	}
+	return rep
 }

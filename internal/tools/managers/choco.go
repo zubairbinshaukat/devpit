@@ -1,6 +1,9 @@
 package managers
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // Choco drives Chocolatey. Every Chocolatey command needs an elevated
 // shell, so Devpit always routes it through the elevated worker.
@@ -22,6 +25,18 @@ func (Choco) UpgradeAllCmds() [][]string {
 
 // InstallCmd implements [Manager].
 func (Choco) InstallCmd(id string) []string { return []string{"choco", "install", id, "-y"} }
+
+// UpgradeCmd implements [Manager]. -y answers Chocolatey's own
+// confirmation prompts, which nobody would see.
+func (Choco) UpgradeCmd(id string) []string { return []string{"choco", "upgrade", id, "-y"} }
+
+// CheckCmds implements [Manager]. `choco outdated` queries the sources
+// itself, so one step is enough.
+func (c Choco) CheckCmds() [][]string { return [][]string{c.OutdatedCmd()} }
+
+// CleanupCmds implements [Manager]. Chocolatey replaces a package's files
+// in place on upgrade and keeps nothing behind worth cleaning.
+func (Choco) CleanupCmds([]string) [][]string { return nil }
 
 // NeedsElevation implements [Manager]. Chocolatey installs to
 // %ProgramData%\chocolatey and needs an admin shell for every command.
@@ -47,7 +62,18 @@ func (Choco) ParseList(out string) []Installed {
 	return result
 }
 
-// ParseOutdated implements [Manager]. "choco outdated" prints a
+// ParseOutdated implements [Manager]. It is [Choco.ParseOutdatedReport]'s
+// Packages.
+func (c Choco) ParseOutdated(out string) []Outdated {
+	return c.ParseOutdatedReport(out).Packages
+}
+
+// chocoSummaryRE matches the line `choco outdated` always ends with, even
+// when nothing is outdated: "Chocolatey has determined 2 package(s) are
+// outdated."
+var chocoSummaryRE = regexp.MustCompile(`(?i)has determined \d+ package\(s\) are outdated`)
+
+// ParseOutdatedReport implements [Manager]. "choco outdated" prints a
 // pipe-delimited table:
 //
 //	Chocolatey v2.2.2
@@ -58,10 +84,18 @@ func (Choco) ParseList(out string) []Installed {
 //	nodejs-lts|20.10.0|20.11.0|false
 //
 //	Chocolatey has determined 2 package(s) are outdated.
-func (Choco) ParseOutdated(out string) []Outdated {
-	var result []Outdated
+//
+// A "true" in the fourth column marks the package [Outdated.Pinned]. The
+// report is Parsed when any row or the closing "has determined N
+// package(s)" summary was found.
+func (Choco) ParseOutdatedReport(out string) OutdatedReport {
+	var rep OutdatedReport
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
+		if chocoSummaryRE.MatchString(line) {
+			rep.Parsed = true
+			continue
+		}
 		if !strings.Contains(line, "|") || strings.HasPrefix(line, "Output is") {
 			continue
 		}
@@ -73,14 +107,16 @@ func (Choco) ParseOutdated(out string) []Outdated {
 		if name == "" {
 			continue
 		}
-		result = append(result, Outdated{
+		rep.Parsed = true
+		rep.Packages = append(rep.Packages, Outdated{
 			Name:    name,
 			ID:      name,
 			Current: strings.TrimSpace(parts[1]),
 			Latest:  strings.TrimSpace(parts[2]),
+			Pinned:  len(parts) > 3 && strings.EqualFold(strings.TrimSpace(parts[3]), "true"),
 		})
 	}
-	return result
+	return rep
 }
 
 // isChocoPackageLine reports whether a two-field line looks like a

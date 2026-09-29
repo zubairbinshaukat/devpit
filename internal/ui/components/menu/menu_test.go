@@ -2,6 +2,7 @@ package menu_test
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -146,5 +147,24 @@ func TestMenuHintIsDroppedWhenItCannotFit(t *testing.T) {
 	}
 	if !strings.Contains(out, "Fix Stuck Ports") {
 		t.Errorf("the title should have survived:\n%s", out)
+	}
+}
+
+// Hovering a long, scrolling menu never scrolls it: repeated motion at one
+// spot keeps the same row under the pointer.
+func TestHoverNeverScrolls(t *testing.T) {
+	var items []menu.Item
+	for i := range 30 {
+		items = append(items, menu.Item{ID: strconv.Itoa(i), Title: "Item " + strconv.Itoa(i)})
+	}
+	c := uictx.Context{Theme: theme.For(true), Icons: icons.Unicode(), Width: 60, Height: 24, BodyHeight: 12}
+	m := menu.New(items).SetHeight(12)
+	row := 10 // near the bottom of the window
+	first, _ := m.RowAt(c, row)
+	for range 5 {
+		m, _ = m.Hover(c, row)
+		if got, _ := m.RowAt(c, row); got != first {
+			t.Fatalf("the row under the pointer changed from %d to %d", first, got)
+		}
 	}
 }

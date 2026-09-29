@@ -132,10 +132,6 @@ func padRight(s string, w int) string {
 // other processes it would also stop; the list flow passes "" and 0.
 func (m Model) renderTreeToggle(ctx uictx.Context, on bool, parentName string, descendants int) string {
 	th := ctx.Theme
-	box := ctx.Icons.Unchecked
-	if on {
-		box = ctx.Icons.Checked
-	}
 	label := "[t] Kill process tree"
 	if parentName != "" {
 		if descendants > 0 {
@@ -148,5 +144,5 @@ func (m Model) renderTreeToggle(ctx uictx.Context, on bool, parentName string, d
 	if on {
 		style = th.Accent
 	}
-	return style.Render(box + " " + label)
+	return ctx.Checkbox(on) + " " + style.Render(label)
 }

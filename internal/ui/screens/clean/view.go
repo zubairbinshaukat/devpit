@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2"
+
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
@@ -45,7 +47,7 @@ func (m Model) View(ctx uictx.Context) string {
 // menuView draws the submenu.
 func (m Model) menuView(ctx uictx.Context) string {
 	var b strings.Builder
-	b.WriteString(ctx.Theme.Muted.Render("Pick what to look through. Nothing is deleted without a preview."))
+	b.WriteString(m.menuLead(ctx))
 	b.WriteString("\n\n")
 	b.WriteString(m.menu.View(ctx))
 	if lifetime := ctx.Config.LifetimeFreedBytes; lifetime > 0 {
@@ -94,17 +96,42 @@ func (m Model) scanCounters(ctx uictx.Context) string {
 	return th.Muted.Render(line)
 }
 
+// menuLead is the line above the submenu.
+func (m Model) menuLead(ctx uictx.Context) string {
+	return ctx.Theme.Muted.Render("Pick what to look through. Nothing is deleted without a preview.")
+}
+
+// menuTop is the body row the submenu's first line is drawn on: after the
+// lead and the blank line under it. It measures the lead menuView draws, so
+// a click and the frame it lands on can never disagree about where the menu
+// is.
+func (m Model) menuTop(ctx uictx.Context) int {
+	return lipgloss.Height(m.menuLead(ctx)) + 1
+}
+
 // resultsView draws the table plus the live selection footer.
 func (m Model) resultsView(ctx uictx.Context) string {
-	th := ctx.Theme
 	var b strings.Builder
 
-	b.WriteString(th.Muted.Render(m.resultsHeading()))
+	b.WriteString(m.resultsLead(ctx))
 	b.WriteString("\n")
 	b.WriteString(m.table.View(ctx))
 	b.WriteString("\n")
 	b.WriteString(m.selectionLine(ctx))
 	return b.String()
+}
+
+// resultsLead is what resultsView draws above the table.
+func (m Model) resultsLead(ctx uictx.Context) string {
+	return ctx.Theme.Muted.Render(m.resultsHeading())
+}
+
+// tableTop is the body row the table's first line, its column heading, is
+// drawn on. Like menuTop it measures what resultsView draws rather than
+// assuming a count, so a heading that grows a line cannot skew every click
+// below it.
+func (m Model) tableTop(ctx uictx.Context) int {
+	return lipgloss.Height(m.resultsLead(ctx))
 }
 
 // resultsHeading says where the results came from.

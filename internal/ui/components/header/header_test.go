@@ -24,12 +24,13 @@ func ctx(width int) uictx.Context {
 	return uictx.Context{Theme: theme.For(true), Icons: icons.Unicode(), Width: width, Height: 30, BodyHeight: 25}
 }
 
-// The bar is " Clean   Ports   Settings " with one blank column before the
-// first label and between labels, so a click lands on the label the user
-// saw: every column of " Clean " is clean, the gap after it is nothing.
+// The bar is " Clean     Ports     Settings " with one blank column before
+// the first label and two between labels, so a click lands on the label the
+// user saw: every column of " Clean " is clean, the gap after it is nothing.
 func TestTabAtMatchesWhatIsDrawn(t *testing.T) {
 	h := header.New()
 	h.Tabs = tabs()
+	h.ShowTabs = true
 
 	cases := []struct {
 		x    int
@@ -41,12 +42,13 @@ func TestTabAtMatchesWhatIsDrawn(t *testing.T) {
 		{4, "clean", true},     // inside the label
 		{7, "clean", true},     // trailing space
 		{8, "", false},         // gap
-		{9, "ports", true},     // " Ports " starts here
-		{15, "ports", true},    // its last cell
-		{16, "", false},        // gap
-		{17, "settings", true}, // " Settings "
-		{26, "settings", true}, // its last cell
-		{27, "", false},        // past the end
+		{9, "", false},         // gap
+		{10, "ports", true},    // " Ports " starts here
+		{16, "ports", true},    // its last cell
+		{17, "", false},        // gap
+		{19, "settings", true}, // " Settings "
+		{28, "settings", true}, // its last cell
+		{29, "", false},        // past the end
 		{99, "", false},
 	}
 	for _, c := range cases {
@@ -59,7 +61,7 @@ func TestTabAtMatchesWhatIsDrawn(t *testing.T) {
 	// And the drawn row really is that wide: the labels sit where TabAt
 	// thinks they do.
 	row := ansi.Strip(strings.Split(h.View(ctx(80)), "\n")[header.TabRow])
-	if !strings.HasPrefix(row, "  Clean   Ports   Settings ") {
+	if !strings.HasPrefix(row, "  Clean    Ports    Settings ") {
 		t.Errorf("tab row = %q", row)
 	}
 }
@@ -103,13 +105,55 @@ func TestUpdateNoticeBecomesAPill(t *testing.T) {
 	}
 }
 
-func TestHeaderIsAlwaysThreeRows(t *testing.T) {
+func TestHeaderIsThreeRowsWithTabs(t *testing.T) {
 	h := header.New()
 	h.Tabs = tabs()
+	h.ShowTabs = true
 	h.Title = "Free Up Disk Space"
 	for _, w := range []int{80, 100, 140} {
 		if n := strings.Count(h.View(ctx(w)), "\n"); n != header.Rows-1 {
 			t.Errorf("width %d: %d newlines, want %d", w, n, header.Rows-1)
 		}
+	}
+}
+
+// On home the header drops its tab row: the menu under it already is the
+// list of sections. It is two rows, reports so, and no column is a tab.
+func TestHomeHeaderHasNoTabRow(t *testing.T) {
+	h := header.New()
+	h.Tabs = tabs()
+	if h.Height() != header.RowsCompact {
+		t.Fatalf("Height = %d, want %d", h.Height(), header.RowsCompact)
+	}
+	out := h.View(ctx(100))
+	if n := strings.Count(out, "\n"); n != header.RowsCompact-1 {
+		t.Errorf("%d newlines, want %d", n, header.RowsCompact-1)
+	}
+	if strings.Contains(ansi.Strip(out), "Ports") {
+		t.Errorf("home header still draws tabs:\n%s", ansi.Strip(out))
+	}
+	if _, ok := h.TabAt(4); ok {
+		t.Error("TabAt found a tab on a header that draws none")
+	}
+}
+
+// The rule under the tab bar turns into an accent underline exactly as wide
+// as the open tab, and starts where that tab does.
+func TestRuleUnderlinesTheOpenTab(t *testing.T) {
+	h := header.New()
+	h.Tabs = tabs()
+	h.ShowTabs = true
+	h.Active = "ports"
+	lines := strings.Split(ansi.Strip(h.View(ctx(80))), "\n")
+	rule := []rune(lines[2])
+	want := " Ports "
+	start := 10
+	for i := range len([]rune(want)) {
+		if rule[start+i] != '━' {
+			t.Fatalf("rule = %q, want a heavy stroke under %q at column %d", lines[2], want, start)
+		}
+	}
+	if rule[start-1] == '━' || rule[start+len([]rune(want))] == '━' {
+		t.Errorf("underline is wider than the tab: %q", lines[2])
 	}
 }

@@ -2,7 +2,6 @@ package settings
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -11,22 +10,24 @@ import (
 
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
+	"github.com/zubairbinshaukat/devpit/internal/fonts/setup"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/wt"
 )
 
-// wtFallbackFont is the font family Patch appends to Windows Terminal's
-// font fallback list. It is the TrueType family name, not
-// fonts.FontDisplayName (which additionally carries " (TrueType)" for the
-// registry value).
-const wtFallbackFont = "Symbols Nerd Font Mono"
+// wtFallbackFont is the font family appended to Windows Terminal's font
+// fallback list. It is setup's constant, not a copy, so this screen and
+// `devpit font` can never disagree about what they patch in.
+const wtFallbackFont = setup.FallbackFont
 
 // closeTerminalsMessage is shown after a successful install: Windows
 // Terminal caches its font list per process (plan.md section 5).
 const closeTerminalsMessage = "Close all Windows Terminal windows and reopen to see icons."
 
 // Engine hooks. Production wires these to the real internal/fonts and
-// internal/wt packages in New; tests substitute fakes.
+// internal/wt packages in New; tests substitute fakes. Each has exactly the
+// signature of the matching internal/fonts/setup.Deps field, so the screen
+// hands them straight to setup rather than orchestrating them itself.
 type (
 	fontStatusFunc  func(fonts.Options) (fonts.State, error)
 	fontInstallFunc func(context.Context, fonts.Options) (fonts.Result, error)
@@ -47,7 +48,8 @@ type fontDoneMsg struct {
 
 	// patched and manual are set for a successful install: how many
 	// Windows Terminal settings files were changed, and which ones could
-	// not be parsed and need the manual snippet instead.
+	// not be patched (usually unparsable) and need the manual snippet
+	// instead.
 	patched int
 	manual  []string
 }
@@ -66,12 +68,10 @@ type fontScreen struct {
 	result  fontDoneMsg
 	errMsg  string
 
-	statusFn  fontStatusFunc
-	installFn fontInstallFunc
-	removeFn  fontRemoveFunc
-	findFn    wtFindFunc
-	patchFn   wtPatchFunc
-	restoreFn wtRestoreFunc
+	// deps is every engine call the screen makes, routed through
+	// internal/fonts/setup so install and remove here run exactly the steps
+	// `devpit font` (and so web/install.ps1) runs.
+	deps setup.Deps
 
 	trigger key.Binding
 	back    key.Binding
@@ -84,16 +84,18 @@ func newFontScreen(
 	findFn wtFindFunc, patchFn wtPatchFunc, restoreFn wtRestoreFunc,
 ) fontScreen {
 	s := fontScreen{
-		statusFn:  statusFn,
-		installFn: installFn,
-		removeFn:  removeFn,
-		findFn:    findFn,
-		patchFn:   patchFn,
-		restoreFn: restoreFn,
-		trigger:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install/remove")),
-		back:      key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		deps: setup.Deps{
+			Status:        statusFn,
+			Install:       installFn,
+			Remove:        removeFn,
+			FindTerminals: findFn,
+			Patch:         patchFn,
+			Restore:       restoreFn,
+		},
+		trigger: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install/remove")),
+		back:    key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	}
-	if st, err := statusFn(fonts.Options{}); err == nil {
+	if st, err := setup.Status(s.deps); err == nil {
 		s.status = st
 	} else {
 		s.errMsg = err.Error()
@@ -137,7 +139,7 @@ func (s fontScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 			s.errMsg = fontFailureText(msg)
 			return s, nil
 		}
-		if st, err := s.statusFn(fonts.Options{}); err == nil {
+		if st, err := setup.Status(s.deps); err == nil {
 			s.status = st
 		}
 		if msg.action == "remove" {
@@ -163,65 +165,60 @@ func fontFailureText(m fontDoneMsg) string {
 	}
 }
 
-// startInstall downloads and installs the font, then patches every Windows
-// Terminal settings.json it can find. It runs entirely inside the returned
-// command, off the Update/View call stack, so Update never blocks.
+// startInstall runs setup.Install (download and install the font, then
+// patch every Windows Terminal settings.json it can find) and folds its
+// Outcome into a fontDoneMsg. It runs entirely inside the returned command,
+// off the Update/View call stack, so Update never blocks.
 func (s fontScreen) startInstall(cfg config.Config) tea.Cmd {
-	installFn, findFn, patchFn := s.installFn, s.findFn, s.patchFn
+	deps := s.deps
 	return func() tea.Msg {
-		if _, err := installFn(context.Background(), fonts.Options{}); err != nil {
-			var offErr *fonts.OfflineError
-			var polErr *fonts.PolicyError
-			switch {
-			case errors.As(err, &offErr):
-				return fontDoneMsg{action: "install", offline: true}
-			case errors.As(err, &polErr):
-				return fontDoneMsg{action: "install", manualSteps: polErr.ManualSteps}
-			default:
-				return fontDoneMsg{action: "install", errText: err.Error()}
-			}
+		out, err := setup.Install(context.Background(), deps)
+		if err != nil {
+			return fontDoneMsg{action: "install", errText: err.Error()}
 		}
-
-		var manual []string
-		patched := 0
-		for _, loc := range findFn(wt.FindOptions{}) {
-			pr, perr := patchFn(loc.Path, wtFallbackFont)
-			if perr != nil {
-				// Unparsable or otherwise unpatchable: leave the file
-				// untouched and tell the user how to add the fallback by
-				// hand, per plan.md section 5's edge cases. The font
-				// itself is still installed either way.
-				manual = append(manual, loc.Path)
-				continue
-			}
-			if pr.Changed {
-				patched++
-			}
-		}
-
-		// Installed is not the same as visible: Windows Terminal only sees
-		// a new font once every window has been closed. The tier is left
-		// alone and the probe that follows decides.
-		cfg.FontInstalled = true
-		return fontDoneMsg{action: "install", cfg: cfg, patched: patched, manual: manual}
+		return installDoneMsg(out, cfg)
 	}
 }
 
-// startRemove restores every Windows Terminal settings.json Devpit backed
-// up, then removes the font itself.
-func (s fontScreen) startRemove(cfg config.Config) tea.Cmd {
-	findFn, restoreFn, removeFn := s.findFn, s.restoreFn, s.removeFn
-	return func() tea.Msg {
-		for _, loc := range findFn(wt.FindOptions{}) {
-			_ = restoreFn(loc.Path) // best-effort: no backup means nothing to restore.
+// installDoneMsg turns a successful-or-expected setup.Install Outcome into
+// the screen's message. Offline and policy-blocked runs carry no cfg, so
+// ok() stays false and nothing is saved.
+func installDoneMsg(out setup.Outcome, cfg config.Config) fontDoneMsg {
+	switch out.Kind {
+	case setup.Offline:
+		return fontDoneMsg{action: "install", offline: true}
+	case setup.PolicyBlocked:
+		return fontDoneMsg{action: "install", manualSteps: out.ManualSteps}
+	}
+
+	// A file Patch could not handle is left untouched and listed for the
+	// manual snippet, per plan.md section 5's edge cases; the font itself
+	// is installed either way. setup.Outcome.Apply leaves the icon tier
+	// alone: the probe that follows decides.
+	msg := fontDoneMsg{action: "install", cfg: out.Apply(cfg)}
+	for _, t := range out.Terminals {
+		switch {
+		case t.Err != nil:
+			msg.manual = append(msg.manual, t.Location.Path)
+		case t.Changed:
+			msg.patched++
 		}
-		if err := removeFn(fonts.Options{}); err != nil {
+	}
+	return msg
+}
+
+// startRemove runs setup.Remove: restore every Windows Terminal
+// settings.json Devpit backed up, then remove the font itself. A restore
+// that fails is not shown here: the font removal it precedes still
+// succeeded, and a Terminal pointing at a missing fallback font is harmless.
+func (s fontScreen) startRemove(cfg config.Config) tea.Cmd {
+	deps := s.deps
+	return func() tea.Msg {
+		out, err := setup.Remove(deps)
+		if err != nil {
 			return fontDoneMsg{action: "remove", errText: err.Error()}
 		}
-		cfg.FontInstalled = false
-		cfg.GlyphsConfirmed = false
-		cfg.Icons = config.IconsAuto
-		return fontDoneMsg{action: "remove", cfg: cfg}
+		return fontDoneMsg{action: "remove", cfg: out.Apply(cfg)}
 	}
 }
 

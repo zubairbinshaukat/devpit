@@ -54,7 +54,7 @@ type processTracker interface {
 	kill()
 }
 
-// StepResult is the outcome of one [RunStep] call.
+// StepResult is the outcome of one [RunStep] or [RunStepLines] call.
 type StepResult struct {
 	// OK is true when the command exited with status 0 before the timeout.
 	OK bool
@@ -62,7 +62,9 @@ type StepResult struct {
 	// killed by the timeout.
 	ExitCode int
 	// LastLines holds up to the last 20 lines of combined stdout+stderr,
-	// oldest first. Populated whether the step succeeded or failed.
+	// oldest first, each already passed through [CleanLine]. Transient
+	// progress redraws and lines that cleaned down to nothing are left
+	// out. Populated whether the step succeeded or failed.
 	LastLines []string
 	// Elapsed is the wall-clock time the command ran for.
 	Elapsed time.Duration
@@ -70,11 +72,39 @@ type StepResult struct {
 
 // RunStep runs argv as a child process, streaming each line of its combined
 // stdout+stderr to onLine as it arrives, and reports how it went. It is used
-// by the Update screen to drive one package-manager step at a time.
+// by the Update and Install screens to drive one package-manager step at a
+// time.
+//
+// It is [RunStepLines] for callers that only want text: every delivered
+// [Line]'s Text reaches onLine, transient progress redraws included, so a
+// caller that shows only the latest line still sees a download advance.
 //
 // timeout bounds the whole run; a non-positive timeout falls back to
 // [DefaultStepTimeout]. onLine may be nil.
 func RunStep(ctx context.Context, argv []string, timeout time.Duration, onLine func(string)) StepResult {
+	var forward func(Line)
+	if onLine != nil {
+		forward = func(l Line) { onLine(l.Text) }
+	}
+	return RunStepLines(ctx, argv, timeout, forward)
+}
+
+// RunStepLines runs argv as a child process, streaming its combined
+// stdout+stderr to onLine one [Line] at a time as it arrives, and reports
+// how it went.
+//
+// Output is split on \n, \r\n and a bare \r (see [splitOutputLines]); a
+// line ended by a bare \r is delivered with Transient set, since it is a
+// progress redraw the next line will replace. Every line is passed through
+// [CleanLine] first, and one that cleans down to nothing (a spinner frame,
+// a bar with no label, an erase-line) is not delivered at all. The
+// result's LastLines keeps only the lines worth reading after the fact:
+// transient ones are left out, so a failed download's summary shows its
+// error rather than twenty frames of the bar that preceded it.
+//
+// timeout bounds the whole run; a non-positive timeout falls back to
+// [DefaultStepTimeout]. onLine may be nil.
+func RunStepLines(ctx context.Context, argv []string, timeout time.Duration, onLine func(Line)) StepResult {
 	if timeout <= 0 {
 		timeout = DefaultStepTimeout
 	}
@@ -120,14 +150,22 @@ func RunStep(ctx context.Context, argv []string, timeout time.Duration, onLine f
 		}
 	}()
 
-	lines := make(chan string)
+	lines := make(chan Line)
 	done := make(chan struct{}, 2)
 	scan := func(r io.Reader) {
 		sc := bufio.NewScanner(r)
-		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		sc.Buffer(make([]byte, 0, 64*1024), scanBufferMax)
+		sc.Split(splitOutputLines)
 		for sc.Scan() {
-			lines <- sc.Text()
+			if line, ok := lineFromToken(sc.Bytes()); ok {
+				lines <- line
+			}
 		}
+		// splitOutputLines never lets a token outgrow the buffer, so an
+		// error here is a read error on the pipe itself. Keep draining
+		// regardless: a reader that stops leaves the child blocked on a
+		// full pipe until the timeout kills it.
+		_, _ = io.Copy(io.Discard, r)
 		done <- struct{}{}
 	}
 	go scan(stdout)
@@ -144,7 +182,10 @@ func RunStep(ctx context.Context, argv []string, timeout time.Duration, onLine f
 		if onLine != nil {
 			onLine(line)
 		}
-		last = append(last, line)
+		if line.Transient {
+			continue
+		}
+		last = append(last, line.Text)
 		if len(last) > lastLinesKept {
 			last = last[len(last)-lastLinesKept:]
 		}

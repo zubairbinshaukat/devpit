@@ -13,6 +13,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
@@ -200,21 +201,64 @@ func (m Model) View(ctx uictx.Context) string {
 		b.WriteString("\n\n")
 	}
 
-	no := "  No  "
-	yes := "  Yes  "
+	// Two buttons with air between them. The chosen one sits on the
+	// selection band; the other is a quiet outline of brackets, so both read
+	// as things to press, with a mouse as much as with the keyboard.
+	yesStyle := th.Base
+	if m.typedWord != "" && !m.wordSatisfied() {
+		yesStyle = th.Muted
+	}
 	if m.yes && m.wordSatisfied() {
-		b.WriteString(th.Base.Render(no))
-		b.WriteString(th.Selected.Render(yes))
+		b.WriteString(th.Muted.Render(btnNo))
+		b.WriteString(btnGap)
+		b.WriteString(th.Selected.Render(btnYes))
 	} else {
-		b.WriteString(th.Selected.Render(no))
-		if m.typedWord != "" && !m.wordSatisfied() {
-			b.WriteString(th.Muted.Render(yes))
-		} else {
-			b.WriteString(th.Base.Render(yes))
-		}
+		b.WriteString(th.Selected.Render(btnNo))
+		b.WriteString(btnGap)
+		b.WriteString(yesStyle.Render(btnYes))
 	}
 
-	return th.Card.Render(b.String())
+	card := th.Card
+	// A long command in the detail would otherwise stretch the card past
+	// the terminal's edge; a card never grows wider than the screen, and
+	// what does not fit wraps inside it.
+	if ctx.Width > 0 && lipgloss.Width(b.String())+4 > ctx.Width {
+		card = card.Width(ctx.Width)
+	}
+	return card.Render(b.String())
+}
+
+// The two buttons and the gap between them. Click hit-tests the same
+// strings View draws.
+const (
+	btnNo  = "[ No ]"
+	btnYes = "[ Yes ]"
+	btnGap = "   "
+)
+
+// Click answers the dialog from a mouse click at column x, row y, both
+// relative to the dialog's top-left corner (its card border). A click on No
+// answers No; a click on Yes answers Yes, or does nothing while a typed word
+// is still owed. Anywhere else does nothing: a stray click never answers.
+func (m Model) Click(ctx uictx.Context, x, y int) (Model, tea.Cmd) {
+	lines := strings.Split(m.View(ctx), "\n")
+	// The card's last line is its bottom border; the buttons are just above.
+	if len(lines) < 3 || y != len(lines)-2 {
+		return m, nil
+	}
+	// Border and one column of padding sit before the buttons.
+	start := 2
+	switch {
+	case x >= start && x < start+len(btnNo):
+		return m.Reset(), m.answer(AnswerNo)
+	case x >= start+len(btnNo)+len(btnGap) && x < start+len(btnNo)+len(btnGap)+len(btnYes):
+		if !m.wordSatisfied() {
+			return m, nil
+		}
+		m.yes = true
+		return m, m.answer(AnswerYes)
+	}
+	return m, nil
 }
 
 // wordSatisfied reports whether the typed-word requirement is met. It is

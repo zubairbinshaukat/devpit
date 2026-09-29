@@ -235,6 +235,11 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 
 	switch m.stage {
 	case stageSubmenu:
+		// The lead-in line and the blank line under it sit above the menu.
+		if next, cmd, ok := m.submenu.Pointer(ctx, msg, submenuTop); ok {
+			m.submenu = next
+			return m, cmd
+		}
 		return m.updateSubmenu(msg)
 	case stageKillInput:
 		return m.updateKillInput(msg)
@@ -332,6 +337,10 @@ func (m Model) prefillPort(ctx uictx.Context) uint16 {
 	}
 	return 3000
 }
+
+// submenuTop is the body row the submenu starts on: under the one-line
+// lead-in and the blank line after it.
+const submenuTop = 2
 
 // viewSubmenu renders the three entry points.
 func (m Model) viewSubmenu(ctx uictx.Context) string {

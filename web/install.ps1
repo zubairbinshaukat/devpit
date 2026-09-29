@@ -4,8 +4,19 @@
 #
 # Downloads the latest release from GitHub, verifies its SHA256 checksum
 # against the checksums.txt published with the release, unpacks devpit.exe
-# into %LOCALAPPDATA%\Programs\devpit and adds that folder to the user PATH.
-# Nothing needs admin. Read it all: it is short on purpose.
+# into %LOCALAPPDATA%\Programs\devpit, installs the icon font for your user
+# and adds that folder to the user PATH. Nothing needs admin. Read it all: it
+# is short on purpose.
+#
+# Flags go through a script block, since `iex` cannot pass any:
+#
+#   & ([scriptblock]::Create((irm https://devpit.zubyr.dev/install))) -NoFont
+#
+#   -NoFont   skip the icon font (Settings > Icon font can install it later)
+
+param(
+  [switch]$NoFont
+)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -14,10 +25,12 @@ $ProgressPreference = 'SilentlyContinue'
 $Repo = 'zubairbinshaukat/devpit'
 $Dir = Join-Path $env:LOCALAPPDATA 'Programs\devpit'
 $Exe = Join-Path $Dir 'devpit.exe'
-$Steps = 4
+$Steps = 5
 
 # Output helpers. Every step is announced with ">" and confirmed with "+", so
-# a failed run shows exactly which step it died on.
+# a failed run shows exactly which step it died on. A step that is allowed to
+# come up short without failing the install (only the icon font) ends in "!"
+# instead, or "-" when it was skipped.
 function Write-Step([int]$N, [string]$Text) {
   Write-Host '  > ' -ForegroundColor Cyan -NoNewline
   Write-Host "[$N/$Steps] $Text" -ForegroundColor Cyan
@@ -25,6 +38,14 @@ function Write-Step([int]$N, [string]$Text) {
 function Write-Ok([int]$N, [string]$Text) {
   Write-Host '  + ' -ForegroundColor Green -NoNewline
   Write-Host "[$N/$Steps] $Text" -ForegroundColor Green
+}
+function Write-Warn([int]$N, [string]$Text) {
+  Write-Host '  ! ' -ForegroundColor Yellow -NoNewline
+  Write-Host "[$N/$Steps] $Text" -ForegroundColor Yellow
+}
+function Write-Skip([int]$N, [string]$Text) {
+  Write-Host '  - ' -ForegroundColor DarkGray -NoNewline
+  Write-Host "[$N/$Steps] $Text" -ForegroundColor DarkGray
 }
 function Write-Row([string]$Label, [string]$Value, [ConsoleColor]$Color = 'White') {
   Write-Host ('  - {0,-9}' -f $Label) -ForegroundColor DarkGray -NoNewline
@@ -59,11 +80,15 @@ if (Test-Path $Exe) {
   $choice = Read-Host '  [U]pdate, [R]emove or [C]ancel'
   switch ($choice.ToUpperInvariant()) {
     'R' {
+      # Take the icon font and its Windows Terminal fallback out first, while
+      # devpit.exe is still here to do it. An older build without the font
+      # command just says so, and the removal carries on regardless.
+      try { & $Exe font remove 2>$null | Out-Null } catch { }
       Remove-Item -Recurse -Force $Dir
       $path = [Environment]::GetEnvironmentVariable('Path', 'User')
       $clean = ($path -split ';' | Where-Object { $_ -and $_ -ne $Dir }) -join ';'
       [Environment]::SetEnvironmentVariable('Path', $clean, 'User')
-      Write-Host '  + Devpit removed. Your settings in %APPDATA%\devpit were left alone.' -ForegroundColor Green
+      Write-Host '  + Devpit and its icon font removed. Your settings in %APPDATA%\devpit were left alone.' -ForegroundColor Green
       return
     }
     'U' { }
@@ -117,6 +142,63 @@ try {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
 
+# The icon font, so Devpit's icons work on first launch. It must never fail
+# the install: devpit.exe is already in place. `devpit font install --quiet`
+# exits 0 with a one-line note when offline or blocked by policy, and prints
+# one line starting with a check mark on success; anything else (a non-zero
+# exit, or devpit.exe not running at all) is caught and shown as a warning.
+$fontOk = $false
+if ($NoFont) {
+  Write-Skip 5 'Skipped icon font (-NoFont)'
+} else {
+  Write-Step 5 'Installing icon font...'
+  $prevEap = $ErrorActionPreference
+  $prevEnc = [Console]::OutputEncoding
+  try {
+    # devpit writes UTF-8, but PowerShell decodes a native program's output
+    # with [Console]::OutputEncoding, which on Windows PowerShell 5.1 is
+    # usually the OEM code page. And with 'Stop', 5.1 turns the first line a
+    # native program writes to stderr into a terminating error even when it
+    # is redirected, so the real message would be lost.
+    try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false } catch { }
+    $ErrorActionPreference = 'Continue'
+    $fontOut = @(& $Exe font install --quiet 2>&1 | ForEach-Object { "$_" } | Where-Object { $_.Trim() })
+    $fontCode = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap
+
+    $line = ''
+    if ($fontOut.Count -gt 0) { $line = $fontOut[-1].Trim() }
+    # The first rune is devpit's marker; the rest is the message. The marker
+    # is swapped for this script's own, and the one non-ASCII character in
+    # the messages for ">", since a legacy console font may draw neither.
+    $mark = ''
+    $text = $line
+    # Only split off a marker devpit actually prints; an error message from
+    # a failed run starts with a letter, and must keep it.
+    if ($line.Length -gt 1 -and ('!', [string][char]0x2714, [string][char]0x2022) -contains $line.Substring(0, 1)) {
+      $mark = $line.Substring(0, 1)
+      $text = $line.Substring(1).Trim()
+    }
+    $text = $text.Replace([string][char]0x203A, '>')
+    if ($fontCode -ne 0) {
+      if (-not $text) { $text = "devpit exited with code $fontCode" }
+      Write-Warn 5 "Icon font not installed: $text. Settings > Icon font can try again."
+    } elseif ($mark -eq [string][char]0x2714) {
+      Write-Ok 5 $text
+      $fontOk = $true
+    } elseif ($mark -eq '!') {
+      Write-Warn 5 $text
+    } else {
+      Write-Skip 5 $text
+    }
+  } catch {
+    Write-Warn 5 "Icon font not installed: $($_.Exception.Message). Settings > Icon font can try again."
+  } finally {
+    $ErrorActionPreference = $prevEap
+    try { [Console]::OutputEncoding = $prevEnc } catch { }
+  }
+}
+
 $pathNote = 'already on your user PATH'
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($userPath -split ';') -notcontains $Dir) {
@@ -138,5 +220,9 @@ Write-Host '    devpit' -ForegroundColor Magenta
 Write-Host ''
 Write-Host '  [i] Other terminal windows that were already open need a restart, or run:' -ForegroundColor Cyan
 Write-Host "      & `"$Exe`"" -ForegroundColor White
-Write-Host '  [i] Settings > Icon font installs the optional Nerd Font icons.' -ForegroundColor Cyan
+if ($fontOk) {
+  Write-Host "  [i] Reopen Windows Terminal to see Devpit's icons." -ForegroundColor Cyan
+} else {
+  Write-Host '  [i] Settings > Icon font installs the icons later.' -ForegroundColor Cyan
+}
 Write-Host ''

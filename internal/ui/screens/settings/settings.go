@@ -144,6 +144,11 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 			return m.activate(ctx)
 		}
 		return m, nil
+	case tea.MouseMotionMsg:
+		// The pointer passing over a row highlights it, so its description
+		// shows under it the way it does for the keyboard cursor.
+		m.menu, _ = m.menu.Hover(ctx, ctx.BodyRow(msg.Y)-menuTop)
+		return m, nil
 	case menu.SelectedMsg:
 		return m.activate(ctx)
 	}

@@ -74,6 +74,7 @@ func Run(ctx context.Context, opts Options, out chan<- Item, progress func(Stats
 		table:   newRuleTable(opts.Rules),
 		filters: newFilters(opts),
 		active:  newActiveCache(opts.ActiveDays),
+		repos:   newRepoCache(),
 		links:   newLinkSet(),
 		out:     out,
 		start:   start,
@@ -136,8 +137,13 @@ func (o Options) workers() int {
 }
 
 // target is one matched directory or file handed from the walker to a sizer.
+//
+// root is the scan root the walk that found it started from, so the sizer
+// can look for the owning repository without climbing above it. It is empty
+// for a location rule's fixed path, which no root was walked to reach.
 type target struct {
 	path     string
+	root     string
 	rule     *Rule
 	verified bool
 	cloud    bool
@@ -153,6 +159,7 @@ type walk struct {
 	table   *ruleTable
 	filters filters
 	active  *activeCache
+	repos   *repoCache
 	links   *linkSet
 	out     chan<- Item
 	targets chan target
@@ -239,7 +246,7 @@ func (w *walk) walkRoots(roots []string, workers int) error {
 		if w.cancelled.Load() {
 			break
 		}
-		err := fastwalk.Walk(&conf, root, w.visit)
+		err := fastwalk.Walk(&conf, root, w.visitor(root))
 		switch {
 		case err == nil, errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		case firstErr == nil:
@@ -249,6 +256,15 @@ func (w *walk) walkRoots(roots []string, workers int) error {
 	return firstErr
 }
 
+// visitor returns the fastwalk callback for one root. The root rides along
+// in a closure rather than on the walk, because fastwalk's callback signature
+// has no room for it and the sizer needs it to bound the repository lookup.
+func (w *walk) visitor(root string) fs.WalkDirFunc {
+	return func(path string, d fs.DirEntry, err error) error {
+		return w.visit(root, path, d, err)
+	}
+}
+
 // visit is the fastwalk callback. It runs on every walk worker at once, so it
 // touches nothing that is not atomic or immutable.
 //
@@ -256,7 +272,7 @@ func (w *walk) walkRoots(roots []string, workers int) error {
 // from a directory entry; returning it for a file turns into a hard error
 // that aborts the whole walk. So every non-directory path out of this
 // function returns nil.
-func (w *walk) visit(path string, d fs.DirEntry, err error) error {
+func (w *walk) visit(root, path string, d fs.DirEntry, err error) error {
 	if w.cancelled.Load() {
 		return context.Canceled
 	}
@@ -292,13 +308,13 @@ func (w *walk) visit(path string, d fs.DirEntry, err error) error {
 	}
 
 	if !d.IsDir() {
-		return w.visitFile(path, d, info)
+		return w.visitFile(root, path, d, info)
 	}
-	return w.visitDir(path, d, info)
+	return w.visitDir(root, path, d, info)
 }
 
 // visitDir handles one directory: filter it, match it, prune it.
-func (w *walk) visitDir(path string, d fs.DirEntry, info fs.FileInfo) error {
+func (w *walk) visitDir(root, path string, d fs.DirEntry, info fs.FileInfo) error {
 	name := d.Name()
 	lower := strings.ToLower(name)
 
@@ -317,11 +333,11 @@ func (w *walk) visitDir(path string, d fs.DirEntry, info fs.FileInfo) error {
 	// zero-byte cloud item rather than reading it, which would download it.
 	if isCloudInfo(info) {
 		w.skipped.Add(1)
-		w.emit(target{path: path, rule: rule, verified: verified, cloud: true, modTime: info.ModTime()})
+		w.emit(target{path: path, root: root, rule: rule, verified: verified, cloud: true, modTime: info.ModTime()})
 		return fastwalk.SkipDir
 	}
 
-	w.emit(target{path: path, rule: rule, verified: verified, modTime: info.ModTime()})
+	w.emit(target{path: path, root: root, rule: rule, verified: verified, modTime: info.ModTime()})
 
 	// Rule: prune on match. Nothing below a matched directory is ever listed
 	// separately, which is what stops a project vendored inside another
@@ -331,7 +347,7 @@ func (w *walk) visitDir(path string, d fs.DirEntry, info fs.FileInfo) error {
 
 // visitFile handles one non-directory entry, which only matters to the large
 // file rules.
-func (w *walk) visitFile(path string, d fs.DirEntry, info fs.FileInfo) error {
+func (w *walk) visitFile(root, path string, d fs.DirEntry, info fs.FileInfo) error {
 	if len(w.table.files) == 0 {
 		return nil
 	}
@@ -353,6 +369,7 @@ func (w *walk) visitFile(path string, d fs.DirEntry, info fs.FileInfo) error {
 	}
 	w.emit(target{
 		path:     path,
+		root:     root,
 		rule:     rule,
 		verified: true,
 		size:     size,
@@ -453,6 +470,7 @@ func (w *walk) measure(ctx context.Context, t target) (Item, bool) {
 		Path:          t.path,
 		Name:          filepath.Base(t.path),
 		Project:       project,
+		Repo:          w.repos.lookup(t.root, project),
 		Tier:          t.rule.Tier,
 		Kind:          t.rule.Kind,
 		Rule:          t.rule.Name,
