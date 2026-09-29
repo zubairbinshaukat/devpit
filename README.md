@@ -178,7 +178,7 @@ See [docs/architecture.md](docs/architecture.md) and
 Devpit is the cleanup he wanted for his own Windows machine, so he built it and
 gave it away.
 
-[Portfolio](https://zubyr.dev) · [GitHub](https://github.com/zubairbinshaukat) · [LinkedIn](https://www.linkedin.com/in/zubairbinshaukat) · [X](https://x.com/zubairbinshaukt)
+[Portfolio](https://zubyr.dev) · [GitHub](https://github.com/zubairbinshaukat) · [LinkedIn](https://www.linkedin.com/in/zubairbinshaukat) · [X](https://x.com/zubyrdev)
 
 <br clear="left">
 

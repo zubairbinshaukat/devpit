@@ -76,7 +76,7 @@ export default defineConfig({
       credits: false,
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/zubairbinshaukat/devpit' },
-        { icon: 'x.com', label: 'X', href: 'https://x.com/zubairbinshaukt' },
+        { icon: 'x.com', label: 'X', href: 'https://x.com/zubyrdev' },
       ],
       editLink: {
         baseUrl: 'https://github.com/zubairbinshaukat/devpit/edit/main/web/docs-site/',

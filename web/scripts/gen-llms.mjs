@@ -61,7 +61,7 @@ Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
 - Portfolio: https://zubyr.dev
 - GitHub: https://github.com/zubairbinshaukat
 - LinkedIn: https://www.linkedin.com/in/zubairbinshaukat
-- X: https://x.com/zubairbinshaukt
+- X: https://x.com/zubyrdev
 `;
 
 /** Docs sections, in the order they appear, with the heading each gets. */
