@@ -36,7 +36,7 @@ const PERSON_LINKS = [
   'https://zubyr.dev',
   'https://github.com/zubairbinshaukat',
   'https://www.linkedin.com/in/zubairbinshaukat',
-  'https://x.com/zubairbinshaukt',
+  'https://x.com/zubyrdev',
 ];
 
 const person: Json = {
@@ -226,7 +226,7 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
   addMeta(head, 'property', 'og:image:alt', imageAlt);
   addMeta(head, 'name', 'twitter:image', image);
   addMeta(head, 'name', 'twitter:image:alt', imageAlt);
-  addMeta(head, 'name', 'twitter:creator', '@zubairbinshaukt');
+  addMeta(head, 'name', 'twitter:creator', '@zubyrdev');
   addMeta(head, 'name', 'author', 'Zubair bin Shaukat');
   addMeta(head, 'name', 'robots', robots);
   if (isHome) {
