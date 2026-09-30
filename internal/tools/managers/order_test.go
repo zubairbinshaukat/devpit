@@ -71,13 +71,13 @@ func TestUpgradeOrder(t *testing.T) {
 
 func TestIsDevpit(t *testing.T) {
 	for id, want := range map[string]bool{
-		"devpit":                  true,
-		"Devpit":                  true,
-		"scoop-bucket/devpit":     true,
-		"ZubairBinShaukat.Devpit": true,
-		"devpitstop":              false,
-		"Git.Git":                 false,
-		"":                        false,
+		"devpit":              true,
+		"Devpit":              true,
+		"scoop-bucket/devpit": true,
+		"Zubyr.Devpit":        true,
+		"devpitstop":          false,
+		"Git.Git":             false,
+		"":                    false,
 	} {
 		if got := managers.IsDevpit(id); got != want {
 			t.Errorf("IsDevpit(%q) = %v, want %v", id, got, want)

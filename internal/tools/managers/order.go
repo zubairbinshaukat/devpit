@@ -113,7 +113,7 @@ var devpitIDs = []string{"devpit"}
 // IsDevpit reports whether id is Devpit itself, in any manager: the Scoop
 // app "devpit" (with or without its "bucket/" prefix), or any id with a
 // "devpit" segment, case-insensitively, such as a future winget
-// "ZubairBinShaukat.Devpit". The Update screen uses it to keep Devpit from
+// "Zubyr.Devpit". The Update screen uses it to keep Devpit from
 // trying to replace its own running executable mid-run.
 func IsDevpit(id string) bool {
 	l := strings.ToLower(strings.TrimSpace(id))

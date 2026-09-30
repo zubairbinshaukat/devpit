@@ -238,6 +238,8 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
   // ---- links shared with the landing page ---------------------------------
   head.push(
     { tag: 'link', attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: geistLatin, crossorigin: '' } },
+    // Google Search only shows a favicon that is a multiple of 48px square.
+    { tag: 'link', attrs: { rel: 'icon', href: '/icon-192.png', type: 'image/png', sizes: '192x192' } },
     { tag: 'link', attrs: { rel: 'icon', href: '/favicon-32.png', type: 'image/png', sizes: '32x32' } },
     { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
     { tag: 'link', attrs: { rel: 'manifest', href: '/site.webmanifest' } },
