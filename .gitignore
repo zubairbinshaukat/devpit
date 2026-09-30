@@ -45,3 +45,6 @@ web/docs-site/dist/
 web/docs-site/.astro/
 node_modules/
 web/docs-site/public/author-avatar.webp
+
+# Motion/promo video workspace (local only)
+/motion/
