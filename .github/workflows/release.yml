@@ -64,6 +64,9 @@ jobs:
   winget:
     name: winget
     needs: release
+    # A winget failure never fails the release: the assets and Scoop are
+    # already published by then.
+    continue-on-error: true
     # Stable versions only: winget-pkgs does not accept pre-releases.
     if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest

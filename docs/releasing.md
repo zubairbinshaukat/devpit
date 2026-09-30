@@ -105,13 +105,13 @@ winget install Microsoft.WingetCreate
 wingetcreate new https://github.com/zubairbinshaukat/devpit/releases/download/v0.1.0/devpit_0.1.0_windows_amd64.zip https://github.com/zubairbinshaukat/devpit/releases/download/v0.1.0/devpit_0.1.0_windows_arm64.zip
 ```
 
-The wizard asks for the id (`ZubairBinShaukat.Devpit`), name, publisher,
+The wizard asks for the id (`Zubyr.Devpit`), name, publisher,
 licence (MIT), description, and for each zip the installer type: choose
 `zip`, nested installer type `portable`, nested file `devpit.exe`, command
 alias `devpit`. It writes three YAML manifests, validates them, and can open
 the pull request for you when you say yes at the end (it needs a GitHub
 token with public repo access, which it prompts for). Answer any bot comments
-on the pull request; once merged, `winget install ZubairBinShaukat.Devpit`
+on the pull request; once merged, `winget install Zubyr.Devpit`
 works.
 
 **Every later version, automated.** The `winget` job in

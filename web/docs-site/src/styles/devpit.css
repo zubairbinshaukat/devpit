@@ -408,6 +408,12 @@ starlight-lang-select select {
   color: transparent;
 }
 
+/* Header logo at the landing page's size, not Starlight's full nav height. */
+header .site-title img {
+  height: 1.5rem;
+  width: auto;
+}
+
 /* Phones: keep the site title readable by dropping the keyboard hint in the search button. */
 @media (max-width: 50rem) {
   site-search kbd {
