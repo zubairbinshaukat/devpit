@@ -142,14 +142,23 @@ func RemovalGuide(f Found) []Step {
 	steps = append(steps, term)
 
 	prog := Step{Title: "Remove the program", Detail: []string{
-		"Delete " + filepath.Join(c.Dir, "bin") + " (claude-acc.exe, and claude-acc.old if it is there). If you added that folder to PATH yourself, take it out of PATH too.",
+		"Delete " + under(c.Dir, "bin") + " (claude-acc.exe, and claude-acc.old if it is there). If you added that folder to PATH yourself, take it out of PATH too.",
 	}}
 	steps = append(steps, prog)
 
 	keep := Step{Title: "Keep the account folders", Detail: []string{
-		"Devpit uses claude-acc's account folders where they are, so they still hold your sign-ins. Do not delete " + filepath.Join(c.Dir, "accounts") + " or anything in it while Devpit uses them.",
+		"Devpit uses claude-acc's account folders where they are, so they still hold your sign-ins. Do not delete " + under(c.Dir, "accounts") + " or anything in it while Devpit uses them.",
 		"Do not run `claude-acc remove` for an account you imported: it moves the account's folder to the Recycle Bin, and deletes it outright with --purge or when the Recycle Bin cannot take it. Either way that account is signed out.",
 		"The config and links files are not read by anything once claude-acc is gone; they can stay.",
 	}}
 	return append(steps, keep)
+}
+
+// under names a folder inside dir for the person, with the separator dir is
+// already written with (a Windows path stays one on every OS).
+func under(dir, name string) string {
+	if strings.Contains(dir, `\`) && !strings.Contains(dir, "/") {
+		return strings.TrimRight(dir, `\`) + `\` + name
+	}
+	return filepath.Join(dir, name)
 }

@@ -350,8 +350,11 @@ func TestRemoveNeverFollowsAJunctionOutOfTheRoot(t *testing.T) {
 func TestShareRefusesAFolderReachedThroughAJunction(t *testing.T) {
 	// The temp folder is inside AppData, which is refused for its own sake.
 	t.Setenv("USERPROFILE", "")
-	base := t.TempDir()
-	target := filepath.Join(base, "real")
+	// The temp folder itself may be reached through an 8.3 short name (on
+	// GitHub's runners it is C:\Users\RUNNER~1\…), which checkFolder refuses
+	// on purpose; the plain folder is named by its long name.
+	base := longName(t, t.TempDir())
+	target := filepath.Join(base, "real folder with a long name")
 	if err := os.Mkdir(target, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -365,4 +368,40 @@ func TestShareRefusesAFolderReachedThroughAJunction(t *testing.T) {
 	if err := s.checkFolder(link); err == nil || !strings.Contains(err.Error(), "leads to") {
 		t.Errorf("a junction was accepted: %v", err)
 	}
+	// An 8.3 short name leads elsewhere by name, so it is refused too.
+	if short := shortName(t, target); short != target {
+		if err := s.checkFolder(short); err == nil || !strings.Contains(err.Error(), "leads to") {
+			t.Errorf("a short name was accepted: %v", err)
+		}
+	}
+}
+
+// longName is p with its 8.3 short names expanded.
+func longName(t *testing.T, p string) string {
+	t.Helper()
+	in, err := windows.UTF16PtrFromString(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]uint16, windows.MAX_PATH*4)
+	n, err := windows.GetLongPathName(in, &buf[0], uint32(len(buf)))
+	if err != nil || int(n) >= len(buf) {
+		t.Fatalf("GetLongPathName(%s): %v", p, err)
+	}
+	return windows.UTF16ToString(buf[:n])
+}
+
+// shortName is p's 8.3 form, or p itself when the volume makes none.
+func shortName(t *testing.T, p string) string {
+	t.Helper()
+	in, err := windows.UTF16PtrFromString(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]uint16, windows.MAX_PATH*4)
+	n, err := windows.GetShortPathName(in, &buf[0], uint32(len(buf)))
+	if err != nil || int(n) >= len(buf) {
+		return p
+	}
+	return windows.UTF16ToString(buf[:n])
 }

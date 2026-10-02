@@ -448,7 +448,10 @@ func wranglerOuter(bindings map[string]string, dir string) (string, string) {
 		if k == dir || len(k) <= len(best) {
 			continue
 		}
-		sep := strings.TrimRight(k, `\`) + `\`
+		sep := strings.TrimRight(k, `\/`) + `\`
+		if strings.HasPrefix(k, "/") {
+			sep = strings.TrimRight(k, "/") + "/" // a POSIX path, off Windows
+		}
 		if strings.HasPrefix(dir, sep) {
 			best, prof = k, p
 		}

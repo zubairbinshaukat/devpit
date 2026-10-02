@@ -161,6 +161,16 @@ func pathStart(s string, i int) bool {
 	if i+2 < len(s) && ((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z')) && s[i+1] == ':' && (s[i+2] == '\\' || s[i+2] == '/') {
 		return true
 	}
+	// Off Windows, an absolute POSIX path (see posixRoots): a single slash
+	// not inside a word, a URL ("https://…") or another path.
+	if posixRoots && i+1 < len(s) && s[i] == '/' && s[i+1] != '/' && s[i+1] != ' ' {
+		if i == 0 {
+			return true
+		}
+		if p := s[i-1]; p != '/' && p != ':' && p != '.' && p != '~' && p != '_' && p != '-' {
+			return true
+		}
+	}
 	return i+2 < len(s) && s[i] == '\\' && s[i+1] == '\\' && s[i+2] != '\\'
 }
 

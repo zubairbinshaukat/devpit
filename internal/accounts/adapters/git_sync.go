@@ -221,15 +221,7 @@ func sshFile(folder, key string) ([]byte, error) {
 // winDepth counts the folders below the drive or share of a normalized
 // Windows path: 0 for C:\ and \\server\share.
 func winDepth(norm string) int {
-	v := strings.TrimSuffix(accounts.FolderVolume(norm), `\`)
-	rest := norm
-	if len(v) <= len(norm) && strings.EqualFold(norm[:len(v)], v) {
-		rest = norm[len(v):]
-	}
-	if rest = strings.Trim(rest, `\`); rest == "" {
-		return 0
-	}
-	return strings.Count(rest, `\`) + 1
+	return max(0, accounts.FolderDepth(norm))
 }
 
 type gitBlock struct {

@@ -26,6 +26,7 @@ func TestRealEngineAddsAClaudeAccountAndUsesItInOneFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root = accounts.LongPath(root) // rules are kept under long names
 	home := filepath.Join(root, "home")
 	work := filepath.Join(root, "Work")
 	for _, d := range []string{home, work, filepath.Join(root, "shims")} {

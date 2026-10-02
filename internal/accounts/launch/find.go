@@ -131,6 +131,11 @@ func Find(name string, opts FindOptions) (string, error) {
 		pathext = os.Getenv("PATHEXT")
 	}
 	exts := extensions(pathext)
+	if plainNames {
+		// Off Windows a program has no extension; the Windows ones are still
+		// tried after it, so the same PATH layouts behave the same in tests.
+		exts = append([]string{""}, exts...)
+	}
 	if ext := filepath.Ext(name); launchable(ext) {
 		exts = []string{""}
 	}
