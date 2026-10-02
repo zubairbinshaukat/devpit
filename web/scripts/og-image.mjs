@@ -52,8 +52,8 @@ p{margin-top:26px;font-size:23px;color:#A2A2B0}
 <div class="rays"></div><div class="glow"></div><div class="stars"></div>
 <main>
   <div class="brand"><img src="data:image/png;base64,${mark}" alt="">Devpit</div>
-  <h1>Where dev junk<em>disappears.</em></h1>
-  <p>Free terminal app for Windows · dev junk, stuck ports, updates, file sharing</p>
+  <h1>A pit stop for<em>your dev machine.</em></h1>
+  <p>Free developer toolkit for Windows · accounts, disk space, ports, updates, file sharing</p>
   <div class="cmd"><b>PS&gt;</b> irm devpit.zubyr.dev/install | iex</div>
 </main>
 </body></html>`;

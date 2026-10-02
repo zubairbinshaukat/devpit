@@ -1,11 +1,11 @@
 ---
 title: "git: Please tell me who you are"
-description: "Git says 'Please tell me who you are' when user.name and user.email are not set. Set them with git config --global, or use Devpit's Git & SSH Setup."
+description: "Git says 'Please tell me who you are' when user.name and user.email are not set. Set them with git config --global, or set them per folder in Devpit's Accounts."
 sidebar:
   label: "Please tell me who you are"
 published: 2026-09-29
 related:
-  - features/git-and-ssh
+  - features/accounts-git-and-github
   - troubleshooting/permission-denied-publickey
 faq:
   - question: "Do the name and email have to be real?"
@@ -39,10 +39,12 @@ Every Git commit records who made it. Git takes that from two settings, `user.na
 
 ## How Devpit fixes or avoids it
 
-Open [Git & SSH Setup](/docs/features/git-and-ssh):
+Open **Accounts** in Devpit and choose the **Git** row. See [Git and GitHub accounts](/docs/features/accounts-git-and-github).
 
-- **Show git identity** prints the name and email Git will commit as.
-- **Set git identity** asks for a name and email and saves them as your global Git settings, the same as the commands below.
+- The row shows the name and email Git will commit as in this folder, and where they come from.
+- **Use another account here…** saves a name and email for this folder and every folder inside it, or for everywhere. The preview shows the exact Git lines first.
+
+A folder rule only applies inside a Git repository. If you see this message in a new repository, the manual fix below works everywhere.
 
 ## The manual fix
 

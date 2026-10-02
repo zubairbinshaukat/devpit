@@ -1,0 +1,20 @@
+ Who each tool says is signed in                     in C:\Projects\quiz-slayer
+
+     TOOL        EXPECTED                        TOOL SAYS
+ ▸ ✓ Claude Code work (you@work.example)         signed in as you@work.example
+   ✓ Git         You <you@personal.example>      commits as You <you@personal.e…
+   ✓ GitHub      work (you-at-work)              signed in as you-at-work
+   ✓ GitHub      default (you-personal@users.e…  signed in as you-personal@user…
+   ✓ Vercel      default (you@personal.example)  signed in as you@personal.exam…
+   ✓ Vercel      client (you@client.example) (…  signed in as you@client.example
+   ─ Firebase    default (not checked yet)       not installed
+   ─ Supabase    default (not checked yet)       not installed
+   ✓ Cloudflare  default (not checked yet)       signed in
+   · Convex      default (not checked yet)       project: quiz-slayer
+
+ ✓ Everything checked is as it should be.
+
+ · Claude Code accounts not checked: default. Checking asks Claude Code itself.
+   On some versions this can sign an idle account out (Claude Code issue
+   #95822), so Devpit only checks when you ask.
+[keys] ↑↓ move  ·  r check again  ·  enter back

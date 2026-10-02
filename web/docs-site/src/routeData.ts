@@ -182,10 +182,10 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
     let desc: string;
     if (id === 'blog') {
       blogTitle = 'Devpit blog: Windows developer guides and fixes';
-      desc = 'Short guides and fixes for Windows developers from the Devpit blog: disk space, stuck ports, updates, Git, SSH and file sharing.';
+      desc = 'Short guides and fixes for Windows developers from the Devpit blog: accounts per folder, disk space, stuck ports, updates and file sharing.';
     } else if (page) {
       blogTitle = `Devpit blog, page ${page[1]}`;
-      desc = `More short guides and fixes for Windows developers from the Devpit blog, page ${page[1]}: disk space, ports, updates and more.`;
+      desc = `More short guides and fixes for Windows developers from the Devpit blog, page ${page[1]}: accounts, disk space, ports, updates and more.`;
       robots = 'noindex, follow';
     } else if (id.startsWith('blog/tags/')) {
       blogTitle = `Devpit blog posts tagged ${label}`;
@@ -312,7 +312,7 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
       alternateName: 'Devpit CLI',
       url: `${SITE}/`,
       description:
-        'Free, open-source terminal app (CLI) for Windows that frees disk space from developer junk, fixes stuck ports and updates developer tools from one menu.',
+        'Free, open-source toolkit (CLI) for developers on Windows: the right account in every folder for Claude Code, Git, GitHub and more, plus disk space cleanup, stuck ports, installs and updates, and big-folder transfers between PCs, from one terminal menu.',
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'Windows 10, Windows 11',
       author: { '@id': PERSON_ID },

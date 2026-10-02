@@ -4,8 +4,10 @@
 #
 # Downloads the latest release from GitHub, verifies its SHA256 checksum
 # against the checksums.txt published with the release, unpacks devpit.exe
-# into %LOCALAPPDATA%\Programs\devpit, installs the icon font for your user
-# and adds that folder to the user PATH. Nothing needs admin. Read it all: it
+# and devpit-shim.exe into %LOCALAPPDATA%\Programs\devpit, installs the icon
+# font for your user and adds that folder to the user PATH. The shim is only
+# a file here: Devpit itself copies it as claude.exe, gh.exe... and puts its
+# shims folder on PATH, later, and only for a tool that gets a folder rule. Nothing needs admin. Read it all: it
 # is short on purpose.
 #
 # Flags go through a script block, since `iex` cannot pass any:
@@ -25,6 +27,9 @@ $ProgressPreference = 'SilentlyContinue'
 $Repo = 'zubairbinshaukat/devpit'
 $Dir = Join-Path $env:LOCALAPPDATA 'Programs\devpit'
 $Exe = Join-Path $Dir 'devpit.exe'
+$ShimExe = Join-Path $Dir 'devpit-shim.exe'
+# Where Devpit puts the shims it makes for Accounts (internal/accounts/shims).
+$ShimDir = Join-Path $Dir 'shims'
 $Steps = 5
 
 # Output helpers. Every step is announced with ">" and confirmed with "+", so
@@ -84,11 +89,23 @@ if (Test-Path $Exe) {
       # devpit.exe is still here to do it. An older build without the font
       # command just says so, and the removal carries on regardless.
       try { & $Exe font remove 2>$null | Out-Null } catch { }
-      Remove-Item -Recurse -Force $Dir
+      # This takes the Accounts shims with it (they live in $Dir\shims). A
+      # shim that is running right now (a claude session, say) cannot be
+      # deleted, so say what to close rather than leave half a folder.
+      try {
+        Remove-Item -Recurse -Force $Dir
+      } catch {
+        throw "Could not remove $Dir. Close anything started through Devpit's shims (claude, gh, vercel...), then run this again. $($_.Exception.Message)"
+      }
+      # Devpit's folder, and the shims folder Devpit itself put in front of
+      # PATH; every other PATH entry stays as it is.
       $path = [Environment]::GetEnvironmentVariable('Path', 'User')
-      $clean = ($path -split ';' | Where-Object { $_ -and $_ -ne $Dir }) -join ';'
+      $clean = ($path -split ';' | Where-Object { $_ -and $_.TrimEnd('\') -ne $Dir -and $_.TrimEnd('\') -ne $ShimDir }) -join ';'
       [Environment]::SetEnvironmentVariable('Path', $clean, 'User')
       Write-Host '  + Devpit and its icon font removed. Your settings in %APPDATA%\devpit were left alone.' -ForegroundColor Green
+      # Account folders hold sign-ins: uninstall never removes them.
+      Write-Host '  + Your account folders in %USERPROFILE%\.devpit were left alone: they hold your sign-ins.' -ForegroundColor Green
+      Write-Host '    Without Devpit, every tool uses its own default sign-in in every folder again.' -ForegroundColor DarkGray
       return
     }
     'U' { }
@@ -131,12 +148,18 @@ try {
   if ($expected -ne $actual) { throw "Checksum mismatch for $zipName. Expected $expected, got $actual. Nothing was installed." }
   Write-Ok 3 'Checksum verified against the release manifest'
 
-  Write-Step 4 "Installing devpit.exe to $Dir..."
+  Write-Step 4 "Installing devpit.exe and devpit-shim.exe to $Dir..."
   New-Item -ItemType Directory -Force -Path $Dir | Out-Null
   Expand-Archive -Path $zip -DestinationPath $tmp -Force
   $built = Get-ChildItem -Path $tmp -Recurse -Filter 'devpit.exe' | Select-Object -First 1
   if (-not $built) { throw 'devpit.exe was not inside the archive.' }
   Copy-Item -Path $built.FullName -Destination $Exe -Force
+  # The Accounts shim goes next to devpit.exe and nowhere else: no shims
+  # are made and PATH is not touched for them here. Shims Devpit made
+  # earlier are refreshed by Devpit itself, which knows which tools have
+  # rules. A release from before Accounts has no shim; that is fine.
+  $shimBuilt = Get-ChildItem -Path $tmp -Recurse -Filter 'devpit-shim.exe' | Select-Object -First 1
+  if ($shimBuilt) { Copy-Item -Path $shimBuilt.FullName -Destination $ShimExe -Force }
   Write-Ok 4 "Installed $Exe"
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

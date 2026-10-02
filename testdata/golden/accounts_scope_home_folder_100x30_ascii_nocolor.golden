@@ -1,0 +1,26 @@
+ Where should default be used?                                                      in C:\Users\you
+
+    This folder                                                                        pick a folder
+    A rule here would cover too much: pick a folder inside it
+
+    Everywhere
+    Wherever no folder rule says otherwise. Now: default (you@personal.example)
+
+    Just this once
+    One command, run from a terminal. Nothing is saved.
+
+| > Another folder…
+|   Pick a folder; the rule covers it and every folder inside it
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] ↑↓ move  ·  enter select

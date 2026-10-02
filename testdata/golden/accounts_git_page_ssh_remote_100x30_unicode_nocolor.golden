@@ -1,0 +1,26 @@
+ Git                                                                     in C:\Projects\quiz-slayer
+
+ Commits as  You <you@personal.example>
+             from your global Git config
+             This folder is not a Git repo yet. The rule applies once it is one (git init or git
+             clone); until then Git would use you@personal.example.
+
+ Pushes as   follows the SSH key
+             this repo pushes over SSH; key: C:\Users\you\.ssh\id_ed25519_devpit_work
+
+▌ ▸ Commit as another identity here…
+▌   In this folder and every folder inside it
+    Commit as another identity everywhere…
+    Add another identity…
+    Push as another GitHub account here…
+    Push with an SSH key…
+    Manage identities…
+
+
+
+
+
+
+
+
+[keys] ↑↓ move  ·  enter select

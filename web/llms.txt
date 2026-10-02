@@ -1,6 +1,6 @@
 # Devpit
 
-> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, sets up Git and SSH, and copies big folders between two Windows PCs on the same network.
+> Devpit (also written "Devpit CLI") is a free, open-source toolkit for developers on Windows by Zubair bin Shaukat (zubyr). One terminal menu picks the right account per folder for Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (Convex is shown, not switched), frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and copies big folders between two Windows PCs on the same network.
 
 Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is https://devpit.zubyr.dev and the documentation is at https://devpit.zubyr.dev/docs.
 
@@ -13,14 +13,30 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 
 ## What it does
 
+- Accounts: picks which account each tool uses per folder ("this folder and every folder inside it", or everywhere), shows the account used here and why, previews every change in plain words (Git shows the exact config lines), asks first with No as the default, and can undo any change. Tools started from any terminal, IDE task or AI agent get the right account through small shims; Git through its own includeIf rules; Devpit stores no token
 - Free Up Disk Space: scans a projects folder or the whole machine, lists junk with sizes and a risk label (Safe, Review, Careful), and deletes only what you tick
 - Fix Stuck Ports & Apps: shows which process holds a port (for example "port 3000 is already in use"), stops it after confirmation, and can stop the whole process tree for npm, pnpm, yarn and node
 - Install Developer Apps: installs from a catalog through Scoop, winget or Chocolatey
 - Update Everything: runs winget, Scoop, npm and Chocolatey updates in one pass, each step can be unticked
 - Network Tools: local and public IP, ping, DNS flush
-- Git & SSH Setup: git identity, SSH key generation (never overwrites an existing key without a typed confirmation), copy public key
+- Git identities per folder and an SSH key per GitHub account live under Accounts; SSH key generation never overwrites an existing key
 - Share Files: copies a folder from one Windows PC to another on the same Wi-Fi or wired network. The sharing PC gets a read-only SMB share and a temporary login after one admin prompt (never the user's own password), shown on a card with the IP, share name, user name and password plus `net use` and `robocopy` lines for a PC without Devpit. The receiving PC checks the total size and free space first, shows live progress, retries when the network blips and resumes an interrupted copy. Stop sharing and quitting Devpit remove everything it set up; after a crash, the next launch offers the clean-up, and `devpit share cleanup` does it from the command line
 - Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
+
+## Command line (for scripts and AI agents)
+
+Tools: claude, git, github (alias gh), vercel, convex, firebase, supabase, cloudflare (alias wrangler).
+
+- `devpit accounts --json`: every tool's account in this folder, and why
+- `devpit <tool> [--json]`: one tool's account here, why, and problems with their fix
+- `devpit <tool> list [--json]`: a tool's accounts
+- `devpit accounts verify [--json] [--all]`: expected against actual; exit code 4 on a mismatch
+- `devpit <tool> use <name> [--everywhere | --folder <path>] --yes`: use an account here (or everywhere); `devpit use <name>` does it for every tool with that account name
+- `devpit <tool> run <name> -- <command>`: one command with another account, nothing saved
+- `devpit <tool> add`, `devpit undo`, `devpit accounts cleanup`, `devpit claude import --from claude-acc`
+- `devpit agent install`: writes a Claude Code skill with these rules and prints an AGENTS.md section
+
+Rules for agents: read with --json first; ask the user before any change and only then pass --yes. Without a terminal and without --yes a change does nothing and exits 3. Exit codes: 0 done, 1 failed, 2 wrong usage, 3 needs --yes, 4 verify found a mismatch. Never read account folders or credential files.
 
 ## Safety rules (enforced in code and tests)
 
@@ -32,6 +48,7 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 - Drive roots, the Windows directory, network paths and the user's never-touch list are refused
 - Safe items are renamed to a tombstone before removal so an interrupted delete can be finished later; Review and Careful items go to the Recycle Bin
 - Docker volumes are never touched
+- Accounts: Devpit stores no token; every account change has a plain-words preview, defaults to No and can be undone exactly; undo stops if a file was changed by hand; cleanup removes only what Devpit added and never an account folder or sign-in
 - Usage stats are off by default and only send totals (never paths or names); DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
 
 ## Author
@@ -46,14 +63,17 @@ Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
 ## Documentation
 
 - [Get started with Devpit on Windows](https://devpit.zubyr.dev/docs/getting-started): Install Devpit with one PowerShell line, Scoop or a zip file, then take the first-launch tour and set up the icon font.
-- [Devpit documentation](https://devpit.zubyr.dev/docs): Learn how to install Devpit, the free Windows terminal app that frees disk space, fixes stuck ports and updates your developer tools from one menu.
+- [Devpit documentation](https://devpit.zubyr.dev/docs): Docs for Devpit, the free toolkit for developers on Windows. The right account in every folder, disk space back, stuck ports freed and tools updated.
 
 ## Features
 
-- [All features](https://devpit.zubyr.dev/docs/features): Everything Devpit can do on Windows, one short guide per feature, from freeing disk space to sharing big folders.
+- [All features](https://devpit.zubyr.dev/docs/features): Everything the Devpit toolkit does on Windows, one short guide per feature, from accounts per folder and disk space to stuck ports and sharing big folders.
+- [Two Claude Code accounts on one Windows PC](https://devpit.zubyr.dev/docs/features/accounts-claude-code): Add a second Claude Code account with Devpit, pick which folders use it, and bring your skills, agents, commands and settings over without copying a login.
+- [A different Git and GitHub account per folder](https://devpit.zubyr.dev/docs/features/accounts-git-and-github): Commit with your work email in C:\Work and push as the right GitHub account, with gh, HTTPS or an SSH key. Devpit shows the exact Git lines it writes.
+- [Vercel, Firebase, Supabase, Cloudflare and Convex accounts](https://devpit.zubyr.dev/docs/features/accounts-other-tools): What Devpit can switch for Vercel, Firebase, Supabase, Cloudflare and Convex, how it applies each account, and what it cannot do, in plain words.
+- [Use the right account in every folder on Windows](https://devpit.zubyr.dev/docs/features/accounts): Tell Devpit once which account a folder uses, and Claude Code, Git, GitHub, Vercel and more use it there. Every change is previewed and can be undone.
 - [Fix "port 3000 is already in use" on Windows](https://devpit.zubyr.dev/docs/features/fix-stuck-ports): Free a busy port such as 3000 or 5173 in two keystrokes, list busy dev ports, and stop stuck Node processes safely with Devpit.
 - [Free up disk space and delete node_modules on Windows](https://devpit.zubyr.dev/docs/features/free-up-disk-space): Find and delete node_modules, build folders, caches and other developer junk safely, with a preview, risk labels and a confirmation before anything goes.
-- [Set up your Git identity and an SSH key on Windows](https://devpit.zubyr.dev/docs/features/git-and-ssh): Set your Git name and email, generate an ed25519 SSH key that never overwrites an old one by accident, and copy the public key for GitHub.
 - [Install developer apps on Windows with Devpit](https://devpit.zubyr.dev/docs/features/install-developer-apps): Pick developer tools from a short list and let Devpit install them through Scoop, winget or Chocolatey, one at a time, with live progress.
 - [Check your IP, ping a host and flush DNS on Windows](https://devpit.zubyr.dev/docs/features/network-tools): See your local and public IP address, ping a host to test your connection, and clear the Windows DNS cache from one Devpit menu.
 - [Devpit settings, themes, icons and the never-touch list](https://devpit.zubyr.dev/docs/features/settings): Every Devpit setting explained, from themes and icons to usage stats, the never-touch list, dev ports and the icon font, and where the settings file lives.
@@ -62,19 +82,29 @@ Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
 
 ## Reference
 
-- [Command line reference](https://devpit.zubyr.dev/docs/command-line): Every devpit command and flag, generated from the app itself. Open the app, install the icon font, check the version and more from a terminal.
+- [Command line reference](https://devpit.zubyr.dev/docs/command-line): Every devpit command and flag, generated from the app itself. See and switch accounts, verify, undo, install the icon font and more from a terminal.
 - [Devpit keyboard shortcuts and mouse controls](https://devpit.zubyr.dev/docs/keyboard-and-mouse): Every Devpit shortcut in one place, from the main menu keys to the results table, plus what clicking, scrolling and hovering do with the mouse.
-- [Is Devpit safe? What it protects and what it sends](https://devpit.zubyr.dev/docs/safety-and-privacy): How Devpit protects your files with previews, confirmations and a default of No, and exactly what anonymous usage stats send and how to turn them off.
+- [Is Devpit safe? What it protects and what it sends](https://devpit.zubyr.dev/docs/safety-and-privacy): How Devpit protects your files and accounts with previews, a default of No and undo, why it stores no tokens, and exactly what opt-in usage stats send.
 - [What's new in Devpit](https://devpit.zubyr.dev/docs/whats-new): What changed in each Devpit release, from new screens to fixes, taken straight from the GitHub release notes.
 
 ## Troubleshooting
 
 - [Troubleshooting](https://devpit.zubyr.dev/docs/troubleshooting): Plain-words fixes for real Devpit and Windows problems, from winget error codes to stuck ports and icons that show as boxes.
+- [A Devpit folder rule is not applying](https://devpit.zubyr.dev/docs/troubleshooting/accounts-folder-rule-not-applying): You made a folder rule in Devpit Accounts, but the tool still uses its usual account there. Main causes, from Git repos to old terminals and moved folders.
+- [Old account still used in VS Code or a desktop app](https://devpit.zubyr.dev/docs/troubleshooting/accounts-old-account-in-vs-code-or-desktop-app): Your Devpit folder rule works in the terminal, but a VS Code extension or a desktop app still uses the old account. Why, and what you can do about it.
+- [Devpit's shim is not first on PATH](https://devpit.zubyr.dev/docs/troubleshooting/accounts-shim-not-first-on-path): Verify says a tool is found before Devpit's shim, or that a new terminal is needed. What PATH order means on Windows and how to make folder rules apply.
+- [Login expired or signed out in Devpit Accounts](https://devpit.zubyr.dev/docs/troubleshooting/accounts-signed-out-or-expired): Devpit shows an account as expired or not signed in. Why Claude Code logins expire on idle accounts, and how to sign in again without losing the account.
+- [Undo stopped: a file was changed after Devpit wrote it](https://devpit.zubyr.dev/docs/troubleshooting/accounts-undo-file-changed-by-hand): devpit undo says a file was changed after Devpit wrote it and changed nothing. Why undo stops instead of overwriting your edit, and how to finish it.
+- [A tool used the wrong account in this folder](https://devpit.zubyr.dev/docs/troubleshooting/accounts-wrong-account-used): Claude Code, Git, gh or Vercel used another account than the one you set in Devpit? Find out why in one command and fix the cause.
+- [CLAUDE_CONFIG_DIR is set by something other than Devpit](https://devpit.zubyr.dev/docs/troubleshooting/claude-config-dir-set-by-something-else): Devpit says CLAUDE_CONFIG_DIR is set in this terminal by something else. What it changes for Claude Code, where it usually comes from and how to remove it.
+- [A shared Claude Code skill link is broken](https://devpit.zubyr.dev/docs/troubleshooting/claude-shared-skill-link-broken): A Claude Code skill, agents or commands folder shared by Devpit shows as broken. Why the link stopped working and how to repair it without losing files.
 - [EADDRINUSE: address already in use :::3000](https://devpit.zubyr.dev/docs/troubleshooting/eaddrinuse-address-already-in-use-3000): Fix Node's EADDRINUSE :::3000 error on Windows: find the process that holds port 3000, stop it, and see how Devpit frees a stuck port in two keys.
 - [EPERM: operation not permitted, rmdir (node_modules)](https://devpit.zubyr.dev/docs/troubleshooting/eperm-operation-not-permitted-rmdir): Fix EPERM and EBUSY errors when deleting node_modules on Windows: find the program that holds the files, close it, and delete the folder safely.
 - [Flush the DNS cache on Windows: ipconfig /flushdns](https://devpit.zubyr.dev/docs/troubleshooting/flush-dns-ipconfig-flushdns): What ipconfig /flushdns and Clear-DnsClientCache do, when clearing the Windows DNS cache helps, and how to do it in one step from Devpit's Network Tools.
-- [git: Please tell me who you are](https://devpit.zubyr.dev/docs/troubleshooting/git-please-tell-me-who-you-are): Git says 'Please tell me who you are' when user.name and user.email are not set. Set them with git config --global, or use Devpit's Git & SSH Setup.
+- [git: Please tell me who you are](https://devpit.zubyr.dev/docs/troubleshooting/git-please-tell-me-who-you-are): Git says 'Please tell me who you are' when user.name and user.email are not set. Set them with git config --global, or set them per folder in Devpit's Accounts.
+- [git push asks for a password or uses the wrong account](https://devpit.zubyr.dev/docs/troubleshooting/git-push-asks-for-password-or-wrong-account): git push to GitHub asks for a password, or pushes as the wrong GitHub account, in a folder with a Devpit rule. How to see what decides it and fix it.
 - [You can't access this shared folder because your organization's security policies block unauthenticated guest access](https://devpit.zubyr.dev/docs/troubleshooting/guest-access-blocked-windows-11-24h2): Fix the Windows error that says security policies block unauthenticated guest access to a shared folder, with the safer options on Windows 11 24H2.
+- [Moving from claude-acc to Devpit](https://devpit.zubyr.dev/docs/troubleshooting/moving-from-claude-acc): Import claude-acc's Claude Code accounts and folder links into Devpit in place, check them, then retire claude-acc in the right order without signing in again.
 - [MSI error 1603: a fatal error occurred during installation](https://devpit.zubyr.dev/docs/troubleshooting/msi-error-1603-fatal-error-during-installation): Windows Installer error 1603 is a general failure. Learn how to read the MSI log with msiexec /L*V, see how winget reports it, and how Devpit shows the failure.
 - [MSI error 1618: another installation is already in progress](https://devpit.zubyr.dev/docs/troubleshooting/msi-error-1618-another-installation-in-progress): Windows Installer error 1618 means another install holds the installer lock. Wait for it, retry, and see how winget and Devpit report this state.
 - [Nerd Font icons show as boxes in Windows Terminal](https://devpit.zubyr.dev/docs/troubleshooting/nerd-font-icons-show-as-boxes-windows-terminal): Icons look like empty boxes in Windows Terminal? Add a Nerd Font symbols fallback to font.face, or run devpit font install to do it for you in one step.
@@ -107,6 +137,16 @@ Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
 
 ## Optional
 
+- [Did I just push with the wrong account? Check first](https://devpit.zubyr.dev/docs/blog/check-account-before-push-or-deploy): Commands to check which Git, GitHub, Vercel, Firebase, Supabase, Cloudflare, Convex and Claude Code account a folder uses, before you push or deploy.
+- [CLAUDE_CONFIG_DIR explained: what moves, stays and breaks](https://devpit.zubyr.dev/docs/blog/claude-config-dir-explained): What Claude Code keeps in its config folder on Windows, what CLAUDE_CONFIG_DIR moves to a new folder, what it leaves behind, and the open bugs worth knowing.
+- [A different Git email per folder on Windows (includeIf)](https://devpit.zubyr.dev/docs/blog/different-git-email-per-folder-windows-includeif): Use Git's includeIf to commit with your work email in C:\Work and your own email everywhere else, plus the Windows gotchas that make a rule silently fail.
+- [Making a CLI that AI agents can use safely](https://devpit.zubyr.dev/docs/blog/making-a-cli-ai-agents-can-use-safely): Design rules for a command-line tool that AI agents call: --json output, a --yes gate for changes, clear exit codes, an agent skill and an llms.txt file.
+- [Moving from claude-acc to Devpit without signing in again](https://devpit.zubyr.dev/docs/blog/move-from-claude-acc-to-devpit): How claude-acc stores Claude Code accounts on Windows, how Devpit imports them in place so nobody signs in again, and how to remove claude-acc safely.
+- [Which deploy CLIs support multiple accounts in 2026?](https://devpit.zubyr.dev/docs/blog/multiple-accounts-vercel-firebase-supabase-cloudflare-convex): Vercel, Firebase, Supabase, Cloudflare Wrangler and Convex compared: which CLIs keep several logins, which can follow a folder, and the workarounds that exist.
+- [Multiple GitHub accounts on one PC: gh, GCM and SSH](https://devpit.zubyr.dev/docs/blog/multiple-github-accounts-gh-gcm-ssh): Three ways to use a work and a personal GitHub account on one Windows PC: Git Credential Manager, the gh CLI and SSH keys, with per-folder setups that work.
+- [Share Claude Code skills between two accounts on Windows](https://devpit.zubyr.dev/docs/blog/share-claude-code-skills-between-accounts-windows): Share skills, agents, commands and CLAUDE.md between two Claude Code accounts on Windows with junctions, symlinks or copies, and why plugins are different.
+- [Shims or shell hooks? Per-folder settings on Windows](https://devpit.zubyr.dev/docs/blog/shims-vs-shell-hooks-windows): How direnv, mise, fnm and zoxide switch settings per folder, why a prompt hook never runs for AI agents or VS Code tasks, and the batch-file trap for shims.
+- [How to use two Claude Code accounts on one Windows PC](https://devpit.zubyr.dev/docs/blog/two-claude-code-accounts-windows): Run a work and a personal Claude Code account side by side on Windows with CLAUDE_CONFIG_DIR, a small PowerShell function, and no signing out and in again.
 - [Copy a huge folder between two PCs and resume with robocopy](https://devpit.zubyr.dev/docs/blog/copy-huge-folders-between-pcs-robocopy-resume): Copy a very large folder between two Windows PCs with robocopy, resume after a failure, read the exit code, and see what Devpit's Share Files adds.
 - [Connect two PCs with an Ethernet cable to copy files](https://devpit.zubyr.dev/docs/blog/direct-ethernet-cable-between-two-pcs): Copy files between two Windows 11 PCs over one Ethernet cable, no router needed: the cable, IP addresses, Private network, sharing and speed checks.
 - [Keep a Windows dev machine updated: winget, Scoop and npm](https://devpit.zubyr.dev/docs/blog/keep-windows-dev-machine-updated-winget-scoop-npm): The exact commands to update apps with winget, Scoop and global npm packages, what gets skipped and why, and how to do all three in one pass with Devpit.

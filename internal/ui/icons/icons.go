@@ -99,6 +99,12 @@ type Set struct {
 	Queued string
 	// Arrow separates an old version from a new one, e.g. "4.87 → 4.91".
 	Arrow string
+	// Lock marks a row that can never be changed, such as a login that is
+	// never cloned. Absent marks something that is not there at all, such as
+	// a tool that is not installed: quieter than a cross, because nothing is
+	// wrong.
+	Lock   string
+	Absent string
 
 	// sections maps a home section id to its glyph. Unlike the tool glyphs,
 	// sections have a unicode shape too, so the menu has icons on a stock
@@ -151,15 +157,15 @@ func Nerd() Set {
 		TrackEmpty: "─",
 		Queued:     "·",
 		Arrow:      "→",
+		Lock:       "", // nf-fa-lock
+		Absent:     "─",
 		sections: map[string]string{
+			"accounts": "", // nf-fa-users
 			"clean":    "", // nf-fa-trash
-			"ports":    "", // nf-fa-plug
-			"install":  "", // nf-oct-package
-			"update":   "", // nf-fa-refresh
-			"network":  "", // nf-fa-globe
-			"gitssh":   "", // nf-dev-git_branch
-			"settings": "", // nf-fa-cog
+			"portsnet": "", // nf-fa-plug
+			"apps":     "", // nf-oct-package
 			"share":    "", // nf-fa-share_alt
+			"settings": "", // nf-fa-cog
 		},
 		extensions: nerdExtensions,
 	}
@@ -191,15 +197,17 @@ func Unicode() Set {
 		TrackEmpty: "─",
 		Queued:     "·",
 		Arrow:      "→",
+		// A filled square from the geometric-shape block, which every
+		// console font has; a padlock is an emoji, two cells wide.
+		Lock:   "■",
+		Absent: "─",
 		sections: map[string]string{
+			"accounts": "◐",
 			"clean":    "◧",
-			"ports":    "◉",
-			"install":  "▣",
-			"update":   "↻",
-			"network":  "◎",
-			"gitssh":   "◈",
-			"settings": "≡",
+			"portsnet": "◉",
+			"apps":     "▣",
 			"share":    "⇄",
+			"settings": "≡",
 		},
 	}
 }
@@ -232,6 +240,8 @@ func ASCII() Set {
 		TrackEmpty: "-",
 		Queued:     ".",
 		Arrow:      ">",
+		Lock:       "#",
+		Absent:     "-",
 	}
 }
 
@@ -240,8 +250,9 @@ func ASCII() Set {
 var brailleSpinner = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 // sectionOrder is the home menu order, so Glyphs lists section glyphs in a
-// stable order.
-var sectionOrder = []string{"clean", "ports", "install", "update", "network", "gitssh", "settings", "share"}
+// stable order. The ids are theme's Section* names, spelled out here because
+// icons sits below theme and must not import it.
+var sectionOrder = []string{"accounts", "clean", "portsnet", "apps", "share", "settings"}
 
 // Section returns the glyph for a home section id, or "" when the tier has
 // none for it.
@@ -307,7 +318,7 @@ func (s Set) Glyphs() []string {
 		s.Node, s.Docker, s.Git, s.Windows, s.Python, s.Rust, s.Go,
 		s.Trash, s.Gear, s.Globe, s.Key, s.Update, s.Package, s.Clock,
 		s.BarFull, s.BarEmpty, s.Cursor, s.SelectBar,
-		s.Track, s.TrackEmpty, s.Queued, s.Arrow,
+		s.Track, s.TrackEmpty, s.Queued, s.Arrow, s.Lock, s.Absent,
 	}
 	all = append(all, s.Spinner...)
 	for _, id := range sectionOrder {

@@ -1,0 +1,26 @@
+ Name the new Claude Code account                                        in C:\Projects\quiz-slayer
+
+ ✓ Signed in as you@work.example
+ ! Same login twice: new is signed in as you@work.example, like work. Two folders signed in to the
+   same account can sign each other out when the login refreshes.
+
+ What should Devpit call this account?
+ › work-2
+   Letters, digits and dashes. You type it in commands, like devpit claude use work.
+
+ [enter] save  [esc] throw this sign-in away
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] enter save

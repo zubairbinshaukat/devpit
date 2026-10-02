@@ -1,0 +1,26 @@
+ Browse folders › Fix old rules                                       here: C:\Projects\quiz-slayer
+
+ These rules point at folders that are not there. Devpit never removes one by itself: the folder
+ may be on a drive that is not plugged in.
+
+| > E:\usb\old-client                                                            drive not connected
+|   vercel client
+
+ [d] remove the rule  [p] point it at the folder's new place
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] ↑↓ move  ·  d remove the rule  ·  p point it elsewhere

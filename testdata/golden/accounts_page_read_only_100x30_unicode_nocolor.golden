@@ -1,0 +1,26 @@
+ Accounts                                                                in C:\Projects\quiz-slayer
+ ! Another Devpit window is changing accounts, so this one can look but not change anything. Close
+   Accounts there, then press r here.
+
+    TOOL            ACCOUNT                          WHY
+▌ ▸ Claude Code   ✓ work (you@work.example)          folder rule: C:\Projects
+    Git           ✓ You <you@personal.example>       everywhere
+    GitHub        ✓ work (you-at-work)               folder rule: C:\Projects
+    Vercel        ✓ default (you@personal.example)   everywhere
+    Firebase      ─ not installed
+    Supabase      ─ not installed
+    Cloudflare    ✓ default (not checked yet)        everywhere · beta
+    Convex        ✓ project: quiz-slayer             set by this project's .env.local
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

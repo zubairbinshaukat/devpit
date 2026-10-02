@@ -1,0 +1,26 @@
+ Accounts                                                                in C:\Projects\quiz-slayer
+
+    TOOL            ACCOUNT                          WHY
+    Claude Code   ✓ work (you@work.example)          folder rule: C:\Projects
+    Git           ✓ You <you@personal.example>       everywhere
+    GitHub        ✓ work (you-at-work)               folder rule: C:\Projects
+▌ ▸ Vercel        ✓ default (you@personal.example)   everywhere · old rule: drive not connected
+    Firebase      ─ not installed
+    Supabase      ─ not installed
+    Cloudflare    ✓ default (not checked yet)        everywhere · beta
+    Convex        ✓ project: quiz-slayer             set by this project's .env.local
+
+ ! E:\usb\old-client: drive E: is not connected. The rule stays until you remove it, and works
+   again when the drive is back.
+   Fix: Open devpit › Accounts › Browse folders › Fix old rules to remove it or point it at the
+        folder's new place.
+
+
+
+
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

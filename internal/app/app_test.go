@@ -3,6 +3,8 @@ package app_test
 import (
 	"context"
 	"errors"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -10,15 +12,22 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zubairbinshaukat/devpit/internal/about"
 	"github.com/zubairbinshaukat/devpit/internal/app"
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/tools"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
+	accountsui "github.com/zubairbinshaukat/devpit/internal/ui/screens/accounts"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/accounts/demo"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/apps"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/install"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/portsnet"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/share"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/update"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
@@ -96,6 +105,56 @@ func press(s string) tea.KeyPressMsg {
 
 func view(m tea.Model) string { return m.View().Content }
 
+// indexOf is where the entry with the given id sits in items. Tests reach a
+// section by what it is, never by where it happens to be, so a reorder of the
+// menu cannot quietly point a test at the wrong screen.
+func indexOf(t *testing.T, items []menu.Item, id string) int {
+	t.Helper()
+	for i, it := range items {
+		if it.ID == id {
+			return i
+		}
+	}
+	t.Fatalf("no entry %q on the menu", id)
+	return -1
+}
+
+// digitFor is the key that opens a section from home.
+func digitFor(t *testing.T, id string) tea.KeyPressMsg {
+	t.Helper()
+	return press(strconv.Itoa(indexOf(t, home.Items(icons.Unicode()), id) + 1))
+}
+
+// childItems is the menu of a parent section.
+func childItems(t *testing.T, section string) []menu.Item {
+	t.Helper()
+	switch section {
+	case home.SectionPortsNet:
+		return portsnet.Items()
+	case home.SectionApps:
+		return apps.Items()
+	}
+	t.Fatalf("%q is not a parent section", section)
+	return nil
+}
+
+// walkTo opens a section from home the way a user does, cursor down and
+// Enter, and then, when child is set, the entry inside the parent's menu.
+func walkTo(t *testing.T, m tea.Model, section, child string) tea.Model {
+	t.Helper()
+	for range indexOf(t, home.Items(icons.Unicode()), section) {
+		m = drive(m, press("down"))
+	}
+	m = drive(m, press("enter"))
+	if child == "" {
+		return m
+	}
+	for range indexOf(t, childItems(t, section), child) {
+		m = drive(m, press("down"))
+	}
+	return drive(m, press("enter"))
+}
+
 func testOptions(cfg config.Config, spy *saveSpy) app.Options {
 	return app.Options{
 		Config:        cfg,
@@ -124,13 +183,34 @@ func fakeScreens() map[string]func() uictx.Screen {
 				install.WithLookPathFunc(func(string) (string, error) { return "", errors.New("not installed") }),
 			)
 		},
-		home.SectionShare: func() uictx.Screen { return share.NewWith(share.Deps{}) },
+		home.SectionShare:    func() uictx.Screen { return share.NewWith(share.Deps{}) },
+		home.SectionAccounts: func() uictx.Screen { return accountsui.NewWith(accountsOptions(demo.New())) },
 		home.SectionUpdate: func() uictx.Screen {
 			return update.New(
 				update.WithDetectFunc(func(context.Context) []tools.Tool { return detected }),
 				update.WithRunStepFunc(fakeScoop),
 			)
 		},
+	}
+}
+
+// dirInfo is a folder that exists, for the Accounts screen's Stat.
+type dirInfo struct{ os.FileInfo }
+
+func (dirInfo) IsDir() bool { return true }
+
+// accountsOptions run the Accounts screens over the in-memory demo engine:
+// no tool runs, nothing is handed to the terminal, and no real account,
+// ~/.claude or ~/.gitconfig is read.
+func accountsOptions(svc *demo.Service) accountsui.Options {
+	return accountsui.Options{
+		Folder: demo.Folder,
+		Open:   func() (accountsui.Service, error) { return svc, nil },
+		Exec:   func(tea.ExecCommand, tea.ExecCallback) tea.Cmd { return nil },
+		Copy:   func(string) tea.Cmd { return nil },
+		Tick:   func(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil },
+		Stat:   func(string) (os.FileInfo, error) { return dirInfo{}, nil },
+		Getwd:  func() (string, error) { return demo.Folder, nil },
 	}
 }
 
@@ -276,8 +356,8 @@ func TestSettingsTogglePersists(t *testing.T) {
 	m := tea.Model(app.New(testOptions(cfg, spy)))
 	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 
-	// Home has Settings as its last item; walk down to it and open it.
-	m = drive(m, press("down"), press("down"), press("down"), press("down"), press("down"), press("down"), press("enter"))
+	// Walk down to Settings and open it.
+	m = walkTo(t, m, home.SectionSettings, "")
 	if !strings.Contains(view(m), "Changes save as soon as you make them") {
 		t.Fatalf("the settings screen did not open:\n%s", view(m))
 	}
@@ -303,44 +383,93 @@ func TestSettingsTogglePersists(t *testing.T) {
 	}
 }
 
-// TestEverySectionOpensItsRealScreen walks the whole main menu: each of the
-// seven sections opens the screen it owns, and Esc comes back. No section
-// leads anywhere provisional any more.
+// TestEverySectionOpensItsRealScreen walks the whole main menu: each section
+// opens the screen it owns, each entry of a parent section opens its screen,
+// and Esc comes back one level at a time. The header names where the user
+// is, breadcrumb and tab alike.
 func TestEverySectionOpensItsRealScreen(t *testing.T) {
 	sections := []struct {
-		name     string
+		section  string
+		child    string
 		sentinel string
+		crumb    string
+		tab      string
 	}{
-		{"Free Up Disk Space", "Pick what to look through"},
-		{"Fix Stuck Ports & Apps", "Free a busy port or stop a stuck process"},
-		{"Install Developer Apps", "Manager: scoop"},
-		{"Update Everything", "updates available"},
-		{"Network Tools", "IP, connectivity and DNS helpers"},
-		{"Git & SSH Setup", "Get a fresh machine ready to push code"},
-		{"Devpit Settings", "Changes save as soon as you make them"},
+		{home.SectionAccounts, "", "set by this project's .env.local", "Accounts", "Accounts"},
+		{home.SectionClean, "", "Pick what to look through", "Free Up Disk Space", "Clean"},
+		{home.SectionPortsNet, portsnet.ItemPorts, "Free a busy port or stop a stuck process", "Ports & Network › Fix stuck ports", "Ports & Net"},
+		{home.SectionPortsNet, portsnet.ItemNetwork, "IP, connectivity and DNS helpers", "Ports & Network › Network tools", "Ports & Net"},
+		{home.SectionApps, apps.ItemInstall, "Manager: scoop", "Install & Update › Install developer apps", "Apps"},
+		{home.SectionApps, apps.ItemUpdate, "updates available", "Install & Update › Update everything", "Apps"},
+		{home.SectionShare, "", "Move big folders between two PCs on the same Wi-Fi", "Share Files", "Share"},
+		{home.SectionSettings, "", "Changes save as soon as you make them", "Settings", "Settings"},
 	}
 
-	for i, sec := range sections {
-		t.Run(sec.name, func(t *testing.T) {
+	for _, sec := range sections {
+		t.Run(sec.section+"/"+sec.child, func(t *testing.T) {
 			cfg := config.Default()
 			cfg.FirstRunDone = true
 
 			m := tea.Model(app.New(testOptions(cfg, &saveSpy{})))
 			m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30})
-			for range i {
-				m = drive(m, press("down"))
-			}
-			m = drive(m, press("enter"))
+			m = walkTo(t, m, sec.section, sec.child)
 
-			if out := view(m); !strings.Contains(out, sec.sentinel) {
-				t.Fatalf("%s did not open its screen:\n%s", sec.name, out)
+			out := view(m)
+			if !strings.Contains(out, sec.sentinel) {
+				t.Fatalf("%s did not open its screen:\n%s", sec.crumb, out)
+			}
+			lines := strings.Split(ansi.Strip(out), "\n")
+			if !strings.Contains(lines[0], sec.crumb) {
+				t.Errorf("breadcrumb = %q, want %q", lines[0], sec.crumb)
+			}
+			if !strings.Contains(lines[header.TabRow], sec.tab) {
+				t.Errorf("tab row = %q, want %q on it", lines[header.TabRow], sec.tab)
 			}
 
+			if sec.child != "" {
+				// One Esc goes back to the parent's menu, not to home.
+				m = drive(m, press("esc"))
+				parent := childItems(t, sec.section)
+				if out := view(m); !strings.Contains(out, parent[0].Title) || strings.Contains(out, about.Byline) {
+					t.Fatalf("Esc from %s did not land on its parent menu:\n%s", sec.crumb, out)
+				}
+			}
 			m = drive(m, press("esc"))
 			if !strings.Contains(view(m), about.Byline) {
-				t.Errorf("Esc from %s did not return to the main menu", sec.name)
+				t.Errorf("Esc from %s did not return to the main menu", sec.crumb)
 			}
 		})
+	}
+}
+
+// TestParentOpensWhenItsScreensHaveNothingToWorkWith keeps Install & Update
+// usable on a machine with no package manager: the menu still opens, both
+// entries still open, and each screen says why it cannot help.
+func TestParentOpensWhenItsScreensHaveNothingToWorkWith(t *testing.T) {
+	none := func(context.Context) []tools.Tool { return nil }
+	cfg := config.Default()
+	cfg.FirstRunDone = true
+	opts := testOptions(cfg, &saveSpy{})
+	opts.ScreenFactory = map[string]func() uictx.Screen{
+		home.SectionInstall: func() uictx.Screen {
+			return install.New(
+				install.WithDetectFunc(none),
+				install.WithLookPathFunc(func(string) (string, error) { return "", errors.New("not installed") }),
+			)
+		},
+		home.SectionUpdate: func() uictx.Screen { return update.New(update.WithDetectFunc(none)) },
+	}
+
+	for _, child := range []string{apps.ItemInstall, apps.ItemUpdate} {
+		m := tea.Model(app.New(opts))
+		m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30}, digitFor(t, home.SectionApps))
+		if !strings.Contains(view(m), "Install dev apps, update everything.") {
+			t.Fatalf("Install & Update did not open:\n%s", view(m))
+		}
+		m = drive(m, press(strconv.Itoa(indexOf(t, apps.Items(), child)+1)))
+		if out := view(m); !strings.Contains(out, "No package manager") {
+			t.Errorf("%s does not say why it cannot help:\n%s", child, out)
+		}
 	}
 }
 

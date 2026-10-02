@@ -1,0 +1,150 @@
+---
+title: "Moving from claude-acc to Devpit without signing in again"
+description: "How claude-acc stores Claude Code accounts on Windows, how Devpit imports them in place so nobody signs in again, and how to remove claude-acc safely."
+date: 2026-10-02
+authors: [zubair]
+tags: [claude code, accounts, migration, windows]
+excerpt: "claude-acc is a good tool. If you move to Devpit anyway, your accounts can stay exactly where they are. Here is what to keep, what to remove, and in what order."
+related:
+  - blog/two-claude-code-accounts-windows
+  - blog/claude-config-dir-explained
+  - blog/shims-vs-shell-hooks-windows
+faq:
+  - question: "Do I have to sign in to my Claude accounts again?"
+    answer: "No. Each claude-acc account is a normal Claude Code config folder with its own login inside. Devpit points at those folders where they are, so the logins keep working."
+  - question: "Can I delete the .claude-switch folder after moving?"
+    answer: "Not the accounts folder inside it. Devpit uses those account folders in place, and they hold your logins. You can remove claude-acc's program and its PowerShell profile line, but keep .claude-switch\\accounts."
+  - question: "Should I run claude-acc and Devpit at the same time?"
+    answer: "It is better not to. Both decide which account Claude Code uses in a folder. If both are active, it is hard to tell which one made the choice. Pick one, and remove the other's hook or rules."
+---
+
+[claude-acc](https://github.com/Nemo-Illusionist/claude-code-account-switcher) (Claude Code Account Switcher) is an open-source, MIT-licensed tool that binds Claude Code accounts to folders. It is good at what it does, and it does several things Devpit does not. If you use it and are happy, keep using it.
+
+If you want to move to Devpit, for example because you also want Git, GitHub or deploy accounts per folder, this post shows how to do it without signing in to any Claude account again, and how to remove claude-acc afterwards without losing a login.
+
+## The short answer
+
+1. Your claude-acc accounts are ordinary Claude Code config folders. Leave them where they are.
+2. Import them into Devpit, which only records where they are.
+3. Verify that every folder still picks the right account.
+4. Then remove claude-acc's PowerShell profile line and its program, in that order.
+5. Never delete the account folders while Devpit uses them.
+
+## How claude-acc works
+
+From its README: "Bind different Claude Code accounts to different directories. On `cd`, the correct account is activated automatically." It stores everything under `%USERPROFILE%\.claude-switch`:
+
+```text
+.claude-switch\
+  accounts\
+    work\        one Claude Code config folder per account
+  bin\           claude-acc.exe
+  config         default=<account>   (empty means ~/.claude)
+  links          one folder=account line per binding
+```
+
+When you change folder, it "looks up the current directory in `~/.claude-switch/links`", walks up the tree if needed, falls back to the default, and "sets `CLAUDE_CONFIG_DIR`". On Windows, its PowerShell integration does this through PowerShell's `LocationChangedAction`, and sets `$env:CLAUDE_CONFIG_DIR` in your session. A more specific link wins over a parent one, and the name `default` means your normal `~/.claude`.
+
+`claude-acc install` adds two lines to your PowerShell profile:
+
+```powershell
+# Claude Code Account Switcher
+Invoke-Expression ((& 'C:\Users\you\.claude-switch\bin\claude-acc.exe' init pwsh) -join "`n")
+```
+
+## What claude-acc does that Devpit does not
+
+To be fair, here is what you give up. From claude-acc's own command list:
+
+- `usage`: 5-hour and 7-day rate-limit usage for every account.
+- `sessions` and `session copy`: move a conversation to another account so `--resume` can find it.
+- `doctor` and `lock`: check which identity each folder is really signed in as, and pin it.
+- `desktop`: separate Claude Desktop profiles side by side.
+- `statusline`: show the active account in Claude Code's status line.
+- It runs on macOS, Linux and Windows. Devpit is Windows only.
+
+If any of these matter to you, stay with claude-acc.
+
+## What changes with Devpit
+
+- **Shims instead of a profile hook.** claude-acc's switch runs inside an interactive PowerShell 7 session. `LocationChangedAction` does not exist in Windows PowerShell 5.1 (we checked), and a profile hook never runs for `cmd.exe`, VS Code tasks or AI agents. claude-acc's own docs say its IDE wrapper is "Not on Windows yet". Devpit puts a small `claude.exe` first on your user PATH, which picks the account for each process, wherever it was started. See [Shims or shell hooks?](/docs/blog/shims-vs-shell-hooks-windows).
+- **Other tools.** The same folder rules cover Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (Convex is shown, not switched).
+- **Sharing instead of copying.** claude-acc's `clone-settings` copies files once ("a one-shot seed, not a sync"). Devpit links skills, agents and commands to your default `~/.claude` so they stay in step.
+- **Preview and undo** on every change, with the answer already set to No.
+
+## Step 1: import, without moving anything
+
+Devpit reads claude-acc's files directly: `config`, `links` and the `accounts` folder. The accounts stay where they are. Devpit's rule file just points at them, so their logins keep working and nobody signs in again. claude-acc's `default` becomes Devpit's `default`, your normal `%USERPROFILE%\.claude`.
+
+You can start it two ways:
+
+- Open Devpit's **Accounts** page. On first open it lists accounts it found on this PC and asks **Use them in Devpit** or **Ignore**.
+- Or from a terminal: `devpit claude import --from claude-acc`.
+
+Each folder binding from `links` becomes a Devpit folder rule for Claude Code. As always, you see a preview first.
+
+See [Claude Code accounts](/docs/features/accounts-claude-code) for the screens.
+
+## Step 2: verify before you remove anything
+
+Open a new terminal in a few folders that had claude-acc links, and check which folder Claude Code uses:
+
+```powershell
+claude auth status
+```
+
+`configDirectory` should be the account folder you expect, and `email` the right account. In Devpit, press <kbd>v</kbd> on the Accounts page, or run `devpit accounts verify`, which checks every rule in one go.
+
+One catch: while claude-acc's profile line is still active, it sets `CLAUDE_CONFIG_DIR` in your session on every `cd`. That makes it hard to tell which tool picked the account. Do this check after Step 3 too.
+
+## Step 3: remove the profile line
+
+1. Open your profile: `notepad $PROFILE`. claude-acc finds the PowerShell 7 profile first, so if you use both shells, check `powershell.exe`'s profile as well.
+2. Delete the two lines shown above: the `# Claude Code Account Switcher` comment and the `Invoke-Expression ... init pwsh ...` line.
+3. Save, and open a **new** terminal. An open window keeps the old hook and the old `CLAUDE_CONFIG_DIR` until you close it.
+
+To confirm the variable is gone in the new window:
+
+```powershell
+Test-Path Env:CLAUDE_CONFIG_DIR
+```
+
+`False` means nothing in your session sets it any more, and Devpit's shim decides per process.
+
+## Step 4: remove the program, keep the accounts
+
+claude-acc has no uninstall command. Its docs describe removing the shell line and, optionally, the files in `bin`. So:
+
+- Delete `%USERPROFILE%\.claude-switch\bin`. That is only the program.
+- **Keep `%USERPROFILE%\.claude-switch\accounts`** and everything in it. Devpit uses these folders in place. Each one holds a Claude Code login.
+- The `config` and `links` files are no longer read by anything once claude-acc is gone. Keeping them costs nothing and lets you go back.
+
+:::danger[Do not remove accounts with claude-acc]
+Do not run `claude-acc remove <name>` on an account Devpit now uses. claude-acc's docs say that on Windows there is "no Trash", so "the directory is deleted outright". That deletes the login and the history of that account.
+:::
+
+If you later want to retire an account, remove it in Devpit. Devpit lists the rules that still use it, suggests the tool's own sign-out first, and asks for a typed word before it removes the account from Devpit. The account folder, and the sign-in in it, stays where it is.
+
+## Going back
+
+Because nothing moved, going back is the same steps in reverse: remove the Devpit rules (or undo them), reinstall claude-acc with `claude-acc install`, and it finds its `config`, `links` and `accounts` where it left them.
+
+## Checklist
+
+1. Import with Devpit; nothing is moved or copied.
+2. Verify with `claude auth status` and Devpit's verify.
+3. Remove claude-acc's profile line, then open a new terminal.
+4. Check that `CLAUDE_CONFIG_DIR` is no longer set in your session.
+5. Delete only `.claude-switch\bin`.
+6. Never delete `.claude-switch\accounts`, and never `claude-acc remove` an account Devpit uses.
+
+## Sources
+
+- [claude-acc README](https://github.com/Nemo-Illusionist/claude-code-account-switcher)
+- [claude-acc docs: Installation and platforms](https://github.com/Nemo-Illusionist/claude-code-account-switcher/blob/master/docs/install.md)
+- [claude-acc docs: Accounts and configuration (`clone-settings`, `remove`)](https://github.com/Nemo-Illusionist/claude-code-account-switcher/blob/master/docs/accounts.md)
+- [claude-acc docs: IDE integration](https://github.com/Nemo-Illusionist/claude-code-account-switcher/blob/master/docs/ide.md)
+- [claude-acc source: PowerShell integration](https://github.com/Nemo-Illusionist/claude-code-account-switcher/blob/master/shell/init.ps1)
+- [Claude Code: Environment variables (`CLAUDE_CONFIG_DIR`)](https://code.claude.com/docs/en/env-vars)
+- [Claude Code: CLI reference (`claude auth status`)](https://code.claude.com/docs/en/cli-reference)
+- [Microsoft: about_Profiles](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_profiles)

@@ -17,6 +17,7 @@ package header
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -181,7 +182,7 @@ func (m Model) View(ctx uictx.Context) string {
 	if !m.tabsShown() {
 		return badgeRow + "\n" + m.rule(th, ctx.Width, ascii)
 	}
-	tabRow := fit(ctx.Width, m.tabs(ctx), th.Muted.Render(tabHint(ascii)), ascii)
+	tabRow := fit(ctx.Width, m.tabs(ctx), th.Muted.Render(tabHint(len(m.Tabs), ascii)), ascii)
 	return badgeRow + "\n\n" + tabRow + "\n" + m.rule(th, ctx.Width, ascii)
 }
 
@@ -282,12 +283,19 @@ func (m Model) Next(step int) (Tab, bool) {
 	return m.Tabs[((cur+step)%n+n)%n], true
 }
 
-// tabHint is the muted reminder at the right of the tab row.
-func tabHint(ascii bool) string {
+// tabHint is the muted reminder at the right of the tab row. The digit range
+// follows the tabs, so adding or dropping a section cannot leave it stale.
+func tabHint(n int, ascii bool) string {
 	if ascii {
-		return "tab <-> - 1-8 "
+		if n < 2 {
+			return "tab <-> "
+		}
+		return "tab <-> - 1-" + strconv.Itoa(n) + " "
 	}
-	return "tab ⇄ · 1–8 "
+	if n < 2 {
+		return "tab ⇄ "
+	}
+	return "tab ⇄ · 1–" + strconv.Itoa(n) + " "
 }
 
 // pills draws the machine's vital signs: the toolchain versions Devpit found,

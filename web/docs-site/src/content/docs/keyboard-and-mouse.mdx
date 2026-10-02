@@ -36,23 +36,32 @@ The footer at the bottom of the window always shows the keys that work right now
 | <kbd>Ctrl</kbd>+<kbd>C</kbd> | Quit from anywhere. If work is running, Devpit asks it to stop first |
 | <kbd>q</kbd> | Quit, from the main menu only |
 
-On a screen with a form, such as Git identity, <kbd>Tab</kbd> moves between fields and does not change section.
+On a screen with a form, such as the Share Files sign-in, <kbd>Tab</kbd> moves between fields and does not change section.
 While work is running, <kbd>Tab</kbd> does nothing.
 
 ## Main menu
 
 | Key | What it does |
 | --- | --- |
-| <kbd>1</kbd> | Free Up Disk Space |
-| <kbd>2</kbd> | Fix Stuck Ports & Apps |
-| <kbd>3</kbd> | Install Developer Apps |
-| <kbd>4</kbd> | Update Everything |
-| <kbd>5</kbd> | Network Tools |
-| <kbd>6</kbd> | Git & SSH Setup |
-| <kbd>7</kbd> | Devpit Settings |
-| <kbd>8</kbd> | Share Files |
+| <kbd>1</kbd> | Accounts |
+| <kbd>2</kbd> | Free Up Disk Space |
+| <kbd>3</kbd> | Ports & Network |
+| <kbd>4</kbd> | Install & Update |
+| <kbd>5</kbd> | Share Files |
+| <kbd>6</kbd> | Devpit Settings |
 
 The digits work on the main menu only, so a number you type in a form stays a number.
+
+The tabs in the header are, in the same order: **Accounts**, **Clean**, **Ports & Net**, **Apps**, **Share** and **Settings**.
+
+**Ports & Network** and **Install & Update** each open a small menu with two entries:
+
+| Section | <kbd>1</kbd> | <kbd>2</kbd> |
+| --- | --- | --- |
+| Ports & Network | Fix stuck ports & apps | Network tools |
+| Install & Update | Install developer apps | Update everything |
+
+Press the digit, or move and press <kbd>Enter</kbd>. <kbd>Esc</kbd> goes back to that small menu.
 
 ## Menus and lists
 
@@ -76,9 +85,31 @@ Every question starts on **No**.
 | <kbd>←</kbd> <kbd>→</kbd> or <kbd>h</kbd> <kbd>l</kbd> | Move between No and Yes |
 | <kbd>Enter</kbd> | Choose what is highlighted (No, unless you moved) |
 
-For **Careful** items, and for replacing an SSH key, you must type a word first: `DELETE` or `OVERWRITE`.
+For **Careful** items in Free Up Disk Space you must type a word first: `DELETE`.
 Type it exactly, in capital letters, then press <kbd>Enter</kbd>.
 <kbd>y</kbd> alone does not work there. <kbd>Esc</kbd> cancels.
+
+## Accounts
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move between tools |
+| <kbd>Enter</kbd> | Open the tool on this row |
+| <kbd>v</kbd> | Verify: check every tool, expected against actual |
+| <kbd>u</kbd> | Undo the last account change |
+| <kbd>b</kbd> | Browse the folders that have rules |
+| <kbd>f</kbd> | Look at another folder |
+| <kbd>i</kbd> | Accounts already on this PC (import), when Devpit found some |
+| <kbd>a</kbd> | On the verify screen: also check the accounts not used here (asks first for Claude Code) |
+| <kbd>x</kbd> | In Browse folders: fix old rules (<kbd>d</kbd> remove, <kbd>p</kbd> point elsewhere) |
+| <kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd> | In the Claude Code item list: Share, Copy or Skip |
+| <kbd>c</kbd> | Copy: the "just this once" command, or a new SSH public key |
+| Type | In the account picker: filter the list |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer the preview (No is the default) |
+| <kbd>l</kbd> | While a change is applied: show the raw log |
+| <kbd>v</kbd> / <kbd>u</kbd> / <kbd>Enter</kbd> | On the done card: verify, undo, or go back |
+
+More in [Accounts](/docs/features/accounts).
 
 ## Free Up Disk Space
 
@@ -100,7 +131,7 @@ Type it exactly, in capital letters, then press <kbd>Enter</kbd>.
 
 More in [Free up disk space](/docs/features/free-up-disk-space).
 
-## Fix Stuck Ports & Apps
+## Fix stuck ports & apps
 
 | Key | What it does |
 | --- | --- |
@@ -114,7 +145,7 @@ More in [Free up disk space](/docs/features/free-up-disk-space).
 
 More in [Fix stuck ports and apps](/docs/features/fix-stuck-ports).
 
-## Install Developer Apps and Update Everything
+## Install developer apps and Update everything
 
 | Key | What it does |
 | --- | --- |
@@ -144,7 +175,7 @@ More in [Install developer apps](/docs/features/install-developer-apps) and [Upd
 
 More in [Share files](/docs/features/share-files).
 
-## Network Tools
+## Network tools
 
 | Key | What it does |
 | --- | --- |
@@ -153,15 +184,7 @@ More in [Share files](/docs/features/share-files).
 
 More in [Network tools](/docs/features/network-tools).
 
-## Git & SSH Setup
 
-| Key | What it does |
-| --- | --- |
-| <kbd>Tab</kbd> | Switch between the name and email fields |
-| <kbd>Enter</kbd> | Review your change, or go back when it is done |
-| <kbd>c</kbd> | Copy the new public key |
-
-More in [Git and SSH setup](/docs/features/git-and-ssh).
 
 ## Settings
 

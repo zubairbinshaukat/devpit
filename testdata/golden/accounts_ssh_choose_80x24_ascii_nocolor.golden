@@ -1,0 +1,20 @@
+ Push with an SSH key                                in C:\Projects\quiz-slayer
+
+ A repo that pushes over SSH is pushed as the GitHub account its key belongs
+ to. A key of its own for this folder keeps work and personal pushes apart.
+
+| > Make a new key
+|   C:\Users\you\.ssh\id_ed25519_devpit_work
+
+    Use a key I already have…
+    Type the path of its private key
+
+
+
+
+
+
+
+
+
+[keys] ↑↓ move  ·  enter select

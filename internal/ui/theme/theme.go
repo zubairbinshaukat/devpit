@@ -53,7 +53,8 @@ type Palette struct {
 	// rather than shouted, the way Catppuccin apps draw selection.
 	Highlight color.Color
 
-	// Peach, Sky, Yellow and Mauve are the extra hues the section icons wear.
+	// Peach, Sky, Yellow and Mauve are the extra hues the section icons wear
+	// (Yellow is Accounts, Sky is Ports & Network, Mauve is Settings).
 	// They carry identity, not meaning: a section keeps its colour on every
 	// screen so the eye learns where it is, and nothing is ever signalled by
 	// one of them alone.
@@ -256,15 +257,26 @@ type Theme struct {
 // Section ids the palette knows a hue for. They match the home screen's
 // section identifiers; the theme names them itself so it does not import a
 // screen package.
+//
+// The first six are the home menu. Ports, Network, Install and Update are the
+// screens inside Ports & Network and Install & Update: they keep their own
+// hue so a screen opened from a parent menu still wears its colour.
 const (
+	SectionAccounts = "accounts"
 	SectionClean    = "clean"
-	SectionPorts    = "ports"
-	SectionInstall  = "install"
-	SectionUpdate   = "update"
-	SectionNetwork  = "network"
-	SectionGitSSH   = "gitssh"
-	SectionSettings = "settings"
+	SectionPortsNet = "portsnet"
+	SectionApps     = "apps"
 	SectionShare    = "share"
+	SectionSettings = "settings"
+
+	SectionPorts   = "ports"
+	SectionInstall = "install"
+	SectionUpdate  = "update"
+	SectionNetwork = "network"
+
+	// SectionGitSSH is the retired Git & SSH section. It has no hue any more,
+	// so it draws in the accent; the id stays until screens/gitssh is gone.
+	SectionGitSSH = "gitssh"
 )
 
 // SectionIcon is the style a section's icon is drawn in: its own hue, or the
@@ -387,14 +399,17 @@ func build(isDark bool, v Variant) Theme {
 		CheckOff: fg(p.Muted),
 
 		sectionIcons: map[string]lipgloss.Style{
+			SectionAccounts: fg(p.Yellow),
 			SectionClean:    fg(p.Peach),
-			SectionPorts:    fg(p.Danger),
-			SectionInstall:  fg(p.Info),
-			SectionUpdate:   fg(p.Success),
-			SectionNetwork:  fg(p.Sky),
-			SectionGitSSH:   fg(p.Yellow),
-			SectionSettings: fg(p.Mauve),
+			SectionPortsNet: fg(p.Sky),
+			SectionApps:     fg(p.Info),
 			SectionShare:    fg(p.Accent),
+			SectionSettings: fg(p.Mauve),
+
+			SectionPorts:   fg(p.Danger),
+			SectionInstall: fg(p.Info),
+			SectionUpdate:  fg(p.Success),
+			SectionNetwork: fg(p.Sky),
 		},
 
 		TabActive: tabActive,

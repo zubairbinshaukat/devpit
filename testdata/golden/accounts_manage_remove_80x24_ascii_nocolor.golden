@@ -1,0 +1,20 @@
+ Claude Code accounts
+
+ Devpit will forget the Claude Code account work.
+
+ These folders used it and will use instead:
+   C:\Projects   default (you@personal.example), like everywhere else
+
+ ! Its folder stays where it is, with its sign-in:
+   C:\Users\you\.devpit\accounts\claude\work. Delete it yourself once you are
+ v 5 more lines (↓ to scroll)
+
+╭─────────────────────────────────────────────────────────╮
+│ Remove work from Devpit?                                │
+│ You can undo it afterwards with u on the Accounts page. │
+│                                                         │
+│ Type REMOVE to continue:                                │
+│                                                         │
+│ [ No ]   [ Yes ]                                        │
+╰─────────────────────────────────────────────────────────╯
+[keys] y/n yes/no  ·  enter confirm

@@ -1,0 +1,26 @@
+ Bring the setup to work
+
+ Share skills with the default account (a link in work)
+ Share agents with the default account (a link in work)
+ Share commands with the default account (a link in work)
+ Share claude.md with the default account (a link in work)
+ Copy the list of enabled plugins and marketplaces; work installs its own copy
+ Copy settings into work
+ Copy hooks into work
+
+╭────────────────────────────────╮
+│ Make this change?              │
+│ One undo takes all of it back. │
+│                                │
+│ [ No ]   [ Yes ]               │
+╰────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

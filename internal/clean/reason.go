@@ -36,6 +36,11 @@ func reasonFor(it Item, err error) string {
 		return fmt.Sprintf("Couldn't delete %s — it's open in %s. Close it and press R to retry.", name, holderNames(locked.Holders))
 	}
 
+	var protected *ProtectedError
+	if errors.As(err, &protected) {
+		return fmt.Sprintf("Refused %s — %s. Devpit never deletes login or account folders.", name, protected.Why)
+	}
+
 	var space *InsufficientSpaceError
 	if errors.As(err, &space) {
 		return fmt.Sprintf(
@@ -57,6 +62,8 @@ func reasonFor(it Item, err error) string {
 		return fmt.Sprintf("Refused %s — it's on a network drive, and Devpit only cleans local disks.", name)
 	case errors.Is(err, ErrNeverTouch):
 		return fmt.Sprintf("Skipped %s — it's on your never-touch list. Settings → Never touch to change that.", name)
+	case errors.Is(err, ErrProtected):
+		return fmt.Sprintf("Refused %s — it is a login or account folder, or holds one, and Devpit never deletes those.", name)
 	case errors.Is(err, ErrOwnExecutable):
 		return fmt.Sprintf("Refused %s — Devpit's own program file lives in there.", name)
 	case errors.Is(err, ErrReparsePoint):

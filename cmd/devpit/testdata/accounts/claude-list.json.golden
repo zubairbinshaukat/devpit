@@ -1,0 +1,36 @@
+{
+  "tool": "claude",
+  "folder": "<root>\\Work\\api",
+  "accounts": [
+    {
+      "name": "default",
+      "display": "default (not checked yet)",
+      "detected": false,
+      "here": false,
+      "everywhere": true,
+      "rules": []
+    },
+    {
+      "name": "oss",
+      "email": "z@oss.dev",
+      "display": "oss (z@oss.dev)",
+      "folder": "<root>\\home\\.devpit\\accounts\\claude\\oss",
+      "detected": false,
+      "here": false,
+      "everywhere": false,
+      "rules": []
+    },
+    {
+      "name": "work",
+      "email": "z@work.com",
+      "display": "work (z@work.com)",
+      "folder": "<root>\\home\\.devpit\\accounts\\claude\\work",
+      "detected": false,
+      "here": true,
+      "everywhere": false,
+      "rules": [
+        "<root>\\Work"
+      ]
+    }
+  ]
+}

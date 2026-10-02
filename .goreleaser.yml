@@ -34,11 +34,35 @@ builds:
       - -X github.com/zubairbinshaukat/devpit/internal/version.Date={{ .CommitDate }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
+  # The Accounts shim. Devpit copies it as claude.exe, gh.exe, vercel.exe…
+  # into %LOCALAPPDATA%\Programs\devpit\shims when a tool gets its first
+  # folder rule; it ships next to devpit.exe in the same archive and is never
+  # run directly. Same flags and arches as devpit; it links no version
+  # package, so it takes no -X flags.
+  - id: devpit-shim
+    main: ./cmd/devpit-shim
+    binary: devpit-shim
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
 # Deliberately no UPX. Packed executables trip antivirus heuristics, and a
 # false positive costs far more than the few megabytes it saves.
 
 archives:
   - id: devpit
+    # Both binaries in one zip per arch: install.ps1 puts devpit-shim.exe
+    # next to devpit.exe.
+    ids: [devpit, devpit-shim]
     formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:

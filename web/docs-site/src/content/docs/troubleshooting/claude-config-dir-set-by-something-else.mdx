@@ -1,0 +1,56 @@
+---
+title: "CLAUDE_CONFIG_DIR is set by something other than Devpit"
+description: "Devpit says CLAUDE_CONFIG_DIR is set in this terminal by something else. What it changes for Claude Code, where it usually comes from and how to remove it."
+sidebar:
+  label: "CLAUDE_CONFIG_DIR set elsewhere"
+related:
+  - features/accounts-claude-code
+  - troubleshooting/moving-from-claude-acc
+  - troubleshooting/accounts-wrong-account-used
+faq:
+  - question: "Is it a problem if CLAUDE_CONFIG_DIR is set?"
+    answer: "Not for claude started through Devpit's shim: Devpit sets the variable for a named account and clears it for the default one. But Claude Code started any other way, such as an editor extension or a full path to claude.exe, uses the folder the variable names."
+  - question: "Will Devpit remove the variable for me?"
+    answer: "No. Devpit never changes your environment or your PowerShell profile. It tells you where the variable is set and how to remove it."
+---
+
+```text
+! CLAUDE_CONFIG_DIR is set in this terminal by something other than Devpit (to C:\…). Claude Code started through Devpit uses Devpit's rule instead; started any other way, it uses that folder's sign-in.
+```
+
+`CLAUDE_CONFIG_DIR` tells Claude Code which config folder, and so which account, to use.
+Devpit sets it only for the one `claude` process it starts.
+This message means something else set it for the whole terminal.
+
+## Why it happens
+
+- **claude-acc.** Its PowerShell profile line sets `CLAUDE_CONFIG_DIR` every time the terminal changes folder. See [Moving from claude-acc](/docs/troubleshooting/moving-from-claude-acc).
+- **Your PowerShell profile** or another script sets it, for example `$env:CLAUDE_CONFIG_DIR = …`.
+- **It is set for your user or the whole PC** in Windows' environment variables.
+
+## What it changes
+
+- `claude` started through Devpit's shim: nothing. Devpit's rule wins. For a named account Devpit sets the variable to that account's folder; for `default` it clears it.
+- Claude Code started any other way, for example by a full path, by an extension or by another program: it uses the folder the variable names.
+
+## How to fix it
+
+1. Find where it comes from. In PowerShell:
+
+   ```powershell
+   [Environment]::GetEnvironmentVariable("CLAUDE_CONFIG_DIR", "User")
+   [Environment]::GetEnvironmentVariable("CLAUDE_CONFIG_DIR", "Machine")
+   Select-String -Path $PROFILE -Pattern "CLAUDE_CONFIG_DIR|claude-acc"
+   ```
+
+2. Remove it from this terminal:
+
+   ```powershell
+   Remove-Item Env:CLAUDE_CONFIG_DIR
+   ```
+
+   In cmd: `set CLAUDE_CONFIG_DIR=`.
+3. Remove it where it is set: delete the line from your profile (`notepad $PROFILE`), or remove it from your user environment variables.
+4. Open a new terminal and run `devpit accounts verify`.
+
+If you want a folder to use a certain Claude Code account, make a folder rule in Devpit instead of setting the variable yourself.

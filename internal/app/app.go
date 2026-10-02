@@ -74,7 +74,8 @@ type Options struct {
 	// developer's real projects folder.
 	Sweep SweepFunc
 	// ScreenFactory overrides what a home menu section opens, keyed by the
-	// home.Section* identifiers. Production leaves it nil, which means the
+	// home.Section* identifiers (the four screens inside Ports & Network and
+	// Install & Update included). Production leaves it nil, which means the
 	// real screen constructors; the golden tests use it to push screens
 	// wired to fakes, so rendering a screen never runs real detection.
 	ScreenFactory map[string]func() uictx.Screen
@@ -607,7 +608,7 @@ func (m Model) applyConfig(msg uictx.ConfigChangedMsg) (tea.Model, tea.Cmd) {
 	m.iconSet = resolveIcons(cfg, m.opts)
 
 	if wasFirstRun && cfg.FirstRunDone {
-		m.router.Reset(home.New(m.iconSet))
+		m.router.Reset(home.New(m.iconSet).WithFactories(m.opts.ScreenFactory))
 	}
 
 	if !msg.Persist {
@@ -632,11 +633,35 @@ func (m Model) applyConfig(msg uictx.ConfigChangedMsg) (tea.Model, tea.Cmd) {
 func (m Model) headerFor() header.Model {
 	hdr := m.header
 	if s, ok := m.router.Top(); ok {
-		hdr.Title = s.Title()
+		hdr.Title = m.breadcrumb(s.Title())
 	}
 	hdr.Active = m.activeSection()
 	hdr.ShowTabs = m.router.Len() > 1 && m.cfg.FirstRunDone
 	return hdr
+}
+
+// crumbParent is a section screen that is a menu over other screens, such as
+// Ports & Network. While one of its screens is on top, it names the
+// breadcrumb: "Ports & Network › Fix stuck ports".
+type crumbParent interface {
+	Breadcrumb(top string, direct bool) string
+}
+
+// breadcrumb is the header title for a top screen titled top: the title
+// itself, or, inside a parent section, the parent's breadcrumb for it.
+func (m Model) breadcrumb(top string) string {
+	if m.router.Len() < 3 {
+		return top
+	}
+	s, ok := m.router.At(1)
+	if !ok {
+		return top
+	}
+	p, ok := s.(crumbParent)
+	if !ok {
+		return top
+	}
+	return p.Breadcrumb(top, m.router.Len() == 3)
 }
 
 // context builds the render context handed to screens.

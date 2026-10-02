@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
 // alwaysSkipNames are directory names that are never worth descending into,
@@ -45,11 +47,18 @@ type filters struct {
 	oneDrive []string
 	// includeOneDrive turns the oneDrive list off.
 	includeOneDrive bool
+	// protected is the login and account folder list: protect.Default from
+	// this process's environment, plus whatever the caller added. It is
+	// applied whatever the options say.
+	protected protect.List
 }
 
 // newFilters builds the filter set for one scan.
 func newFilters(opts Options) filters {
-	f := filters{includeOneDrive: opts.IncludeOneDrive}
+	f := filters{
+		includeOneDrive: opts.IncludeOneDrive,
+		protected:       protect.Default(os.LookupEnv).Union(opts.Protect),
+	}
 
 	for _, p := range opts.NeverTouch {
 		if strings.TrimSpace(p) == "" {
@@ -129,12 +138,16 @@ func (f filters) skipDir(path, lowerName string) bool {
 }
 
 // skipPath reports whether a path is inside somewhere the scan must not go:
-// the never-touch list, a system tree, or a cloud-sync folder.
+// a login or account folder, the never-touch list, a system tree, or a
+// cloud-sync folder.
 //
-// Rule 6 is enforced here and, independently, again in the delete pre-flight.
-// Two checks on two sides of the program is the point: neither is allowed to
-// be the only one.
+// Rules 6 and 30 are enforced here and, independently, again in the delete
+// pre-flight. Two checks on two sides of the program is the point: neither is
+// allowed to be the only one.
 func (f filters) skipPath(path string) bool {
+	if in, _ := f.protected.Inside(path); in {
+		return true
+	}
 	for _, p := range f.neverTouch {
 		if underPath(path, p) {
 			return true
@@ -153,4 +166,12 @@ func (f filters) skipPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// wouldRemoveProtected reports whether deleting a matched directory would
+// take a login or account folder with it. Such a match is never reported,
+// whatever its name and marker say (rule 30).
+func (f filters) wouldRemoveProtected(path string) bool {
+	hit, _ := f.protected.WouldRemove(path)
+	return hit
 }

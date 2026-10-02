@@ -1,0 +1,20 @@
+ Browse folders › Fix old rules                   here: C:\Projects\quiz-slayer
+
+ E:\usb\old-client will no longer have its own Vercel rule. It and every folder
+ inside it will use default (you@personal.example), like everywhere else.
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (removes)
+     [[rule]]
+     folder = 'E:\usb\old-client'
+     vercel = "client"
+
+╭────────────────────────────────╮
+│ Make this change?              │
+│ One undo takes all of it back. │
+│                                │
+│ [ No ]   [ Yes ]               │
+╰────────────────────────────────╯
+
+
+[keys] y/n yes/no  ·  enter confirm

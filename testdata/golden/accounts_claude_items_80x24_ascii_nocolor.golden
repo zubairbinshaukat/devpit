@@ -1,0 +1,20 @@
+ Choose what work gets
+
+    ITEM          SIZE                 LABEL      MODE
+| > Skills        12 skills, 340 KB    ● Safe     [Share]      Copy   Skip
+    Agents        5 agents, 48.0 KB    ● Safe     [Share]      Copy   Skip
+    Commands      9 commands, 22.0 KB  ● Safe     [Share]      Copy   Skip
+    CLAUDE.md     4.1 KB               ● Safe     [Share]      Copy   Skip
+    Plugins       4 enabled            ● Safe     [Same list]         Skip
+    Settings      2.3 KB               ◆ Review               [Copy]  Skip
+    Hooks         3 hooks, 900 B       ◆ Review               [Copy]  Skip
+    MCP servers   3 servers, 1.2 KB    ▲ Careful               Copy  [Skip]
+    Chat history  1.2 GB               ◆ Review                Copy  [Skip]
+    Login                              # locked   never cloned
+    Account info                       # locked   never cloned
+
+    Share = one folder for both, add once and both see it.
+    Copy = a separate copy now; later changes stay apart.
+
+    Share 4 - Same list 1 - Copy 2 - Skip 2 - 3.2 KB to copy
+[keys] ↑↓ move  ·  ←→ choose  ·  space cycle  ·  enter continue

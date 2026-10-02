@@ -1,7 +1,7 @@
 {
-  "name": "Devpit",
+  "name": "Devpit — Developer Toolkit for Windows",
   "short_name": "Devpit",
-  "description": "Devpit: a free, open-source dev machine cleanup CLI for Windows by Zubair bin Shaukat.",
+  "description": "Devpit: a free, open-source developer toolkit for Windows by Zubair bin Shaukat.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#030305",

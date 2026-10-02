@@ -20,7 +20,7 @@ const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** The landing-page facts. Keep in step with web/index.html and the Go source. */
 const HEAD = `# Devpit
 
-> Devpit (also written "Devpit CLI") is a free, open-source terminal app for Windows by Zubair bin Shaukat (zubyr). One menu frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, sets up Git and SSH, and copies big folders between two Windows PCs on the same network.
+> Devpit (also written "Devpit CLI") is a free, open-source toolkit for developers on Windows by Zubair bin Shaukat (zubyr). One terminal menu picks the right account per folder for Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (Convex is shown, not switched), frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and copies big folders between two Windows PCs on the same network.
 
 Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is ${SITE} and the documentation is at ${SITE}/docs.
 
@@ -33,14 +33,30 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 
 ## What it does
 
+- Accounts: picks which account each tool uses per folder ("this folder and every folder inside it", or everywhere), shows the account used here and why, previews every change in plain words (Git shows the exact config lines), asks first with No as the default, and can undo any change. Tools started from any terminal, IDE task or AI agent get the right account through small shims; Git through its own includeIf rules; Devpit stores no token
 - Free Up Disk Space: scans a projects folder or the whole machine, lists junk with sizes and a risk label (Safe, Review, Careful), and deletes only what you tick
 - Fix Stuck Ports & Apps: shows which process holds a port (for example "port 3000 is already in use"), stops it after confirmation, and can stop the whole process tree for npm, pnpm, yarn and node
 - Install Developer Apps: installs from a catalog through Scoop, winget or Chocolatey
 - Update Everything: runs winget, Scoop, npm and Chocolatey updates in one pass, each step can be unticked
 - Network Tools: local and public IP, ping, DNS flush
-- Git & SSH Setup: git identity, SSH key generation (never overwrites an existing key without a typed confirmation), copy public key
+- Git identities per folder and an SSH key per GitHub account live under Accounts; SSH key generation never overwrites an existing key
 - Share Files: copies a folder from one Windows PC to another on the same Wi-Fi or wired network. The sharing PC gets a read-only SMB share and a temporary login after one admin prompt (never the user's own password), shown on a card with the IP, share name, user name and password plus \`net use\` and \`robocopy\` lines for a PC without Devpit. The receiving PC checks the total size and free space first, shows live progress, retries when the network blips and resumes an interrupted copy. Stop sharing and quitting Devpit remove everything it set up; after a crash, the next launch offers the clean-up, and \`devpit share cleanup\` does it from the command line
 - Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
+
+## Command line (for scripts and AI agents)
+
+Tools: claude, git, github (alias gh), vercel, convex, firebase, supabase, cloudflare (alias wrangler).
+
+- \`devpit accounts --json\`: every tool's account in this folder, and why
+- \`devpit <tool> [--json]\`: one tool's account here, why, and problems with their fix
+- \`devpit <tool> list [--json]\`: a tool's accounts
+- \`devpit accounts verify [--json] [--all]\`: expected against actual; exit code 4 on a mismatch
+- \`devpit <tool> use <name> [--everywhere | --folder <path>] --yes\`: use an account here (or everywhere); \`devpit use <name>\` does it for every tool with that account name
+- \`devpit <tool> run <name> -- <command>\`: one command with another account, nothing saved
+- \`devpit <tool> add\`, \`devpit undo\`, \`devpit accounts cleanup\`, \`devpit claude import --from claude-acc\`
+- \`devpit agent install\`: writes a Claude Code skill with these rules and prints an AGENTS.md section
+
+Rules for agents: read with --json first; ask the user before any change and only then pass --yes. Without a terminal and without --yes a change does nothing and exits 3. Exit codes: 0 done, 1 failed, 2 wrong usage, 3 needs --yes, 4 verify found a mismatch. Never read account folders or credential files.
 
 ## Safety rules (enforced in code and tests)
 
@@ -52,6 +68,7 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 - Drive roots, the Windows directory, network paths and the user's never-touch list are refused
 - Safe items are renamed to a tombstone before removal so an interrupted delete can be finished later; Review and Careful items go to the Recycle Bin
 - Docker volumes are never touched
+- Accounts: Devpit stores no token; every account change has a plain-words preview, defaults to No and can be undone exactly; undo stops if a file was changed by hand; cleanup removes only what Devpit added and never an account folder or sign-in
 - Usage stats are off by default and only send totals (never paths or names); DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
 
 ## Author

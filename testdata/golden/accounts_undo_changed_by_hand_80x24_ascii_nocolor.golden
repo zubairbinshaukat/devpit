@@ -1,0 +1,20 @@
+ Undo the last change?
+
+ X A file was changed by hand
+
+ C:\Users\you\.gitconfig was changed by hand since Devpit wrote it
+
+ 1. Open the file named above and put back what Devpit wrote, or keep your
+    edit.
+ 2. Devpit only takes back lines it wrote itself, so it stopped instead of
+    guessing.
+ 3. Run devpit accounts verify to see where things stand.
+
+ [enter] back
+
+
+
+
+
+
+[keys] enter back

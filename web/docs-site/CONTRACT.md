@@ -173,7 +173,8 @@ see `src/assets/screens/README.md` for what it needs.
    | `install` | `list`, `confirm`, `running`, `summary` |
    | `update` | `checking`, `results` (the list of out-of-date apps), `confirm`, `running`, `summary` |
    | `network` | `menu`, `ip`, `ping-input`, `ping-done`, `dns-confirm` |
-   | `gitssh` | `menu`, `identity`, `set-identity`, `key-exists`, `key-done` |
+   | `portsnet` | `menu` (the Ports & Network menu) |
+   | `apps` | `menu` (the Install & Update menu) |
    | `settings` | `menu` (the top list), then a row id for a sub-screen: `folders`, `never-touch`, `dev-ports`, `font`, `probe`, `about` |
    | `share` | `sharing` (the host card), `copying` (a copy in progress) |
 

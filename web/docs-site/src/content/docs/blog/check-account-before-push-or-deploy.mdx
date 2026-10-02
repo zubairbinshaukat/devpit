@@ -1,0 +1,191 @@
+---
+title: "Did I just push with the wrong account? Check first"
+description: "Commands to check which Git, GitHub, Vercel, Firebase, Supabase, Cloudflare, Convex and Claude Code account a folder uses, before you push or deploy."
+date: 2026-10-02
+authors: [zubair]
+tags: [accounts, git, github, deploy, windows]
+excerpt: "A one-minute check of every account a folder uses, a Git hook that stops a push with the wrong email, and how to fix commits that are not pushed yet."
+related:
+  - blog/different-git-email-per-folder-windows-includeif
+  - blog/multiple-github-accounts-gh-gcm-ssh
+  - blog/multiple-accounts-vercel-firebase-supabase-cloudflare-convex
+faq:
+  - question: "Can I fix the email on commits I already pushed?"
+    answer: "Only by rewriting history and force-pushing, which changes the commit IDs for everyone who pulled them. On a shared branch, talk to your team first. Often it is enough to add the email to the right GitHub account, because GitHub links commits by email, although GitHub says old commits might not be linked after you change email settings."
+  - question: "Is it safe to run these check commands?"
+    answer: "Yes. Every command in this post only reads. None of them prints a token, as long as you do not add options such as --show-token, and you never run firebase login:list with --json, which prints tokens."
+  - question: "Why does a tool ignore the account I signed in with?"
+    answer: "An environment variable such as GH_TOKEN, VERCEL_TOKEN, CLOUDFLARE_API_TOKEN, SUPABASE_ACCESS_TOKEN or ANTHROPIC_API_KEY usually wins over the saved login. Check for them by name, as shown in this post."
+---
+
+You finish a feature in your client's repository, push, and deploy. Then you see it: the commits say your personal email, and the preview deployment went to your personal Vercel team.
+
+Every one of these tools can tell you who it thinks you are before anything leaves your PC. This post collects the read-only checks for each, a Git hook that blocks the most common mistake, and the fix for commits that are not pushed yet.
+
+## The short answer
+
+Run these from the project folder before you push or deploy:
+
+```powershell
+git var GIT_AUTHOR_IDENT                         # who your next commit will be by
+git log --format='%h %an <%ae> %s' '@{u}..'      # commits not pushed yet, with their email
+git remote -v                                    # HTTPS or SSH: which login will push
+gh auth status --active                          # the gh account in use
+```
+
+Then the check for the tool you are about to deploy with, from the table further down. All of these only read.
+
+## Commits: who is the author?
+
+`git var GIT_AUTHOR_IDENT` prints the name, email and time stamp that Git would use for a commit made right now. If the email is wrong, find out where it came from:
+
+```powershell
+git config --show-origin user.email
+```
+
+That prints the config file that won. It may be your global `.gitconfig`, a folder rule file, or the repository's own `.git\config`. For the folder rule setup, see [a different Git email per folder](/docs/blog/different-git-email-per-folder-windows-includeif).
+
+To see commits you made but have not pushed:
+
+```powershell
+git log --format='%h %an <%ae> %s' '@{u}..'
+```
+
+`@{u}` means "the upstream branch". The quotes matter in PowerShell, where `@{` starts a hashtable. We ran this exact line in Windows PowerShell 5.1 and PowerShell 7.
+
+## Pushes: which GitHub account?
+
+The commit email is not the account that pushes. That depends on the remote:
+
+```powershell
+git remote -v
+```
+
+- **HTTPS remote (`https://github.com/...`).** Your credential helper picks the login. If you use Git Credential Manager with a user name per folder, `git config --get-urlmatch credential.username https://github.com` shows which one this folder asks for. If you use `gh` as the helper, `gh auth status --active` shows the account.
+- **SSH remote (`git@github.com:...`).** The SSH key picks the account. `ssh -T git@github.com` answers "Hi USERNAME! You've successfully authenticated, but GitHub does not provide shell access."
+
+Do not use `gh auth status --show-token` or `gh auth token` for this. They print the token, and the user name is all you need.
+
+More on how each method chooses: [Multiple GitHub accounts on one PC](/docs/blog/multiple-github-accounts-gh-gcm-ssh).
+
+## Deploys: who is signed in to each CLI?
+
+| Tool | Read-only check | What to look at |
+| --- | --- | --- |
+| Vercel | `vercel whoami` | Your user name. Teams are separate: `vercel teams ls` lists yours, and in a linked folder `.vercel\project.json` holds the `orgId` and `projectId` it deploys to. |
+| Firebase | `firebase login:list` | The README says "the default account for the current context will be listed first". Never add `--json`: in firebase-tools 15.32.1 that output includes tokens. |
+| Supabase | `supabase projects list` | Projects the signed-in user can access. Recent versions also have `supabase whoami`, which is not in the reference docs yet. |
+| Cloudflare | `wrangler whoami` | The user and the accounts it can reach. `--json` "exits with a non-zero status if not authenticated". |
+| Convex | Read `CONVEX_DEPLOYMENT` in `.env.local` | Convex picks the deployment per project from that file. |
+| Claude Code | `claude auth status` | JSON with `loggedIn`, `email`, `orgName` and `configDirectory`, the account folder that was used. It exits with 1 when not signed in. |
+
+Two of these need a word of care:
+
+- **Vercel's team is a separate switch.** `vercel switch` changes "to a different team scope", not to a different account. You can be the right person in the wrong team.
+- **Firebase also remembers an account per folder.** `firebase login:use` sets "the default account to use for this project". That is a feature, but it means two folders can quietly use two accounts.
+
+## The hidden winner: environment variables
+
+Many CLIs let a token in an environment variable override the saved login. GitHub CLI says `GH_TOKEN` "takes precedence over previously stored credentials". Wrangler puts `CLOUDFLARE_API_TOKEN` first in its order. Claude Code uses `ANTHROPIC_API_KEY` "instead of your Claude Pro, Max, Team, or Enterprise subscription even if you are logged in".
+
+To check which of these are set, without printing their values:
+
+```powershell
+'GH_TOKEN','GITHUB_TOKEN','VERCEL_TOKEN','CLOUDFLARE_API_TOKEN','SUPABASE_ACCESS_TOKEN','CONVEX_DEPLOY_KEY','ANTHROPIC_API_KEY','CLAUDE_CONFIG_DIR' |
+  Where-Object { Test-Path "Env:$_" }
+```
+
+It prints only the names that exist. If a name appears that you did not expect, find out where it is set before you trust any `whoami`.
+
+## Fix commits before you push
+
+If the last commit has the wrong email, fix your config first, then:
+
+```powershell
+git commit --amend --reset-author --no-edit
+```
+
+The Git docs say `--reset-author` declares "that the authorship of the resulting commit now belongs to the committer". For several unpushed commits, rewrite each one with the new identity:
+
+```powershell
+git rebase --exec 'git commit --amend --no-edit --reset-author' '@{u}'
+```
+
+We tested both in a throwaway repository in PowerShell 5.1 and 7: every unpushed commit got the new email, and the pushed ones were left alone. Both commands rewrite commits, so only use them on commits nobody else has.
+
+## Already pushed?
+
+GitHub links a commit to a user "by matching the email address in the commit header to an email address on a GitHub account". If the email simply belongs to you, adding it to the right account may be enough, though GitHub warns that "old commits might not be linked after you update your email settings".
+
+Rewriting pushed commits means a force push and new commit IDs for everyone. On a shared branch, ask first. If you do, use `git push --force-with-lease`, which refuses to update the remote branch if it changed since you last fetched it.
+
+## Stop it next time: a pre-push hook
+
+Git runs `.git\hooks\pre-push` before every push. Git for Windows runs hooks with its own `sh`, so this script works on Windows as it is. Save it as `.git\hooks\pre-push` in the repository, and set the email:
+
+```sh
+#!/bin/sh
+# Stop a push that carries commits made with another email.
+expected="you@work.example"
+zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+
+while read local_ref local_oid remote_ref remote_oid
+do
+  if [ "$local_oid" = "$zero" ]; then
+    continue  # deleting a branch, nothing to check
+  fi
+  if [ "$remote_oid" = "$zero" ]; then
+    range="$local_oid --not --remotes"  # new branch
+  else
+    range="$remote_oid..$local_oid"
+  fi
+  wrong=$(git log --format='%h %ae %s' $range | grep -v "^[0-9a-f]* $expected ")
+  if [ -n "$wrong" ]; then
+    echo "pre-push: these commits are not by $expected:" >&2
+    echo "$wrong" >&2
+    exit 1
+  fi
+done
+exit 0
+```
+
+We tested it against a local remote: a clean push went through, and a push with one commit by another email stopped with the list of bad commits, on an existing branch and on a new one. Hooks are per repository and are not pushed, so each clone needs its own copy.
+
+## How Devpit does the same check
+
+Devpit's Accounts page is this whole post as one screen. For the folder you are in, it lists every supported tool with three columns: the tool, the account, and **why** that account applies (a folder rule, "everywhere", or "set by this project's .env.local" for Convex). See [Accounts](/docs/features/accounts).
+
+- Press <kbd>v</kbd> to verify. Each tool gets one live row with the expected account next to the actual one, and a one-key fix when they differ.
+- Verify also catches the quiet causes from this post: a Git line that overrides Devpit's rule (found with `--show-origin`), a repository's own `user.email`, and a PowerShell function or alias with the tool's name that runs before Devpit's shim.
+- From a script or an AI agent, `devpit accounts verify --json` gives the same result as JSON and exits with code 4 when it finds a mismatch. See the [command line reference](/docs/command-line).
+- The checks only read. Devpit asks each tool its own "who am I" question and never shows, saves or logs a token.
+
+## Checklist
+
+1. `git var GIT_AUTHOR_IDENT` before the first commit in a new folder.
+2. `git log ... '@{u}..'` before you push.
+3. `git remote -v`, then the helper or `ssh -T git@github.com`.
+4. The tool's own `whoami` before you deploy, and the team or project too.
+5. Check for token environment variables by name.
+6. Add the pre-push hook to repositories where a wrong email would hurt.
+
+## Sources
+
+- [Git: git-var](https://git-scm.com/docs/git-var)
+- [Git: git-config (`--show-origin`)](https://git-scm.com/docs/git-config)
+- [Git: git-commit (`--amend`, `--reset-author`)](https://git-scm.com/docs/git-commit)
+- [Git: git-push (`--force-with-lease`)](https://git-scm.com/docs/git-push)
+- [Git: githooks (pre-push)](https://git-scm.com/docs/githooks#_pre_push)
+- [GitHub CLI manual: gh auth status](https://cli.github.com/manual/gh_auth_status)
+- [GitHub CLI manual: environment variables](https://cli.github.com/manual/gh_help_environment)
+- [GitHub Docs: Testing your SSH connection](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection)
+- [GitHub Docs: Troubleshooting commits](https://docs.github.com/en/pull-requests/how-tos/commit-changes/troubleshooting-commits)
+- [Vercel: vercel whoami](https://vercel.com/docs/cli/whoami)
+- [Vercel: vercel teams and vercel switch](https://vercel.com/docs/cli/teams)
+- [Vercel: Linking projects (`.vercel/project.json`)](https://vercel.com/docs/cli/project-linking)
+- [firebase-tools README: Multiple accounts](https://github.com/firebase/firebase-tools#multiple-accounts)
+- [Supabase CLI reference](https://supabase.com/docs/reference/cli/introduction)
+- [Cloudflare: Wrangler general commands (`whoami`, `auth token` order)](https://developers.cloudflare.com/workers/wrangler/commands/general/)
+- [Convex: CLI (`.env.local` and `CONVEX_DEPLOYMENT`)](https://docs.convex.dev/cli)
+- [Claude Code: CLI reference (`claude auth status`)](https://code.claude.com/docs/en/cli-reference)
+- [Claude Code: environment variables](https://code.claude.com/docs/en/env-vars)

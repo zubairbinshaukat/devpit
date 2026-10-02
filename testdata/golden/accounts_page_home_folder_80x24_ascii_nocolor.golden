@@ -1,0 +1,20 @@
+ Accounts                                                       in C:\Users\you
+ ! Pick a folder first: You are in your home folder, so "this folder" would
+   cover every project inside it. Press f.
+
+    TOOL           ACCOUNT                      WHY
+| > Claude Code  + default                      everywhere
+    Git          + You <you@personal.example>   everywhere
+    GitHub       + default (...@users.example)  everywhere
+    Vercel       + default                      everywhere
+    Firebase     - not installed
+    Supabase     - not installed
+    Cloudflare   + default (not checked yet)    everywhere - beta
+    Convex       + project: quiz-slayer         set by this project's .env.local
+
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

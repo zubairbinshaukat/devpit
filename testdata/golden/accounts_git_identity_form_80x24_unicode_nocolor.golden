@@ -1,0 +1,20 @@
+ A new Git identity
+
+ Name in Devpit  what you type in commands, like devpit git use work
+ › oss
+
+ Commit name  leave empty to keep the name in your global Git config
+ › You
+
+ Email  the address commits are made with
+ › you@example.com
+
+ Suggested by your GitHub accounts (Tab to here, Enter to pick):
+▌ ▸ 1234567+you-at-work@users.noreply.github.com
+▌   GitHub's private address for you-at-work: commits link to the account witho…
+    you@work.example
+
+
+
+
+[keys] tab next field  ·  enter save

@@ -1,0 +1,216 @@
+{
+  "folder": "<root>\\Work\\api",
+  "tools": [
+    {
+      "tool": "claude",
+      "tool_name": "Claude Code",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "work",
+        "email": "z@work.com",
+        "display": "work (z@work.com)"
+      },
+      "why": "folder rule: <root>\\Work",
+      "reason": "folder rule",
+      "rule_folder": "<root>\\Work",
+      "everywhere": "default (not checked yet)",
+      "chain": [
+        {
+          "folder": "<root>\\Work",
+          "account": "work",
+          "won": true,
+          "skipped": false
+        }
+      ],
+      "installed": true,
+      "managed": true,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": true,
+        "just_once": true,
+        "add_account": true,
+        "show_only": false,
+        "beta": false
+      },
+      "problems": []
+    },
+    {
+      "tool": "git",
+      "tool_name": "Git",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "default (not checked yet)"
+      },
+      "why": "everywhere",
+      "reason": "everywhere",
+      "everywhere": "default (not checked yet)",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": true,
+        "just_once": false,
+        "add_account": true,
+        "show_only": false,
+        "beta": false,
+        "why": "Git takes its commit identity from its config files, not from a sign-in, so there is no \"just this once\". For one commit, run git -c user.email=you@example.com commit."
+      },
+      "problems": []
+    },
+    {
+      "tool": "github",
+      "tool_name": "GitHub",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "default (not checked yet)"
+      },
+      "why": "everywhere",
+      "reason": "everywhere",
+      "everywhere": "default (not checked yet)",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": true,
+        "just_once": true,
+        "add_account": true,
+        "show_only": false,
+        "beta": false
+      },
+      "problems": [
+        {
+          "kind": "set in this terminal",
+          "tool": "github",
+          "message": "GH_TOKEN is set in this terminal by something other than Devpit. gh uses this token instead of any signed-in account, wherever Devpit's rules do not pick one.",
+          "fix": "If you did not mean to set it, remove it here with `Remove-Item Env:GH_TOKEN` (PowerShell) or `set GH_TOKEN=` (cmd), and from wherever sets it (a PowerShell profile, the system environment), then open a new terminal."
+        }
+      ]
+    },
+    {
+      "tool": "vercel",
+      "tool_name": "Vercel",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "default (not checked yet)"
+      },
+      "why": "everywhere",
+      "reason": "everywhere",
+      "everywhere": "default (not checked yet)",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": true,
+        "just_once": true,
+        "add_account": true,
+        "show_only": false,
+        "beta": false
+      },
+      "problems": []
+    },
+    {
+      "tool": "firebase",
+      "tool_name": "Firebase",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "default (not checked yet)"
+      },
+      "why": "everywhere",
+      "reason": "everywhere",
+      "everywhere": "default (not checked yet)",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": true,
+        "just_once": true,
+        "add_account": true,
+        "show_only": false,
+        "beta": false
+      },
+      "problems": []
+    },
+    {
+      "tool": "supabase",
+      "tool_name": "Supabase",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "default (not checked yet)"
+      },
+      "why": "everywhere",
+      "reason": "everywhere",
+      "everywhere": "default (not checked yet)",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": true,
+        "just_once": true,
+        "add_account": true,
+        "show_only": false,
+        "beta": false
+      },
+      "problems": []
+    },
+    {
+      "tool": "cloudflare",
+      "tool_name": "Cloudflare",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "default (not checked yet)"
+      },
+      "why": "everywhere · beta",
+      "reason": "everywhere",
+      "everywhere": "default (not checked yet), Wrangler's own login",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": true,
+        "everywhere": false,
+        "just_once": true,
+        "add_account": true,
+        "show_only": false,
+        "beta": true,
+        "why": "Wrangler profiles are beta. Everywhere else, Wrangler uses its own default login (`wrangler login`); Devpit cannot change that in this version."
+      },
+      "problems": []
+    },
+    {
+      "tool": "convex",
+      "tool_name": "Convex",
+      "folder": "<root>\\Work\\api",
+      "account": {
+        "name": "default",
+        "display": "no project here"
+      },
+      "why": "no Convex project here",
+      "reason": "project",
+      "everywhere": "each project picks its own",
+      "chain": [],
+      "installed": false,
+      "managed": false,
+      "supports": {
+        "folder_rules": false,
+        "everywhere": false,
+        "just_once": false,
+        "add_account": false,
+        "show_only": true,
+        "beta": false,
+        "why": "Convex picks the account per project. Devpit shows it but does not switch it."
+      },
+      "problems": []
+    }
+  ]
+}

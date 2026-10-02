@@ -1,0 +1,20 @@
+ Just this once                                      in C:\Projects\quiz-slayer
+
+ Just this once, Claude Code will use work (you@work.example). Nothing is
+ saved.
+
+ Run it from any terminal. Put your own command after --:
+╭──────────────────────────────────╮
+│ devpit claude run work -- claude │
+╰──────────────────────────────────╯
+ For example: devpit claude run work -- claude -p "summarise this repo"
+
+ [c] copy the command  [enter] back
+
+
+
+
+
+
+
+[keys] c copy  ·  enter back

@@ -5,6 +5,13 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/docs/features/git-and-ssh",
+      "destination": "/docs/features/accounts-git-and-github",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/install",

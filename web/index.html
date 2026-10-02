@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
   <!-- SEO -->
-  <title>Devpit — Dev Machine Cleanup CLI for Windows</title>
-  <meta name="description" content="Free, open-source Windows CLI by Zubair bin Shaukat (zubyr): clear node_modules and caches, free port 3000, update dev tools, copy big folders between PCs.">
-  <meta name="keywords" content="devpit, devpit cli, devpit by zubair, devpit zubair, devpit by zubyr, clean node_modules windows, free disk space developer, delete node_modules, npm cache clean, docker cleanup windows, port 3000 already in use, kill port windows, scoop cleanup, winget update all, transfer files between two pcs, share files over wifi windows, lan file transfer, robocopy resume, developer tools windows, terminal app windows">
+  <title>Devpit — Developer Toolkit for Windows</title>
+  <meta name="description" content="Free, open-source developer toolkit for Windows by zubyr: the right account in every folder, disk space back, stuck ports freed, tools updated, folders moved.">
+  <meta name="keywords" content="devpit, devpit cli, devpit by zubair, devpit zubair, devpit by zubyr, developer toolkit windows, windows developer tools, multiple claude code accounts, two claude code accounts one pc, claude_config_dir, git email per folder, git includeif windows, multiple github accounts windows, gh switch account, vercel switch account, firebase multiple accounts, wrong account deploy, free disk space developer, clean node_modules windows, npm cache clean, docker cleanup windows, port 3000 already in use, kill port windows, winget update all, scoop update all, transfer files between two pcs, lan file transfer, terminal app windows">
   <link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
   <meta name="author" content="Zubair bin Shaukat">
   <meta name="robots" content="index, follow, max-image-preview:large">
@@ -18,22 +18,22 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Devpit">
-  <meta property="og:title" content="Devpit — Dev machine cleanup CLI for Windows">
-  <meta property="og:description" content="Clear node_modules, caches and Docker junk safely, free stuck ports and update every dev tool. Free and open source for Windows.">
+  <meta property="og:title" content="Devpit — Developer Toolkit for Windows">
+  <meta property="og:description" content="The right account in every folder for Claude Code, Git, GitHub and more, plus disk space, stuck ports, updates and PC-to-PC transfers. Free and open source.">
   <meta property="og:url" content="https://devpit.zubyr.dev/">
   <meta property="og:image" content="https://devpit.zubyr.dev/og-image.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Devpit: where dev junk disappears. A free terminal app for Windows, installed with irm devpit.zubyr.dev/install | iex">
+  <meta property="og:image:alt" content="Devpit: a pit stop for your dev machine. A free developer toolkit for Windows, installed with irm devpit.zubyr.dev/install | iex">
   <meta property="og:locale" content="en_US">
 
   <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@zubyrdev">
   <meta name="twitter:creator" content="@zubyrdev">
-  <meta name="twitter:title" content="Devpit — Dev machine cleanup CLI for Windows">
-  <meta name="twitter:description" content="Free, open-source terminal app that clears dev junk safely, fixes stuck ports and updates your tools.">
+  <meta name="twitter:title" content="Devpit — Developer Toolkit for Windows">
+  <meta name="twitter:description" content="Free, open-source toolkit for Windows developers: the right account in every folder, disk space back, stuck ports freed and tools updated.">
   <meta name="twitter:image" content="https://devpit.zubyr.dev/og-image.png">
 
   <!-- Icons (PNG / ICO, generated from the Devpit logo). Google Search only
@@ -53,7 +53,7 @@
 
   <link rel="stylesheet" href="styles.css">
 
-  <!-- Structured data -->
+  <!-- Structured data. The FAQPage answers are the visible FAQ below, word for word. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -89,7 +89,7 @@
         "name": "Devpit",
         "alternateName": "Devpit CLI",
         "url": "https://devpit.zubyr.dev/",
-        "description": "Free, open-source terminal app (CLI) for Windows that frees disk space from developer junk, fixes stuck ports and updates developer tools from one menu.",
+        "description": "Free, open-source toolkit (CLI) for developers on Windows: the right account in every folder for Claude Code, Git, GitHub and more, plus disk space cleanup, stuck ports, installs and updates, and big-folder transfers between PCs, from one terminal menu.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Developer tools",
         "operatingSystem": "Windows 10, Windows 11",
@@ -105,29 +105,35 @@
         "screenshot": "https://devpit.zubyr.dev/og-image.png",
         "image": "https://devpit.zubyr.dev/logo.png",
         "featureList": [
-          "Clean node_modules, dist, .next, build, venv and target folders",
-          "Clear npm, yarn, pnpm, pip, NuGet, Gradle, Cargo and Go caches",
-          "Remove Docker build cache, unused images and stopped containers",
-          "Remove old Scoop app versions",
-          "Free busy ports such as 3000, 5173 and 8080",
-          "Update apps through winget, Scoop, Chocolatey and npm at once",
+          "Use the right account in every folder for Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare",
+          "See which account each tool uses in a folder, and why",
+          "Preview every account change in plain words, undo it, and verify before you deploy",
+          "Run two Claude Code accounts on one PC and share your skills between them",
+          "Free disk space from node_modules, build folders, package caches, Docker leftovers and old Scoop versions",
+          "Free busy ports such as 3000, 5173 and 8080, and check your network",
+          "Install developer apps and update everything through winget, Scoop, Chocolatey and npm at once",
           "Copy big folders between two Windows PCs on the same network, with live progress and resume",
-          "Set up Git identity and SSH keys"
+          "Command line with --json output for scripts and AI agents"
         ]
       },
       {
         "@type": "FAQPage",
         "@id": "https://devpit.zubyr.dev/#faq",
         "mainEntity": [
-          { "@type": "Question", "name": "What is Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is a free, open-source command-line app (CLI) for Windows that frees disk space from developer junk such as node_modules and caches, fixes stuck ports, updates developer tools and copies big folders between PCs, from one terminal menu." } },
+          { "@type": "Question", "name": "What is Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit (also searched as Devpit CLI) is a free, open-source toolkit for developers on Windows. One terminal menu puts the right account in every folder, frees disk space, fixes stuck ports, installs and updates your tools and moves big folders between PCs." } },
+          { "@type": "Question", "name": "Can I use two Claude Code accounts on one PC?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Add both in Accounts, then choose which one each folder uses. Devpit gives every extra account its own Claude Code config folder (CLAUDE_CONFIG_DIR, the multi-account method Claude Code documents) and sets it only for the claude process started in that folder. Your skills can be shared with the other account and your settings copied over; plugins are installed per account from the same list." } },
+          { "@type": "Question", "name": "Where are my tokens stored?", "acceptedAnswer": { "@type": "Answer", "text": "Where they already were. Each tool keeps its own login: Claude Code in its account folder, and gh, Vercel, Firebase, Supabase and Wrangler in their own storage. Devpit never stores, shows, copies or uploads a token. Its rules file holds only account names, emails and folder paths." } },
+          { "@type": "Question", "name": "Does Devpit change my repo?", "acceptedAnswer": { "@type": "Answer", "text": "No. Folder rules live in Devpit's own files in your user profile, never in a repo, so nothing shows up in git status. For Git, Devpit adds marked lines to your global Git config that point at its own rules file, and devpit accounts cleanup removes exactly what it added. Every change is previewed first and can be undone." } },
+          { "@type": "Question", "name": "Does it work in VS Code and desktop apps?", "acceptedAnswer": { "@type": "Answer", "text": "In terminals, yes: Windows Terminal, PowerShell, cmd, Git Bash and the VS Code terminal, and AI agents or scripts that run the tool from a folder. Editor extensions and desktop apps keep their own login, so Devpit does not switch those." } },
+          { "@type": "Question", "name": "Which tools can Accounts switch?", "acceptedAnswer": { "@type": "Answer", "text": "Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (beta, folder rules only). Convex is shown and checked but not switched, because Convex picks the account per project." } },
           { "@type": "Question", "name": "Who made Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit is built by Zubair bin Shaukat (zubyr), a software engineer from Lahore, Pakistan. His portfolio is at zubyr.dev and the source is on GitHub under the MIT license." } },
-          { "@type": "Question", "name": "Is it safe to delete node_modules?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. node_modules is rebuilt by running npm install (or pnpm or yarn install). Devpit labels it Safe, shows the size first and never deletes anything until you confirm." } },
-          { "@type": "Question", "name": "How do I fix 'port 3000 is already in use' on Windows?", "acceptedAnswer": { "@type": "Answer", "text": "Open Devpit, choose Fix Stuck Ports & Apps and type 3000. Devpit shows which app is holding the port and stops it after you confirm." } },
-          { "@type": "Question", "name": "How do I copy a big folder between two PCs on the same Wi-Fi?", "acceptedAnswer": { "@type": "Answer", "text": "On the PC that has the files, open Devpit, choose Share Files, then Share a folder, and approve one admin prompt. Devpit shows the IP address, a temporary user name and a password. On the other PC, choose Copy from a shared folder, or type the two lines from the card (net use, then robocopy) if that PC does not have Devpit. You see live progress, and the copy resumes if the network drops." } },
-          { "@type": "Question", "name": "How do I install Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "In PowerShell, run irm devpit.zubyr.dev/install | iex to download the latest release with checksum verification, or add the zubyr Scoop bucket (scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket) and run scoop install devpit." } },
-          { "@type": "Question", "name": "Is Devpit free and safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Devpit is free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short and readable." } },
-          { "@type": "Question", "name": "Does Devpit collect my data?", "acceptedAnswer": { "@type": "Answer", "text": "Not unless you opt in. Usage stats are off by default and only send totals such as space freed. File names, paths and usernames are never sent. Setting DEVPIT_NO_TELEMETRY=1 always disables it." } },
-          { "@type": "Question", "name": "Which operating systems does Devpit support?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 and 11 on x64 and ARM64 today. Linux and macOS are planned." } }
+          { "@type": "Question", "name": "Is it safe to delete node_modules?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. node_modules comes back when you run npm install (or pnpm or yarn install). Devpit labels it Safe, shows the size first and never deletes anything until you confirm." } },
+          { "@type": "Question", "name": "How do I fix \"port 3000 is already in use\" on Windows?", "acceptedAnswer": { "@type": "Answer", "text": "Open Devpit, choose Ports & Network, then Fix stuck ports & apps, and type 3000. Devpit shows which app is holding the port and stops it after you confirm." } },
+          { "@type": "Question", "name": "How do I copy a big folder between two PCs on the same Wi-Fi?", "acceptedAnswer": { "@type": "Answer", "text": "On the PC that has the files, open Devpit, choose Share Files, then Share a folder, and approve one admin prompt. Devpit shows the IP address, a temporary user name and a password. On the other PC, choose Copy from a shared folder, or type the two lines from the card (net use, then robocopy) if that PC does not have Devpit. You see live progress, and the copy resumes if the network drops. Comparing tools? Read every way to move files between two PCs." } },
+          { "@type": "Question", "name": "How do I install Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Two ways, both in PowerShell. The one-liner irm devpit.zubyr.dev/install | iex downloads the latest release, checks its SHA256 and adds it to your PATH. Scoop users add the zubyr bucket and run scoop install devpit, and scoop update keeps it current." } },
+          { "@type": "Question", "name": "Is Devpit free and safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "Free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short enough to read in a minute." } },
+          { "@type": "Question", "name": "Does Devpit collect my data?", "acceptedAnswer": { "@type": "Answer", "text": "Not unless you opt in. Usage stats are off by default and only send totals such as space freed; file names, paths and usernames are never sent. Set DEVPIT_NO_TELEMETRY=1 and nothing is ever sent. Accounts talks to no server of its own: the only network traffic is each tool's own sign-in and who-am-I check." } },
+          { "@type": "Question", "name": "Does it work on Mac or Linux?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 and 11 (x64 and ARM64) today. Linux and macOS are planned." } }
         ]
       }
     ]
@@ -152,7 +158,8 @@
       </a>
       <nav class="nav__links" aria-label="Main">
         <a href="#demo">Demo</a>
-        <a href="#features">Features</a>
+        <a href="#toolkit">Toolkit</a>
+        <a href="#accounts">Accounts</a>
         <a href="#safety">Safety</a>
         <a href="#faq">FAQ</a>
         <a href="/docs">Docs</a>
@@ -169,8 +176,8 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="wrap hero__copy">
         <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>Free &amp; open source <span class="eyebrow__sep" aria-hidden="true"></span> Windows 10 &amp; 11</p>
-        <h1 class="hero__title" id="hero-title">Where dev junk <em>disappears.</em></h1>
-        <p class="hero__lede">Devpit is a free, open-source CLI for Windows that clears dev junk safely, frees stuck ports, updates your tools and moves big folders between PCs, all from one menu.</p>
+        <h1 class="hero__title" id="hero-title">A pit stop for your <em>dev machine.</em></h1>
+        <p class="hero__lede">A free, open-source toolkit for Windows developers: the right account in every folder, disk space back, stuck ports freed, tools updated and big folders moved between PCs. One menu.</p>
 
         <div class="install-group" data-install-group>
           <div class="install__tabs" role="tablist" aria-label="Install method">
@@ -209,26 +216,30 @@
         <figure class="term" aria-label="Animated Devpit terminal demo">
           <div class="term__bar">
             <div class="term__tabs" role="tablist" aria-label="Demo scenarios">
-              <button role="tab" class="tab is-active" aria-selected="true" data-scene="0">
-                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="12.5" width="18" height="7.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 12.5 8 4.5h8l2.5 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                <span>Free space</span>
+              <button type="button" role="tab" class="tab is-active" id="demo-tab-0" aria-selected="true" aria-controls="term" data-scene="0">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5h4.5M19.5 3l2.5 2.5L19.5 8M22 12.5h-4.5M19.5 10 17 12.5l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Accounts</span>
               </button>
-              <button role="tab" class="tab" aria-selected="false" data-scene="1">
+              <button type="button" role="tab" class="tab" id="demo-tab-1" aria-selected="false" aria-controls="term" data-scene="1" tabindex="-1">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="12.5" width="18" height="7.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 12.5 8 4.5h8l2.5 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                <span>Disk space</span>
+              </button>
+              <button type="button" role="tab" class="tab" id="demo-tab-2" aria-selected="false" aria-controls="term" data-scene="2" tabindex="-1">
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2.5v5M15 2.5v5M6 7.5h12v3a6 6 0 0 1-12 0zM12 16.5v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>Port 3000</span>
               </button>
-              <button role="tab" class="tab" aria-selected="false" data-scene="2">
+              <button type="button" role="tab" class="tab" id="demo-tab-3" aria-selected="false" aria-controls="term" data-scene="3" tabindex="-1">
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 3.5v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20.5v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>Update all</span>
               </button>
-              <button role="tab" class="tab" aria-selected="false" data-scene="3">
+              <button type="button" role="tab" class="tab" id="demo-tab-4" aria-selected="false" aria-controls="term" data-scene="4" tabindex="-1">
                 <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7l5 5-5 5M12 17h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <span>Install</span>
+                <span>Get Devpit</span>
               </button>
             </div>
             <div class="term__win" aria-hidden="true"><i></i><i></i><i></i></div>
           </div>
-          <div class="term__body" id="term" aria-live="off"></div>
+          <div class="term__body" id="term" role="tabpanel" aria-labelledby="demo-tab-0" tabindex="0" aria-live="off"></div>
           <div class="term__keys" id="term-keys" aria-hidden="true"></div>
           <div class="term__press" id="term-press" aria-hidden="true"></div>
         </figure>
@@ -247,10 +258,11 @@
 
         <!-- Text transcript for crawlers and screen readers -->
         <div class="visually-hidden">
-          <p>Demo 1: Typing devpit opens the main menu. Full Scan checks projects, package caches, Docker and Scoop, then lists node_modules (1.84 GB), .next (610 MB), npm cache (3.1 GB), Docker build cache (2.4 GB) and old Scoop versions (750 MB), each labeled Safe, Review or Careful. After confirming, Devpit frees 8.7 GB in 42 seconds.</p>
-          <p>Demo 2: npm run dev fails with EADDRINUSE on port 3000. In Fix Stuck Ports &amp; Apps, typing 3000 shows node.exe holds the port; after confirming, the port is free and the dev server starts.</p>
-          <p>Demo 3: Update Everything checks Scoop, winget and npm, lists five updates, and installs the four ticked ones.</p>
-          <p>Demo 4: irm https://devpit.zubyr.dev/install | iex downloads Devpit, verifies its SHA256 checksum and adds it to PATH.</p>
+          <p>Demo 1, Accounts: typing devpit opens the main menu with Accounts first. The Accounts page lists every tool with the account it uses in C:\Work\client-api and why: Claude Code uses default (you@gmail.com) everywhere, Git and GitHub use the work account by a folder rule on C:\Work, Vercel and Cloudflare use the default everywhere, Convex is set by the project's .env.local, Firebase is not signed in and Supabase is not installed. Choosing Claude Code, then Use another account here, then work (you@work.com) shows a plain-words preview with the default answer No. After confirming, Devpit writes the folder rule, checks who is signed in and shows a done card with verify and undo. Verify confirms Claude Code, Git and GitHub match.</p>
+          <p>Demo 2, Free Up Disk Space: a full scan checks projects, package caches, Docker and Scoop, then lists node_modules (1.84 GB), .next (610 MB), npm cache (3.1 GB), Docker build cache (2.4 GB) and old Scoop versions (750 MB), each labeled Safe, Review or Careful. After confirming, Devpit frees 8.7 GB in 42 seconds.</p>
+          <p>Demo 3, Ports &amp; Network: npm run dev fails with EADDRINUSE on port 3000. In Fix stuck ports &amp; apps, typing 3000 shows node.exe holds the port; after confirming, the port is free and the dev server starts.</p>
+          <p>Demo 4, Install &amp; Update: Update everything checks Scoop, winget and npm, lists five updates, and installs the four ticked ones.</p>
+          <p>Demo 5, getting Devpit: irm https://devpit.zubyr.dev/install | iex downloads Devpit, verifies its SHA256 checksum and adds it to PATH.</p>
         </div>
       </div>
     </section>
@@ -269,81 +281,194 @@
       </div>
     </section>
 
-    <!-- ===================== FEATURES ===================== -->
-    <section class="chores" id="features" aria-labelledby="features-title">
+    <!-- ===================== TOOLKIT (mirrors the home menu, 1–6) ===================== -->
+    <section class="chores" id="toolkit" aria-labelledby="toolkit-title">
       <div class="wrap">
-        <h2 class="h2" id="features-title">One menu. <em>Every chore.</em></h2>
-        <ul class="chores__list">
+        <p class="kicker">The toolkit</p>
+        <h2 class="h2" id="toolkit-title">One menu. <em>Six stops.</em></h2>
+        <p class="lede">Type <code>devpit</code> and press a number. Every stop shows you what it will do and asks before it changes anything.</p>
+        <ol class="chores__list">
+          <li class="chore chore--lead">
+            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5h4.5M19.5 3l2.5 2.5L19.5 8M22 12.5h-4.5M19.5 10 17 12.5l2.5 2.5"/></svg></span>
+            <h3 class="chore__name"><kbd class="chore__key" aria-hidden="true">1</kbd><a href="#accounts">Accounts</a></h3>
+            <p class="chore__what">The right account in every folder for Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare. Each tool shows which account is active and why.</p>
+            <span class="chore__tag">New in 0.4</span>
+          </li>
           <li class="chore">
             <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="12.5" width="18" height="7.5" rx="2"/><path d="M5.5 12.5 8 4.5h8l2.5 8M7 16.3h.01M10.5 16.3h.01"/></svg></span>
-            <h3 class="chore__name">Free up disk space</h3>
+            <h3 class="chore__name"><kbd class="chore__key" aria-hidden="true">2</kbd><a href="/docs/features/free-up-disk-space">Free up disk space</a></h3>
             <p class="chore__what">Clears <code>node_modules</code>, build folders, package caches, Docker leftovers and old app versions. You see sizes first.</p>
-            <span class="chore__tag">~14 GB can be freed</span>
+            <span class="chore__tag">Safe · Review · Careful</span>
           </li>
           <li class="chore">
             <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2.5v5M15 2.5v5M6 7.5h12v3a6 6 0 0 1-12 0zM12 16.5v5"/></svg></span>
-            <h3 class="chore__name">Fix stuck ports</h3>
-            <p class="chore__what">Port 3000 already in use? See which app is holding it and stop it in two keystrokes.</p>
-            <span class="chore__tag">Port 3000 busy? Kill it</span>
+            <h3 class="chore__name"><kbd class="chore__key" aria-hidden="true">3</kbd><a href="/docs/features/fix-stuck-ports">Ports &amp; Network</a></h3>
+            <p class="chore__what">Port 3000 already in use? See which app holds it and stop it in two keystrokes. Plus your IP, ping and a DNS flush.</p>
+            <span class="chore__tag">EADDRINUSE, fixed</span>
           </li>
           <li class="chore">
             <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 3.5v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20.5v-4h-4"/></svg></span>
-            <h3 class="chore__name">Update everything</h3>
-            <p class="chore__what">Updates your tools through winget, Scoop, Chocolatey and npm in one go. Untick anything you want to keep.</p>
-            <span class="chore__tag">5 updates waiting</span>
+            <h3 class="chore__name"><kbd class="chore__key" aria-hidden="true">4</kbd><a href="/docs/features/update-everything">Install &amp; Update</a></h3>
+            <p class="chore__what">Install dev apps from a catalog, then update everything through winget, Scoop, Chocolatey and npm in one pass. Untick anything you want to keep.</p>
+            <span class="chore__tag">winget · Scoop · Choco · npm</span>
           </li>
           <li class="chore">
             <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="8" height="6" rx="1.5"/><rect x="13.5" y="14" width="8" height="6" rx="1.5"/><path d="M6.5 10v4.5a2 2 0 0 0 2 2H11M9.5 14.5 11.5 16.5l-2 2M17.5 14V9.5a2 2 0 0 0-2-2H13M14.5 9.5l-2-2 2-2"/></svg></span>
-            <h3 class="chore__name">Share big folders</h3>
-            <p class="chore__what">Copy a huge folder from one PC to another over your Wi&#8209;Fi or cable, with live progress. If the network drops, it carries on where it stopped.</p>
+            <h3 class="chore__name"><kbd class="chore__key" aria-hidden="true">5</kbd><a href="/docs/features/share-files">Share files</a></h3>
+            <p class="chore__what">Move a huge folder from one PC to another over your Wi&#8209;Fi or cable, with live progress. If the network drops, it carries on where it stopped.</p>
             <span class="chore__tag">No commands to type</span>
           </li>
-          <li class="chore">
-            <span class="chore__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M13.5 9.5l2 2"/></svg></span>
-            <h3 class="chore__name">Set up a new machine</h3>
-            <p class="chore__what">Install dev apps, set your Git name and SSH key, check your network. The first-day chores, done.</p>
-            <span class="chore__tag">23 apps via Scoop</span>
-          </li>
+        </ol>
+        <p class="chores__more"><kbd class="chore__key" aria-hidden="true">6</kbd><a href="/docs/features/settings">Devpit Settings</a> <span>theme, icon font, never-touch list, dev ports and privacy</span></p>
+      </div>
+    </section>
+
+    <!-- ===================== ACCOUNTS ===================== -->
+    <section class="acc" id="accounts" aria-labelledby="accounts-title">
+      <div class="wrap">
+        <p class="kicker"><kbd class="chore__key" aria-hidden="true">1</kbd>Accounts</p>
+        <h2 class="h2" id="accounts-title">The right account, <em>in every folder.</em></h2>
+        <p class="lede">Work repo, side project, a client's Vercel team. Tell Devpit once which account a folder uses, and <code>claude</code>, <code>git</code>, <code>gh</code>, <code>vercel</code> and the rest use it there by themselves.</p>
+
+        <figure class="why">
+          <div class="why__bar" aria-hidden="true"><span>Accounts</span><span>in <b>C:\Work\client-api</b></span></div>
+          <table class="why__table">
+            <caption class="visually-hidden">Example of the Accounts page in C:\Work\client-api: each tool, the account it uses, and why</caption>
+            <thead>
+              <tr><th scope="col">Tool</th><th scope="col">Account</th><th scope="col">Why</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Claude Code</th><td>work <span class="dim">(you@work.com)</span></td><td><span class="why--rule">folder rule: C:\Work\client-api</span></td></tr>
+              <tr><th scope="row">Git</th><td>You <span class="dim">&lt;you@work.com&gt;</span></td><td><span class="why--rule">folder rule: C:\Work</span></td></tr>
+              <tr><th scope="row">GitHub</th><td>work <span class="dim">(you-at-work)</span></td><td><span class="why--rule">folder rule: C:\Work</span></td></tr>
+              <tr><th scope="row">Vercel</th><td>default <span class="dim">(you@gmail.com)</span></td><td><span class="why--every">everywhere</span></td></tr>
+              <tr><th scope="row">Cloudflare</th><td>default <span class="dim">(you@gmail.com)</span></td><td><span class="why--every">everywhere · beta</span></td></tr>
+              <tr><th scope="row">Convex</th><td>project: client-api</td><td><span class="why--proj">set by this project's .env.local</span></td></tr>
+              <tr><th scope="row">Firebase</th><td class="dim">not signed in</td><td></td></tr>
+              <tr><th scope="row">Supabase</th><td class="dim">not installed</td><td></td></tr>
+            </tbody>
+          </table>
+          <figcaption class="why__keys" aria-hidden="true"><b>enter</b> open · <b>v</b> verify · <b>b</b> browse folders · <b>u</b> undo last</figcaption>
+        </figure>
+
+        <ul class="why__legend" aria-label="What the Why column means">
+          <li><span class="why--every">everywhere</span><p>Your default account, used wherever no rule applies.</p></li>
+          <li><span class="why--rule">folder rule: C:\Work</span><p>You set it for that folder. The nearest rule wins, one tool at a time.</p></li>
+          <li><span class="why--proj">set by the project</span><p>The project picks it, like Convex with <code>.env.local</code>. Devpit shows it.</p></li>
         </ul>
+
+        <div class="acc__grid">
+          <div class="acc__card">
+            <h3 class="acc__h3">How a switch goes</h3>
+            <ol class="steps">
+              <li><b>Pick a tool.</b> Open Accounts and choose the row you want to change.</li>
+              <li><b>Pick an account.</b> One you already use, or sign in through the tool's own login.</li>
+              <li><b>Read the preview.</b> Plain words, exactly what changes. The default answer is No.</li>
+              <li><b>Verify or undo.</b> <kbd>v</kbd> checks each tool, expected against actual. <kbd>u</kbd> takes it back.</li>
+            </ol>
+          </div>
+          <div class="acc__card">
+            <h3 class="acc__h3">Or from the command line</h3>
+            <div class="cli" role="list">
+              <div class="cli__row" role="listitem"><code><span class="cli__ps" aria-hidden="true">PS&gt;</span> devpit claude</code><span>which account is used here, and why</span></div>
+              <div class="cli__row" role="listitem"><code><span class="cli__ps" aria-hidden="true">PS&gt;</span> devpit claude use work</code><span>switch, after a preview</span></div>
+              <div class="cli__row" role="listitem"><code><span class="cli__ps" aria-hidden="true">PS&gt;</span> devpit accounts verify</code><span>about to deploy with the wrong account?</span></div>
+              <div class="cli__row" role="listitem"><code><span class="cli__ps" aria-hidden="true">PS&gt;</span> devpit accounts verify --json</code><span>the same, for scripts and AI agents</span></div>
+            </div>
+            <p class="acc__note">Without a terminal to ask in, a change needs <code>--yes</code>, so an AI agent cannot switch an account until you agree.</p>
+          </div>
+        </div>
+
+        <div class="acc__limits">
+          <h3 class="acc__h3">What it does not do</h3>
+          <ul>
+            <li><b>Store or show tokens.</b> Each tool keeps its own login. Devpit's rules file holds names, emails and folders.</li>
+            <li><b>Touch your repos.</b> Rules live in Devpit's own files, so nothing shows up in <code>git status</code>.</li>
+            <li><b>Switch editor extensions or desktop apps.</b> Rules apply in terminals, including the VS Code terminal.</li>
+            <li><b>Switch Convex.</b> Convex picks the account per project; Devpit shows it. Cloudflare support is beta.</li>
+          </ul>
+          <a class="hero__docs" href="/docs/features/accounts">Read the Accounts guide <span aria-hidden="true">→</span></a>
+        </div>
       </div>
     </section>
 
     <!-- ===================== SAFETY ===================== -->
     <section class="safe" id="safety" aria-labelledby="safety-title">
       <div class="wrap safe__inner">
-        <h2 class="h2" id="safety-title">Nothing disappears <em>until you say so.</em></h2>
-        <p class="lede">Every item gets a flag before you choose, and the default answer is always No.</p>
-        <ul class="flags">
-          <li class="flag flag--safe"><span class="flag__dot"></span><b>Safe</b><span>Rebuilds on its own. Pre-ticked.</span></li>
-          <li class="flag flag--review"><span class="flag__dot"></span><b>Review</b><span>Safe, but the next build is slower.</span></li>
-          <li class="flag flag--careful"><span class="flag__dot"></span><b>Careful</b><span>May hold data. Asks twice.</span></li>
-        </ul>
-        <div class="confirm" aria-hidden="true">
-          <span class="t-a">?</span> Delete 14 folders <span class="t-c">(2.1 GB)</span>? You can reinstall with <span class="t-w">npm install</span>. <span class="t-w">[y/N]</span><span class="cursor"></span>
+        <h2 class="h2" id="safety-title">Nothing changes <em>until you say so.</em></h2>
+        <p class="lede">Every change gets a preview first, and the default answer is always No.</p>
+        <div class="safe__grid">
+          <div class="safe__card">
+            <h3 class="acc__h3">When it frees space</h3>
+            <p class="safe__sub">Every item gets a flag before you choose.</p>
+            <ul class="flags">
+              <li class="flag flag--safe"><span class="flag__dot"></span><b>Safe</b><span>Rebuilds on its own. Pre-ticked.</span></li>
+              <li class="flag flag--review"><span class="flag__dot"></span><b>Review</b><span>Safe, but the next build is slower.</span></li>
+              <li class="flag flag--careful"><span class="flag__dot"></span><b>Careful</b><span>May hold data. Asks twice.</span></li>
+            </ul>
+            <div class="confirm" aria-hidden="true">
+              <span class="t-a">?</span> Delete 14 folders <span class="t-c">(2.1 GB)</span>? You can reinstall with <span class="t-w">npm install</span>. <span class="t-w">[y/N]</span><span class="cursor"></span>
+            </div>
+          </div>
+          <div class="safe__card">
+            <h3 class="acc__h3">When it switches accounts</h3>
+            <p class="safe__sub">Same rules, plus a few of its own.</p>
+            <ul class="promises">
+              <li><b>No tokens.</b> Never stored, shown, copied, uploaded or logged.</li>
+              <li><b>Preview first.</b> In plain words, with the default answer No.</li>
+              <li><b>Undo.</b> Press <kbd>u</kbd>, or run <code>devpit undo</code>.</li>
+              <li><b>Verify.</b> Expected against actual, before you push or deploy.</li>
+              <li><b>Login folders are protected.</b> Free Up Disk Space can never select them.</li>
+            </ul>
+            <div class="confirm confirm--wrap" aria-hidden="true">
+              <span class="t-a">?</span> In C:\Work and every folder inside it, Claude Code will use <span class="t-w">work</span> <span class="t-c">(you@work.com)</span>. <span class="t-w">[y/N]</span><span class="cursor"></span>
+            </div>
+          </div>
         </div>
+        <a class="hero__docs" href="/docs/safety-and-privacy">Read the safety rules <span aria-hidden="true">→</span></a>
       </div>
     </section>
 
-    <!-- ===================== FAQ ===================== -->
+    <!-- ===================== FAQ (keep in sync with the FAQPage JSON-LD above, word for word) ===================== -->
     <section class="faq" id="faq" aria-labelledby="faq-title">
       <div class="wrap faq__inner">
         <h2 class="h2" id="faq-title">Questions</h2>
         <div class="faq__list">
           <details open>
             <summary>What is Devpit?</summary>
-            <p>Devpit (also searched as <em>Devpit CLI</em>) is a free, open-source command-line app for Windows. One terminal menu frees disk space from developer junk, fixes stuck ports, updates your tools and copies big folders between PCs.</p>
+            <p>Devpit (also searched as <em>Devpit CLI</em>) is a free, open-source toolkit for developers on Windows. One terminal menu puts the right account in every folder, frees disk space, fixes stuck ports, installs and updates your tools and moves big folders between PCs.</p>
+          </details>
+          <details>
+            <summary>Can I use two Claude Code accounts on one PC?</summary>
+            <p>Yes. Add both in <a href="#accounts">Accounts</a>, then choose which one each folder uses. Devpit gives every extra account its own Claude Code config folder (<code>CLAUDE_CONFIG_DIR</code>, the multi-account method Claude Code documents) and sets it only for the <code>claude</code> process started in that folder. Your skills can be shared with the other account and your settings copied over; plugins are installed per account from the same list.</p>
+          </details>
+          <details>
+            <summary>Where are my tokens stored?</summary>
+            <p>Where they already were. Each tool keeps its own login: Claude Code in its account folder, and gh, Vercel, Firebase, Supabase and Wrangler in their own storage. Devpit never stores, shows, copies or uploads a token. Its rules file holds only account names, emails and folder paths.</p>
+          </details>
+          <details>
+            <summary>Does Devpit change my repo?</summary>
+            <p>No. Folder rules live in Devpit's own files in your user profile, never in a repo, so nothing shows up in <code>git status</code>. For Git, Devpit adds marked lines to your global Git config that point at its own rules file, and <code>devpit accounts cleanup</code> removes exactly what it added. Every change is previewed first and can be undone.</p>
+          </details>
+          <details>
+            <summary>Does it work in VS Code and desktop apps?</summary>
+            <p>In terminals, yes: Windows Terminal, PowerShell, cmd, Git Bash and the VS Code terminal, and AI agents or scripts that run the tool from a folder. Editor extensions and desktop apps keep their own login, so Devpit does not switch those.</p>
+          </details>
+          <details>
+            <summary>Which tools can Accounts switch?</summary>
+            <p>Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (beta, folder rules only). Convex is shown and checked but not switched, because Convex picks the account per project.</p>
           </details>
           <details>
             <summary>Who made Devpit?</summary>
-            <p>Devpit is built by <a href="https://zubyr.dev" rel="me">Zubair bin Shaukat</a> (zubyr), a software engineer from Lahore, Pakistan. The source is on <a href="https://github.com/zubairbinshaukat/devpit" rel="noopener">GitHub</a> under the MIT license.</p>
+            <p>Devpit is built by <a href="https://zubyr.dev" rel="me">Zubair bin Shaukat</a> (zubyr), a software engineer from Lahore, Pakistan. His portfolio is at <a href="https://zubyr.dev" rel="me">zubyr.dev</a> and the source is on <a href="https://github.com/zubairbinshaukat/devpit" rel="noopener">GitHub</a> under the MIT license.</p>
           </details>
           <details>
             <summary>Is it safe to delete node_modules?</summary>
-            <p>Yes. It comes back when you run <code>npm install</code> (or pnpm / yarn). Devpit marks it <a href="/docs/features/free-up-disk-space">Safe</a>, shows the size first, and deletes nothing until you confirm.</p>
+            <p>Yes. <code>node_modules</code> comes back when you run <code>npm install</code> (or pnpm or yarn install). Devpit labels it <a href="/docs/features/free-up-disk-space">Safe</a>, shows the size first and never deletes anything until you confirm.</p>
           </details>
           <details>
             <summary>How do I fix "port 3000 is already in use" on Windows?</summary>
-            <p>Open Devpit, choose <a href="/docs/features/fix-stuck-ports"><b>Fix Stuck Ports &amp; Apps</b></a> and type <code>3000</code>. It shows which app holds the port and stops it after you confirm.</p>
+            <p>Open Devpit, choose <b>Ports &amp; Network</b>, then <a href="/docs/features/fix-stuck-ports"><b>Fix stuck ports &amp; apps</b></a>, and type <code>3000</code>. Devpit shows which app is holding the port and stops it after you confirm.</p>
           </details>
           <details>
             <summary>How do I copy a big folder between two PCs on the same Wi-Fi?</summary>
@@ -359,7 +484,7 @@
           </details>
           <details>
             <summary>Does Devpit collect my data?</summary>
-            <p><a href="/docs/safety-and-privacy">Not unless you opt in.</a> Stats are off by default and only send totals. Set <code>DEVPIT_NO_TELEMETRY=1</code> and nothing is ever sent.</p>
+            <p><a href="/docs/safety-and-privacy">Not unless you opt in.</a> Usage stats are off by default and only send totals such as space freed; file names, paths and usernames are never sent. Set <code>DEVPIT_NO_TELEMETRY=1</code> and nothing is ever sent. Accounts talks to no server of its own: the only network traffic is each tool's own sign-in and who-am-I check.</p>
           </details>
           <details>
             <summary>Does it work on Mac or Linux?</summary>
@@ -373,7 +498,7 @@
     <section class="end" aria-labelledby="end-title">
       <div class="hole-anchor hole-anchor--end" id="hole-end" aria-hidden="true"></div>
       <div class="wrap end__inner">
-        <h2 class="end__title" id="end-title">Get your gigabytes <em>back.</em></h2>
+        <h2 class="end__title" id="end-title">Give your dev machine <em>a pit stop.</em></h2>
         <div class="install-group" data-install-group>
           <div class="install__tabs" role="tablist" aria-label="Install method">
             <button class="install__tab is-active" type="button" role="tab" id="tab-ps-2" aria-selected="true" aria-controls="panel-ps-2" data-method="ps">PowerShell</button>
@@ -411,7 +536,7 @@
     <div class="wrap maker__inner">
       <img class="maker__photo" src="author-avatar.webp" alt="Zubair bin Shaukat, the developer of Devpit" width="168" height="168" loading="lazy" decoding="async">
       <h2 class="maker__title" id="maker-title">A project by <em>Zubair bin Shaukat</em></h2>
-      <p class="maker__bio">Software engineer from Lahore, Pakistan, building developer tools, automation and web apps. Devpit is the cleanup he wanted for his own Windows machine, so he built it and gave it away.</p>
+      <p class="maker__bio">Software engineer from Lahore, Pakistan, building developer tools, automation and web apps. Devpit is the toolkit he wanted for his own Windows machine, so he built it and gave it away.</p>
       <div class="maker__links">
         <a class="btn btn--light" href="https://zubyr.dev" rel="me">Portfolio</a>
         <a class="btn btn--glass" href="https://github.com/zubairbinshaukat" rel="me noopener">
@@ -441,8 +566,8 @@
             <span class="brand__name">Devpit</span>
           </a>
           <nav class="foot__links" aria-label="Footer">
-            <a href="#demo">Demo</a>
-            <a href="#features">Features</a>
+            <a href="#toolkit">Toolkit</a>
+            <a href="#accounts">Accounts</a>
             <a href="#faq">FAQ</a>
             <a href="/docs">Docs</a>
             <a href="https://github.com/zubairbinshaukat/devpit" rel="noopener">GitHub</a>
@@ -461,7 +586,7 @@
           <span>© 2026 Zubair bin Shaukat</span>
           <span>MIT License</span>
           <span>Open source, free forever</span>
-          <span>No account, no tracking</span>
+          <span>No sign-up, no tracking</span>
           <span class="foot__tag"><em>devpit</em> = a pit stop for your dev machine</span>
         </div>
       </div>

@@ -8,8 +8,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/zubairbinshaukat/devpit/internal/accounts"
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/telemetry"
 	"github.com/zubairbinshaukat/devpit/internal/version"
@@ -77,6 +79,12 @@ type Engines struct {
 	// Getenv reads the environment, so a test can decide what the two
 	// telemetry kill switches say without touching the process environment.
 	Getenv func(string) string
+	// Protect lists the login and account folders a scan never reports and a
+	// delete refuses, on top of the built-in ones the engines always apply:
+	// every folder Accounts knows holds a sign-in. It reads accounts.toml, so
+	// it is called on the scan's and the delete's own goroutines. Nil adds
+	// nothing.
+	Protect func() protect.List
 }
 
 // DefaultEngines returns the real engines.
@@ -91,7 +99,16 @@ func DefaultEngines() Engines {
 		Verify:    scan.Verify,
 		Report:    sendReport,
 		Getenv:    os.Getenv,
+		Protect:   func() protect.List { return accounts.Protected(os.LookupEnv) },
 	}
+}
+
+// protected is the Protect list, or an empty one.
+func (e Engines) protected() protect.List {
+	if e.Protect == nil {
+		return protect.List{}
+	}
+	return e.Protect()
 }
 
 // sendReport posts one usage-stats report. Whether it may run at all is the

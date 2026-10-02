@@ -1,0 +1,26 @@
+ Sign in to another Claude Code account                                  in C:\Projects\quiz-slayer
+
+ Devpit hands this window to Claude Code's own sign-in:
+   claude auth login
+
+ It opens your browser. Sign in there with the account you want to add. When it is done, Devpit
+ comes back here and shows who signed in.
+
+ Nothing is saved until you name the account. Ctrl+C in the sign-in stops it, and nothing is left
+ behind.
+
+ [enter] start sign-in  [esc] back
+
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] enter start sign-in

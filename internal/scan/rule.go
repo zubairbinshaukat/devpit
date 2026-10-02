@@ -78,8 +78,9 @@ var (
 	ErrRenamed = errors.New("scan: the path was renamed since the scan")
 	// ErrMarkerMissing means the marker file that made the match junk is gone.
 	ErrMarkerMissing = errors.New("scan: the marker file is no longer beside the path")
-	// ErrProtectedPath means the path is a drive root, a system location or a
-	// network path, none of which Devpit ever deletes.
+	// ErrProtectedPath means the path is a drive root, a system location, a
+	// network path, or a login or account folder (or holds one), none of which
+	// Devpit ever deletes.
 	ErrProtectedPath = errors.New("scan: the path is protected and is never deleted")
 )
 

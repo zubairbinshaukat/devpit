@@ -1,0 +1,45 @@
+---
+title: "Undo stopped: a file was changed after Devpit wrote it"
+description: "devpit undo says a file was changed after Devpit wrote it and changed nothing. Why undo stops instead of overwriting your edit, and how to finish it."
+sidebar:
+  label: "Undo: file changed by hand"
+related:
+  - features/accounts
+  - features/accounts-git-and-github
+  - safety-and-privacy
+faq:
+  - question: "Why does Devpit not just put the old file back?"
+    answer: "Because that would throw away your edit without asking. Devpit records what each file looked like before and after its change. If the file is no longer what Devpit wrote, someone changed it, so Devpit stops and leaves the choice to you."
+  - question: "Did undo change anything before it stopped?"
+    answer: "No. Undo checks every file of the change first, and only starts when all of them are still what Devpit wrote."
+---
+
+```text
+C:\Users\you\.gitconfig was changed after Devpit wrote it, so Devpit stopped and changed nothing. Put it back the way it was, or make the change by hand
+```
+
+The path names the file. For Devpit's rules file, `accounts.toml`, the message names the change instead, for example: `… was changed after Devpit made the change "Claude Code uses work in C:\Work"`.
+
+## Why it happens
+
+Undo puts every file of a change back exactly as it was.
+To do that safely, it first checks that each file is still exactly what Devpit wrote.
+If you, an editor or another tool changed one of them since, undo would throw that change away, so it stops instead and changes nothing.
+
+Common cases:
+
+- You added lines to `~/.gitconfig` after Devpit's block.
+- You edited one of Devpit's files in `%USERPROFILE%\.devpit\git` by hand.
+- `%APPDATA%\devpit\accounts.toml` was edited by hand.
+- A dotfiles tool rewrote `~/.gitconfig`.
+
+## How to fix it
+
+Pick one:
+
+1. **Put the file back** the way Devpit left it, then run `devpit undo` again. For `~/.gitconfig`, move your own lines above Devpit's block (the block that starts with `# Added by Devpit`), so it is the last thing in the file again.
+2. **Make the change by hand.** Undo is a convenience. For a folder rule, set it back with `devpit <tool> use <name> --folder <folder>`, or remove it in **Accounts**, then **Browse folders**. Each of these is a new change with its own preview.
+3. **Remove everything Devpit added** with `devpit accounts cleanup`. It removes only Devpit's own lines and files and asks first.
+
+Devpit's own Git files say at the top `# Written by Devpit.` and are rewritten from its rules on every change.
+Put your own Git settings in `~/.gitconfig`, above Devpit's block, never in Devpit's files.

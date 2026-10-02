@@ -1,0 +1,173 @@
+---
+title: "Multiple GitHub accounts on one PC: gh, GCM and SSH"
+description: "Three ways to use a work and a personal GitHub account on one Windows PC: Git Credential Manager, the gh CLI and SSH keys, with per-folder setups that work."
+date: 2026-10-02
+authors: [zubair]
+tags: [github, git, accounts, ssh, windows]
+excerpt: "Git Credential Manager, gh and SSH keys each pick a GitHub account in a different way. Here is how each one works on Windows and how to make it follow the folder."
+related:
+  - blog/different-git-email-per-folder-windows-includeif
+  - blog/check-account-before-push-or-deploy
+  - troubleshooting/permission-denied-publickey
+  - features/accounts-git-and-github
+faq:
+  - question: "Why does GitHub say Repository not found for a repo I can open in the browser?"
+    answer: "GitHub shows that error when the repository does not exist or the account you are pushing with has no access to it. For a private repository, this usually means Git sent the credentials of your other account. Check which account the credential helper or SSH key belongs to."
+  - question: "Does gh auth switch change the account Git pushes with?"
+    answer: "It changes the active gh account for that host. If you ran gh auth setup-git, Git asks gh for credentials, so pushes follow the active account too. It is one switch for the whole PC, not per folder."
+  - question: "Is user.email the same as the account I push with?"
+    answer: "No. user.email is written into the commit. The push account is decided by the credential helper for HTTPS remotes or by the SSH key for SSH remotes. GitHub links commits to accounts by the email in the commit."
+---
+
+You have a work GitHub account and a personal one. One day a push fails with `Permission to your-org/api.git denied to your-personal-name`, or a private repository says `Repository not found` even though you can open it in the browser. Git sent the other account.
+
+On Windows there are three common ways Git and GitHub pick an account: Git Credential Manager, the GitHub CLI (`gh`), and SSH keys. They work differently, and each one needs its own trick to follow the folder you are in. This post compares them and gives a working per-folder setup for each.
+
+## The short answer
+
+Three separate things decide "who you are" on GitHub:
+
+| What | Decided by | Check with |
+| --- | --- | --- |
+| The name and email inside a commit | `user.name` and `user.email` in Git config | `git var GIT_AUTHOR_IDENT` |
+| The account that pushes over HTTPS | The credential helper (GCM, or `gh`) | `git remote -v`, then the helper |
+| The account that pushes over SSH | The SSH key that is offered | `ssh -T git@github.com` |
+| The account `gh` uses for API calls | The active `gh` account | `gh auth status --active` |
+
+Fixing one does not fix the others. A correct email with the wrong push account is still a push from the wrong account.
+
+First, look at the remote. It tells you which half applies:
+
+```powershell
+git remote -v
+```
+
+`https://github.com/...` means a credential helper decides. `git@github.com:...` means an SSH key decides.
+
+## Why GitHub cannot tell you apart
+
+Over HTTPS, Git asks a credential helper for a login for `github.com`. By default the helper looks only at the host, not at the repository path. The Git docs say a credential stored for `https://example.com/foo.git` "will also be used for `https://example.com/bar.git`". So one host, one saved login, unless you tell Git otherwise.
+
+GitHub's own errors are honest about this. "Permission to user/repo denied to other-user" means the account you pushed with "does not have access to the repository". "Repository not found" appears when "the repository does not exist or you do not have permission to access it", which for a private repository often just means the wrong account.
+
+## Option 1: Git Credential Manager
+
+Git for Windows ships Git Credential Manager (GCM). On Windows it keeps logins in Windows Credential Manager, which GCM's docs call "the default store on Windows".
+
+GCM supports several accounts on one host, "with a bit of complexity". Its docs give two ways to tell them apart.
+
+**Put the user name in the remote URL.** "HTTPS URLs include an optional "name" part before an `@` sign", and GCM uses it to pick the login:
+
+```powershell
+git remote set-url origin https://your-work-login@github.com/your-org/api.git
+```
+
+**Or set a default user name in config.** The docs show `credential.<URL>.username`. Combine it with a folder rule (see [a different Git email per folder](/docs/blog/different-git-email-per-folder-windows-includeif)) and every repository in `C:\Work` asks GCM for the work login. In your `.gitconfig-work`:
+
+```ini
+[credential "https://github.com"]
+	username = your-work-login
+```
+
+We checked that Git resolves this value only inside the work folder. If the login contains `@`, the GCM docs say to write it as `%40`.
+
+**Good at:** it is already installed, and it needs no extra tool. **Watch out for:** when GCM has no saved login for that user name yet, it asks you to sign in. Sign in with the matching account there, or the wrong login gets saved under the work name.
+
+## Option 2: the GitHub CLI
+
+`gh` has supported several accounts since v2.40.0. Its release notes list "adding multiple accounts for GitHub.com and GitHub Enterprise with `gh auth login`" and "switching manually between accounts for `gh` and `git` use with `gh auth switch`".
+
+```powershell
+gh auth login            # run once per account
+gh auth status           # lists every account and marks the active one
+gh auth switch --user your-work-login
+```
+
+`gh auth switch` "changes the authentication configuration that will be used when running commands targeting the specified GitHub host." If you ran `gh auth setup-git`, which "configures `git` to use GitHub CLI as a credential helper", Git pushes follow the active account too.
+
+**Good at:** API work, pull requests, issues, and a quick switch. **Watch out for:** the active account is one setting for the whole PC. Two terminals in two folders cannot use two accounts at the same time, and you have to remember to switch back.
+
+Two more facts worth knowing:
+
+- `GH_TOKEN` and `GITHUB_TOKEN` "take precedence over previously stored credentials". If one of them is set in your environment, `gh` ignores the account you switched to.
+- `gh auth status` and `gh auth token` both have options that print the token itself. You never need them to check who you are, so leave them alone.
+
+## Option 3: one SSH key per account
+
+GitHub does not let two accounts share one SSH key. Its docs say the "Key already in use" error "occurs when you try to add a key that's already been added to another account or repository". So each account gets its own key. GitHub's page on managing multiple accounts gives this form for one command:
+
+```sh
+GIT_SSH_COMMAND='ssh -i PATH/TO/KEY/FILE -o IdentitiesOnly=yes' git clone git@github.com:OWNER/REPOSITORY
+```
+
+That is shell syntax. On Windows, make it per folder instead with `core.sshCommand`, which takes "the same form as the `GIT_SSH_COMMAND` environment variable". In your `.gitconfig-work`:
+
+```ini
+[core]
+	sshCommand = ssh -i C:/Users/you/.ssh/id_ed25519_work -o IdentitiesOnly=yes
+```
+
+Use forward slashes in the key path. `IdentitiesOnly=yes` matters: without it, `ssh` may offer other keys from the SSH agent first. The OpenSSH manual says the option makes `ssh` "only use the configured authentication identity and certificate files ... even if ssh-agent(1) ... offers more identities".
+
+GitHub's docs also show the other classic setup, a host alias in `~/.ssh/config` with its own `IdentityFile` and `IdentitiesOnly yes`. It works, but every remote must use the alias name instead of `github.com`.
+
+Test a key with:
+
+```powershell
+ssh -T git@github.com
+```
+
+GitHub answers "Hi USERNAME! You've successfully authenticated, but GitHub does not provide shell access." The user name tells you which account the key belongs to. To test one particular key, pass the same options that your `core.sshCommand` uses:
+
+```powershell
+ssh -i C:/Users/you/.ssh/id_ed25519_work -o IdentitiesOnly=yes -T git@github.com
+```
+
+**Good at:** fully per folder, no sign-in windows. **Watch out for:** it only applies to `git@github.com:` remotes. An HTTPS remote in the same folder still uses the credential helper. If your key has no access, see [Permission denied (publickey)](/docs/troubleshooting/permission-denied-publickey).
+
+## Side by side
+
+| | Git Credential Manager | gh | SSH keys |
+| --- | --- | --- | --- |
+| Remote type | HTTPS | HTTPS (as helper) and the API | SSH |
+| Several accounts | Yes, by user name | Yes, since v2.40.0 | Yes, one key each |
+| Per folder | Yes, with `credential.<url>.username` in a folder rule | No, one active account | Yes, with `core.sshCommand` in a folder rule |
+| Where the secret lives | Windows Credential Manager | System credential store, or a plain file if none | The key file in `.ssh` |
+| Two folders at the same time | Yes | No | Yes |
+
+## How Devpit does the same thing
+
+Devpit's Accounts page shows GitHub as its own row, next to Git. The Git page has two lines: **Commits as** (name and email) and **Pushes as** (GitHub account). See [Git and GitHub accounts](/docs/features/accounts-git-and-github).
+
+- **It uses `gh`'s own accounts.** You add an account with `gh auth login`, which is additive. Devpit never runs `gh auth switch`, so nothing global changes behind your back.
+- **`gh` follows the folder.** When you run `gh` in a folder with a rule, a small Devpit shim starts the real `gh` with that account's token for that one process. The token comes from `gh auth token --user <name>` in memory and is never shown, saved or logged.
+- **Pushes follow the folder.** For `github.com`, Devpit sets its own credential helper, which works out the folder (also during `git clone`, where it reads `GIT_DIR` because the working folder is still the parent). It is the only `github.com` helper while Devpit manages pushes. Git's docs explain why that is possible: an empty `helper =` line "resets the helper list to empty". For folders on your default account, it hands the request to the helper you had before, which Devpit records so undo can put it back. It never passes a work token to GCM to save.
+- **SSH remotes** follow the key, not the helper. The Git page says which one applies and offers a per-folder key with `core.sshCommand` and `IdentitiesOnly=yes`.
+- Every change has a preview that defaults to No, and can be undone. Devpit stores no token of its own.
+
+## Checklist
+
+1. Run `git remote -v` to see if HTTPS or SSH decides.
+2. For HTTPS, give each account its own user name in GCM, per folder or per remote.
+3. For SSH, give each account its own key and set `core.sshCommand` per folder with `IdentitiesOnly=yes`.
+4. Use `gh auth switch` only if one account at a time is enough.
+5. Make sure `GH_TOKEN` is not set if `gh` ignores your switch.
+6. Set the commit email separately.
+
+## Sources
+
+- [Git: gitcredentials (helpers, `useHttpPath`, empty helper)](https://git-scm.com/docs/gitcredentials)
+- [Git: git-config, `core.sshCommand`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresshCommand)
+- [Git Credential Manager: Multiple users](https://github.com/git-ecosystem/git-credential-manager/blob/main/docs/multiple-users.md)
+- [Git Credential Manager: Credential stores](https://github.com/git-ecosystem/git-credential-manager/blob/main/docs/credstores.md)
+- [GitHub CLI v2.40.0 release notes (multiple accounts)](https://github.com/cli/cli/releases/tag/v2.40.0)
+- [GitHub CLI manual: gh auth switch](https://cli.github.com/manual/gh_auth_switch)
+- [GitHub CLI manual: gh auth setup-git](https://cli.github.com/manual/gh_auth_setup-git)
+- [GitHub CLI manual: gh auth login (credential storage)](https://cli.github.com/manual/gh_auth_login)
+- [GitHub CLI manual: environment variables](https://cli.github.com/manual/gh_help_environment)
+- [GitHub Docs: Managing multiple accounts](https://docs.github.com/en/account-and-profile/how-tos/account-management/managing-multiple-accounts)
+- [GitHub Docs: Testing your SSH connection](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection)
+- [GitHub Docs: Error: Key already in use](https://docs.github.com/en/authentication/troubleshooting-ssh/error-key-already-in-use)
+- [GitHub Docs: Error: Permission to user/repo denied to other-user](https://docs.github.com/en/authentication/troubleshooting-ssh/error-permission-to-userrepo-denied-to-other-user)
+- [GitHub Docs: Troubleshooting cloning errors (Repository not found)](https://docs.github.com/en/repositories/creating-and-managing-repositories/troubleshooting-cloning-errors)
+- [OpenSSH: ssh_config (`IdentitiesOnly`)](https://man.openbsd.org/ssh_config)

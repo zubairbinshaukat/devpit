@@ -114,6 +114,8 @@ func installFlow(hold string, ticks []string, steps []string, want string) scene
 			)
 		}})
 		s.clock = clk
+		s.key(keyApps)
+		s.waitFor(appsLead)
 		s.key(keyInstall)
 		s.waitFor("Manager:")
 		for _, name := range ticks {
@@ -295,6 +297,8 @@ func updateFlow(outcomes map[string]outcome, admin func() updateui.Option, steps
 		}
 		s := newSession(t, e, demoConfig(), screens{home.SectionUpdate: screen})
 		s.clock = clk
+		s.key(keyApps)
+		s.waitFor(appsLead)
 		s.key(keyUpdate)
 		s.run(steps...)
 		s.waitFor(want)

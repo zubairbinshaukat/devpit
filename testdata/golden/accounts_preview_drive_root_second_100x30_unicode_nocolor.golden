@@ -1,0 +1,26 @@
+ Here is what will change                                                in C:\Projects\quiz-slayer
+
+ In D:\ and every folder inside it, Claude Code will use default (you@personal.example).
+ Everywhere else stays default (you@personal.example).
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (adds)
+     [[rule]]
+     folder = 'D:\'
+     claude = "default"
+
+╭───────────────────────────────────────────────────────────────────────────╮
+│ This rule covers every folder on D:\. Apply it to the whole drive?        │
+│ Every project on the drive follows this rule unless a folder has its own. │
+│                                                                           │
+│ [ No ]   [ Yes ]                                                          │
+╰───────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

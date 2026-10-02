@@ -1,7 +1,7 @@
 // Package clean is Devpit's delete engine. It turns a list of pre-measured
 // items into deletions, safely: every item passes a pre-flight that refuses
-// drive roots, the Windows directory, network paths, the never-touch list and
-// anything reached through a reparse point; Safe items are renamed to a
+// drive roots, the Windows directory, network paths, the never-touch list,
+// login and account folders, and anything reached through a reparse point; Safe items are renamed to a
 // tombstone before a byte is removed, so an interrupted delete can never leave
 // a half-emptied folder; Review and Careful items go to the Recycle Bin whole.
 //
@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"io/fs"
 	"time"
+
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
 // Tier is an item's risk tier. The numbering mirrors the scanner's so screens
@@ -78,6 +80,10 @@ type Options struct {
 	// inside a protected directory is refused, and so is a path that would
 	// take a protected directory with it.
 	NeverTouch []string
+	// Protect adds login and account folders that are always refused, in
+	// both directions, on top of protect.Default, which every run applies
+	// whether this is set or not. A caller can only add to the list.
+	Protect protect.List
 	// DryRun performs the pre-flight only and reports what would happen.
 	DryRun bool
 	// Workers bounds the pool that removes an item's top-level children.
@@ -180,7 +186,29 @@ var (
 	// keeps a sweep away from a user's own `archive.devpit-abc12345`
 	// (safety rules 1 and 6).
 	ErrNotATombstone = errors.New("clean: refusing a folder that only looks like a tombstone")
+	// ErrProtected refuses a login or account folder, a path inside one, or
+	// a path that would take one with it (safety rule 30). The error returned
+	// is a [*ProtectedError], which says what lives there.
+	ErrProtected = errors.New("clean: refusing a login or account folder")
 )
+
+// ProtectedError is a refusal under safety rule 30. errors.Is(err,
+// ErrProtected) holds for it.
+type ProtectedError struct {
+	// Path is the item that was refused.
+	Path string
+	// Why is the protect list's reason, a clause such as "it is inside
+	// C:\Users\me\.ssh, which holds your SSH keys".
+	Why string
+}
+
+// Error implements error.
+func (e *ProtectedError) Error() string {
+	return fmt.Sprintf("clean: refusing %s: %s", e.Path, e.Why)
+}
+
+// Unwrap makes errors.Is(err, ErrProtected) work.
+func (e *ProtectedError) Unwrap() error { return ErrProtected }
 
 // LockedError reports that an item could not be removed because something has
 // it open. The tombstone, if one was created, is left in place for Sweep.

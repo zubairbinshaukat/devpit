@@ -1,0 +1,45 @@
+---
+title: "A tool used the wrong account in this folder"
+description: "Claude Code, Git, gh or Vercel used another account than the one you set in Devpit? Find out why in one command and fix the cause."
+sidebar:
+  label: "Wrong account used"
+related:
+  - features/accounts
+  - troubleshooting/accounts-folder-rule-not-applying
+  - troubleshooting/accounts-shim-not-first-on-path
+faq:
+  - question: "How do I see which account a tool uses in a folder?"
+    answer: "Run devpit accounts in that folder, or open Accounts in the app. Each tool shows the account it uses there and why: everywhere, a folder rule, or a project file. devpit accounts verify also asks the tools themselves and compares."
+  - question: "Can two folder rules disagree?"
+    answer: "Yes, and the nearest folder wins, one tool at a time. A rule on C:\\Work\\client wins over a rule on C:\\Work inside client. The tool page in Accounts shows the chain of rules and which one won."
+---
+
+A tool used another account than the one you picked.
+Devpit can tell you why in one command, in the folder where it happened:
+
+```powershell
+devpit accounts verify
+```
+
+It compares, for each tool, the account Devpit expects in this folder with the one the tool reports, and prints a fix for every problem it finds.
+
+## Why it happens
+
+- **A closer rule wins.** Rules apply to a folder and every folder inside it, and the nearest one wins. A rule on a subfolder can beat the rule you just made.
+- **A variable in the terminal wins.** `GH_TOKEN`, `GITHUB_TOKEN`, `VERCEL_TOKEN`, `FIREBASE_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `CLOUDFLARE_API_TOKEN`, `ANTHROPIC_API_KEY` and `GIT_AUTHOR_EMAIL` all make a tool ignore the signed-in account. Devpit never clears them; verify lists them.
+- **The terminal is older than the rule.** The first rule for a tool puts Devpit's shim folder on your PATH. Terminals that were open before do not see it.
+- **Another copy of the tool runs first.** A copy on the system PATH, or a PowerShell function or alias with the tool's name, runs before Devpit's shim.
+- **The tool was started another way.** `npx vercel`, an editor extension and a desktop app do not go through Devpit's shim.
+- **Git: the repository says otherwise.** A `user.email` set inside the repository beats every rule. A linked worktree follows the rule of its main repository's folder.
+- **Convex** picks the account per project, in `.env.local`. Devpit shows it but does not switch it.
+
+## How to fix it
+
+1. In the folder, run `devpit accounts`. The last column says **why** each tool uses its account.
+2. If the why is not the rule you expected, open **Accounts** in Devpit, press <kbd>b</kbd> to browse folders, and check which rules cover this folder.
+3. Run `devpit accounts verify` and follow the fix it prints.
+4. If the fix says a variable is set, remove it from this terminal (`Remove-Item Env:GH_TOKEN` in PowerShell) and from wherever sets it, then open a new terminal.
+5. If the tool was found before Devpit's shim, see [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
+6. For a one-off command with another account, run `devpit <tool> run <name> -- <command>`.
+
+Rules apply in terminals only. For VS Code extensions and desktop apps, see [Old account in VS Code or a desktop app](/docs/troubleshooting/accounts-old-account-in-vs-code-or-desktop-app).

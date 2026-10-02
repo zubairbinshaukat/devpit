@@ -1,7 +1,7 @@
- DEVPIT  vdev  -  Update Everything                                              node ...   git ...
+ DEVPIT  vdev  -  Install & Update › Update everything                           node ...   git ...
 
-  Clean    Ports    Apps    Update    Network    Git    Settings    Share             tab <-> - 1-8
----------------------------========-----------------------------------------------------------------
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                       tab <-> - 1-6
+-------------------------------------======---------------------------------------------------------
  4 updates available  -  scoop 4
  Everything is ticked. Untick anything you'd rather keep as it is.
 

@@ -1,0 +1,26 @@
+ Remove this rule?                                                       in C:\Projects\quiz-slayer
+
+ C:\Projects will no longer have its own Claude Code rule. It and every folder inside it will use
+ default (you@personal.example), like everywhere else.
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (changes)
+     [[rule]]
+     folder = 'C:\Projects'
+     github = "work"
+
+╭───────────────────────────────────────────────────╮
+│ Make this change?                                 │
+│ You can undo it afterwards: u on the next screen. │
+│                                                   │
+│ [ No ]   [ Yes ]                                  │
+╰───────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

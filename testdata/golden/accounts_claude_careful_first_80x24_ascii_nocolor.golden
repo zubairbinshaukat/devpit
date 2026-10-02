@@ -1,0 +1,20 @@
+ Choose what work gets
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Copy MCP servers?                                                            │
+│ They may hold API keys or other secrets (github, linear). Only copy them if  │
+│ this account should have them.                                               │
+│                                                                              │
+│ [ No ]   [ Yes ]                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

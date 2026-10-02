@@ -1,0 +1,33 @@
+{
+  "tool": "claude",
+  "tool_name": "Claude Code",
+  "folder": "<root>\\Work\\api",
+  "account": {
+    "name": "work",
+    "email": "z@work.com",
+    "display": "work (z@work.com)"
+  },
+  "why": "folder rule: <root>\\Work",
+  "reason": "folder rule",
+  "rule_folder": "<root>\\Work",
+  "everywhere": "default (not checked yet)",
+  "chain": [
+    {
+      "folder": "<root>\\Work",
+      "account": "work",
+      "won": true,
+      "skipped": false
+    }
+  ],
+  "installed": true,
+  "managed": true,
+  "supports": {
+    "folder_rules": true,
+    "everywhere": true,
+    "just_once": true,
+    "add_account": true,
+    "show_only": false,
+    "beta": false
+  },
+  "problems": []
+}

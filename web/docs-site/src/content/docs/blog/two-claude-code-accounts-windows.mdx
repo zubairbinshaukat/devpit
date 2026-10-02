@@ -1,0 +1,150 @@
+---
+title: "How to use two Claude Code accounts on one Windows PC"
+description: "Run a work and a personal Claude Code account side by side on Windows with CLAUDE_CONFIG_DIR, a small PowerShell function, and no signing out and in again."
+date: 2026-10-02
+authors: [zubair]
+tags: [claude code, accounts, windows, powershell]
+excerpt: "Anthropic documents one way to stay signed in to two Claude Code accounts. Here it is for Windows PowerShell, with the checks and the limits."
+related:
+  - blog/claude-config-dir-explained
+  - blog/share-claude-code-skills-between-accounts-windows
+  - blog/move-from-claude-acc-to-devpit
+  - blog/shims-vs-shell-hooks-windows
+faq:
+  - question: "Can I sign the same Claude account in to two folders?"
+    answer: "You can, but there is little reason to, and each folder then keeps its own copy of the login. There are open bug reports about logins being lost around token refresh when several config folders are in use, so use one folder per account."
+  - question: "Does this work in the VS Code extension or the desktop app?"
+    answer: "The method is for the claude command in a terminal, including the VS Code terminal. The VS Code extension has its own claudeCode.environmentVariables setting, and there are open issues about the extension and CLAUDE_CONFIG_DIR. The desktop app keeps its own login."
+  - question: "Do I lose my chat history when I add a second account?"
+    answer: "No. Your default account keeps its folder, %USERPROFILE%\\.claude, untouched. The second account starts with an empty folder and its own history."
+---
+
+You have a Claude subscription for work and one of your own. Signing out and in again every time you change projects gets old fast, and it is easy to start a long session on the wrong plan.
+
+Claude Code has a documented answer: give each account its own configuration folder. This post sets that up on Windows, step by step, in PowerShell.
+
+## The short answer
+
+Claude Code keeps everything for one account in one folder. By default that is `%USERPROFILE%\.claude`. The `CLAUDE_CONFIG_DIR` environment variable points it at another folder.
+
+Anthropic's authentication docs say: "To stay signed in to multiple accounts at once, such as work and personal accounts, give each account its own configuration directory." Each directory "has its own settings, session history, and claude.ai login or API key".
+
+So the plan is:
+
+1. Keep your default account where it is.
+2. Make a second folder for the second account.
+3. Start `claude` with `CLAUDE_CONFIG_DIR` set to that folder when you want the second account.
+
+## Step 1: make a PowerShell function
+
+Anthropic's example is a Bash alias. In PowerShell, "you cannot assign an alias to a command and its parameters", and an alias cannot set a variable either, so use a small function. Open your profile:
+
+```powershell
+if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
+notepad $PROFILE
+```
+
+Add this, then save:
+
+```powershell
+function claude-work {
+  $old = $env:CLAUDE_CONFIG_DIR
+  $env:CLAUDE_CONFIG_DIR = "$HOME\.claude-work"
+  try { claude @args } finally { $env:CLAUDE_CONFIG_DIR = $old }
+}
+```
+
+What it does:
+
+- Sets `CLAUDE_CONFIG_DIR` only while `claude` runs, then puts back whatever was there before. Plain `claude` in the same window stays on your default account.
+- Passes every argument through with `@args`, so `claude-work -p "hi"` and `claude-work --resume` work.
+
+Open a new terminal so the profile loads. We tested this exact function shape in Windows PowerShell 5.1 and PowerShell 7: `claude-work auth status` reported the work folder, and the variable was gone again afterwards.
+
+If PowerShell says running scripts is disabled, your execution policy blocks the profile. Microsoft's `about_Execution_Policies` page explains the options. Changing it is your call.
+
+## Step 2: sign in to the second account
+
+```powershell
+claude-work auth login
+```
+
+This opens the normal sign-in flow, but saves the result in `%USERPROFILE%\.claude-work`. You can also just run `claude-work`. The docs say that the first time, "Claude Code walks you through login and setup for the new directory".
+
+`claude auth login` has a few useful options: `--email` fills in the address, `--sso` forces single sign-on, and `--console` signs in with an Anthropic Console account instead of a subscription.
+
+## Step 3: check who is who
+
+```powershell
+claude auth status
+claude-work auth status
+```
+
+The output is JSON with `loggedIn`, `email`, `orgName` and `configDirectory`. The CLI reference says it "exits with code 0 if logged in, 1 if not". Use `--text` for a human-readable version.
+
+If both commands show the same email, you signed the second folder in to the same account. Sign out of it with `claude-work auth logout` and sign in again with the other account.
+
+## What the second account does not have yet
+
+The second folder starts empty. That means no:
+
+- user `CLAUDE.md`
+- personal skills, agents or slash commands
+- `settings.json`, hooks or permissions
+- plugins or MCP servers you added at user level
+
+Project files are different. A repository's own `.claude\` folder, `CLAUDE.md` and `.mcp.json` live in the repository, so both accounts see them.
+
+You can copy or link your setup into the second folder. Be careful with what you take: never copy `.credentials.json` or `.claude.json`, which hold the login and account state. The details, and what is safe to share, are in [Share Claude Code skills between two accounts](/docs/blog/share-claude-code-skills-between-accounts-windows) and [CLAUDE_CONFIG_DIR explained](/docs/blog/claude-config-dir-explained).
+
+## Making it follow the folder
+
+The function above is manual: you choose `claude` or `claude-work`. To pick the account by folder automatically, you need something that sets the variable for you:
+
+- **A PowerShell location hook.** PowerShell 7 can run code each time you change folder. The open-source [claude-acc](https://github.com/Nemo-Illusionist/claude-code-account-switcher) tool works this way: it maps folders to accounts and sets `CLAUDE_CONFIG_DIR` in your session when you `cd`.
+- **A shim.** A small program named `claude.exe`, earlier on your PATH, that picks the folder and starts the real one.
+
+A hook only runs in an interactive PowerShell session. AI agents, VS Code tasks and `cmd.exe` never see it. The trade-offs are in [Shims or shell hooks?](/docs/blog/shims-vs-shell-hooks-windows).
+
+## Things that can still pick the wrong account
+
+- **An API key in your environment.** Claude Code uses `ANTHROPIC_API_KEY` "instead of your Claude Pro, Max, Team, or Enterprise subscription even if you are logged in". The docs list cloud provider credentials, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, `apiKeyHelper` and `CLAUDE_CODE_OAUTH_TOKEN` before the normal login.
+- **Console sign-ins.** The docs warn: "Separate directories don't keep two Claude Console sign-ins without an API key apart, because Claude Code stores that kind of sign-in outside the configuration directory."
+- **Editors and the desktop app.** This method is for the `claude` command in a terminal, including the VS Code terminal. The VS Code extension has a `claudeCode.environmentVariables` setting, and Claude Code 2.1.284 changed it so `CLAUDE_CONFIG_DIR` there only applies when it is an absolute path. There is also an open report that the extension ignores the variable ([#30538](https://github.com/anthropics/claude-code/issues/30538)). Test it before you rely on it. The desktop app keeps its own login.
+- **The same account twice.** Each folder keeps its own copy of the login. There are open reports about logins being lost around token refresh with several config folders, for example [#95822](https://github.com/anthropics/claude-code/issues/95822). One account per folder avoids the question.
+
+## How Devpit does the same thing
+
+Devpit's Accounts page does these steps with a preview and an undo. See [Claude Code accounts](/docs/features/accounts-claude-code).
+
+1. Open **Accounts**, then **Claude Code**, then **+ Sign in with another account…**. Devpit runs Claude Code's own `claude auth login` with a new folder set, under `%USERPROFILE%\.devpit\accounts\claude\<name>\`, and shows each step live. You name the account at the end. If the email matches an account you already have, it warns you.
+2. Choose where it applies: **this folder**, **everywhere**, **just this once**, or **another folder**. The preview says it in plain words, and the answer is already **No**.
+3. From then on, plain `claude` picks the right account by folder. Devpit adds a small `claude.exe` shim to a folder at the front of your user PATH. It only exists once a tool has a second account or a rule. On each call, it finds the nearest folder rule and starts the real Claude Code with `CLAUDE_CONFIG_DIR` set for that one process. Because it is a program, not a profile hook, it works for AI agents, VS Code tasks and `cmd.exe` too.
+4. For one command on another account, `devpit claude run <name> -- <command>` does it once.
+
+Devpit then asks one question about your setup: whether to share your skills, agents, commands and `CLAUDE.md` with the new account. Shared items are linked to your default `~/.claude`, so they stay in one place.
+
+What Devpit does not do: it stores no token (each login stays in its own account folder, where Claude Code put it), and its rules apply to `claude` in terminals, not inside editor extensions or the desktop app. A PowerShell function or alias called `claude` runs before any program on the PATH, Devpit's shim included; `Get-Command claude` shows which one runs.
+
+## Checklist
+
+1. Leave `%USERPROFILE%\.claude` alone. It is your default account.
+2. Add the `claude-work` function to your PowerShell profile.
+3. Sign in with `claude-work auth login`.
+4. Check both with `claude auth status` and `claude-work auth status`.
+5. Make sure no `ANTHROPIC_API_KEY` is set unless you want it.
+6. Bring over your setup on purpose, never the login files.
+
+## Sources
+
+- [Claude Code: Authentication (Log in with multiple accounts, credential storage, precedence)](https://code.claude.com/docs/en/authentication)
+- [Claude Code: Environment variables (`CLAUDE_CONFIG_DIR`, `ANTHROPIC_API_KEY`)](https://code.claude.com/docs/en/env-vars)
+- [Claude Code: CLI reference (`claude auth`)](https://code.claude.com/docs/en/cli-reference)
+- [Claude Code: The .claude directory](https://code.claude.com/docs/en/claude-directory)
+- [Claude Code: VS Code](https://code.claude.com/docs/en/vs-code)
+- [Claude Code: Changelog (2.1.284)](https://code.claude.com/docs/en/changelog)
+- [Claude Code issue #30538: VS Code extension ignores CLAUDE_CONFIG_DIR](https://github.com/anthropics/claude-code/issues/30538)
+- [Claude Code issue #95822: short-lived commands and OAuth refresh](https://github.com/anthropics/claude-code/issues/95822)
+- [Microsoft: about_Aliases](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_aliases)
+- [Microsoft: about_Profiles](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_profiles)
+- [Microsoft: about_Execution_Policies](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies)

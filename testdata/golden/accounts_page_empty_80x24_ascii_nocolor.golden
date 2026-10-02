@@ -1,0 +1,20 @@
+ Accounts                                            in C:\Projects\quiz-slayer
+
+    TOOL           ACCOUNT                     WHY
+| > Claude Code  + default (not checked yet)   everywhere
+    Git          + You <you@personal.example>  everywhere
+    GitHub       + default (not checked yet)   everywhere
+    Vercel       + default (not checked yet)   everywhere
+    Firebase     - not installed
+    Supabase     - not installed
+    Cloudflare   + default (not checked yet)   everywhere - beta
+    Convex       + project: quiz-slayer        set by this project's .env.local
+
+ Nothing is set up yet, so every tool uses its own sign-in. To use a second
+ account here, pick a tool, press Enter, then "Use another account here…".
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

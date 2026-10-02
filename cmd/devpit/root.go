@@ -35,15 +35,24 @@ type rootFlags struct {
 }
 
 // NewRootCmd builds the command tree.
-func NewRootCmd() *cobra.Command {
+func NewRootCmd() *cobra.Command { return newRootCmdWith(defaultAccountsEnv()) }
+
+// newRootCmdWith builds the command tree with the given way to reach
+// Accounts, so tests run every accounts command on temporary folders.
+func newRootCmdWith(acc accountsEnv) *cobra.Command {
 	flags := &rootFlags{}
 
 	root := &cobra.Command{
 		Use:     "devpit",
-		Example: "devpit\ndevpit --ascii",
+		Example: "devpit\ndevpit --ascii\ndevpit accounts --json\ndevpit claude use work --yes\ndevpit version --short",
 		Short:   "A pit stop for your dev machine",
-		Long: "Devpit frees disk space, fixes stuck ports, and keeps your developer tools up to " +
-			"date, from one terminal menu.\n\nRun it with no arguments to open the app.",
+		Long: "Devpit is a toolkit for developers on Windows: the right account in every folder, " +
+			"disk space back, stuck ports freed, tools updated and big folders moved between PCs, " +
+			"from one menu.\n\nRun it with no arguments to open the app.\n\n" +
+			"For scripts and AI agents: every read command takes --json and never asks anything. " +
+			"A command that would change something asks first at a terminal (default No); with nobody " +
+			"at a terminal it changes nothing and exits 3 unless --yes is given, and --yes is only for " +
+			"after the user agreed. Agents: run `devpit agent install` for a skill with these rules.\n\n" + exitCodeHelp(),
 		Version:       version.String(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -59,6 +68,8 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().BoolVar(&flags.ascii, "ascii", false, "force the plain ASCII icon tier")
 	registerWorkerFlags(root, flags)
 
+	// Add new commands to this list. Help lists them alphabetically, so the
+	// order here does not matter.
 	root.AddCommand(
 		newVersionCmd(),
 		newCleanCmd(),
@@ -68,20 +79,35 @@ func NewRootCmd() *cobra.Command {
 		newSettingsCmd(),
 		newShareCmd(),
 	)
+	root.AddCommand(newAccountsCommands(acc)...)
+
+	// Last, once the tree is complete: every argument or flag mistake in
+	// any command, including the ones above, exits with ExitUsage.
+	markUsageErrors(root)
 	return root
 }
 
-// Execute runs the command tree and returns the process exit code.
+// Execute runs the command tree and returns the process exit code: one of
+// the ExitCode values, ExitFailed for any error that does not carry its own.
 func Execute() int {
-	if err := fang.Execute(
-		context.Background(),
-		NewRootCmd(),
+	return int(execute(context.Background(), NewRootCmd(), nil))
+}
+
+// execute runs root under fang and turns the outcome into an exit code. A
+// nil args means the process's own arguments. Tests call it with a root
+// whose streams are buffers.
+func execute(ctx context.Context, root *cobra.Command, args []string) ExitCode {
+	if args != nil {
+		root.SetArgs(args)
+	}
+	err := fang.Execute(
+		ctx,
+		root,
 		fang.WithVersion(version.Short()),
 		fang.WithCommit(version.Commit),
-	); err != nil {
-		return 1
-	}
-	return 0
+		fang.WithErrorHandler(errorHandler(root, os.LookupEnv)),
+	)
+	return codeOf(err)
 }
 
 // runTUI loads the configuration and starts the Bubble Tea program. The config

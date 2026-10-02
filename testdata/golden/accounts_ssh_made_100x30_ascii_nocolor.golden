@@ -1,0 +1,26 @@
+ Push with an SSH key                                                    in C:\Projects\quiz-slayer
+
+ + Made a new key
+   C:\Users\you\.ssh\id_ed25519_devpit_work
+
+ Add the public key to the GitHub account it is for: github.com › Settings › SSH and GPG keys › New
+ SSH key.
++-----------------------------------------------------------------------------+
+| ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDemoKeyForScreenshotsOnly0000000000000 |
++-----------------------------------------------------------------------------+
+ [c] copy the public key  [enter] use this key for pushes from this folder
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] c copy the public key  ·  enter use it for this folder

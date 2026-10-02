@@ -1,7 +1,7 @@
- DEVPIT  vdev  ·  Install Developer Apps                         node …   git …
+ DEVPIT  vdev  ·  Install & Update › Install developer apps      node …   git …
 
-  Clean    Ports    Apps    Update    Network    Git    Settings    Share
-───────────────────━━━━━━───────────────────────────────────────────────────────
+  Accounts    Clean    Ports & Net    Apps    Share    Settings     tab ⇄ · 1–6
+─────────────────────────────────────━━━━━━─────────────────────────────────────
 Manager: scoop
 
  Runtimes

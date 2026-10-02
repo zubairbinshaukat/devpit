@@ -74,12 +74,12 @@ func Render(root *cobra.Command, opts Options) string {
 // added.
 const frontMatter = `---
 title: Command line reference
-description: Every devpit command and flag, generated from the app itself. Open the app, install the icon font, check the version and more from a terminal.
+description: Every devpit command and flag, generated from the app itself. See and switch accounts, verify, undo, install the icon font and more from a terminal.
 sidebar:
   label: Command line
 related:
+  - features/accounts
   - getting-started
-  - features/settings
   - safety-and-privacy
 ---
 
@@ -89,7 +89,7 @@ related:
 // intro is the prose above the generated tables. It only states what is true
 // of every build: the app opens with no arguments, and the subcommands are
 // the scriptable side.
-const intro = `Run ` + "`devpit`" + ` with no arguments to open the app. The commands below are for scripts, for the installer and for quick checks.
+const intro = `Run ` + "`devpit`" + ` with no arguments to open the app. The commands below are for scripts, AI agents, the installer and quick checks.
 
 This page is generated from the app's own command definitions, so it always matches the version you install.
 `

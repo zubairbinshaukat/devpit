@@ -1,5 +1,6 @@
  DEVPIT  vdev                                                                    node ...   git ...
 ----------------------------------------------------------------------------------------------------
+
                                 ####  ##### #   # ####  ##### #####
                                 #   # #     #   # #   #   #     #
                                 #   # ####  #   # ####    #     #
@@ -8,22 +9,21 @@
                                        by Zubair Bin Shaukat
 
               +----------------------------------------------------------------------+
-              | | > Free Up Disk Space                                               |
-              | |   Scan and clean dev junk, caches and temp files                   |
-              |     Fix Stuck Ports & Apps                   Port 3000 busy? Kill it |
+              | | > Accounts                                                         |
+              | |   Use the right account in every folder                            |
+              |     Free Up Disk Space                                               |
               |                                                                      |
-              |     Install Developer Apps                                           |
+              |     Ports & Network                                                  |
               |                                                                      |
-              |     Update Everything                                                |
-              |                                                                      |
-              |     Network Tools                                                    |
-              |                                                                      |
-              |     Git & SSH Setup                                                  |
-              |                                                                      |
-              |     Devpit Settings                                                  |
+              |     Install & Update                                                 |
               |                                                                      |
               |     Share Files                                                      |
+              |                                                                      |
+              |     Devpit Settings                                                  |
               +----------------------------------------------------------------------+
+
+                           Pit crew ready. Pick a section, or press 1-6.
+
 
 
 ----------------------------------------------------------------------------------------------------

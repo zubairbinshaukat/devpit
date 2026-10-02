@@ -1,0 +1,138 @@
+---
+title: "CLAUDE_CONFIG_DIR explained: what moves, stays and breaks"
+description: "What Claude Code keeps in its config folder on Windows, what CLAUDE_CONFIG_DIR moves to a new folder, what it leaves behind, and the open bugs worth knowing."
+date: 2026-10-02
+authors: [zubair]
+tags: [claude code, accounts, windows, configuration]
+excerpt: "One environment variable moves your Claude Code login, settings, skills, plugins and history. A few things do not move, and a few things break."
+related:
+  - blog/two-claude-code-accounts-windows
+  - blog/share-claude-code-skills-between-accounts-windows
+  - blog/move-from-claude-acc-to-devpit
+faq:
+  - question: "Where is the Claude Code config folder on Windows?"
+    answer: "By default %USERPROFILE%\\.claude. The docs say that on Windows ~/.claude means %USERPROFILE%\\.claude. The account state file .claude.json sits next to it, at %USERPROFILE%\\.claude.json."
+  - question: "Can I set CLAUDE_CONFIG_DIR in a project's settings file?"
+    answer: "No. The docs say to set it in your shell, user settings or managed settings, and that it is ignored in project and local settings."
+  - question: "Is it safe to copy my whole .claude folder to make a second account?"
+    answer: "Not as a whole. The folder holds .credentials.json, your login, and copying it would give the second folder your first account's login. Copy or link only the parts you want to share, such as skills, and sign the new folder in on its own."
+---
+
+`CLAUDE_CONFIG_DIR` is the one setting behind every "two Claude Code accounts" setup. It looks simple: point it at a folder and Claude Code uses that folder. In practice it moves almost everything, leaves a few important things where they were, and has some rough edges that are still open bugs.
+
+This post maps all three, for Windows, using Anthropic's docs and what we saw on Claude Code 2.1.287.
+
+## The short answer
+
+- **Moves:** your login, settings, user `CLAUDE.md`, skills, agents, commands, plugins, history and the account state file.
+- **Stays:** everything in your repositories, managed settings from your company, and any API key or token in your environment.
+- **Breaks, or needs care:** plugin folders shared between config folders, some plugin installs, the VS Code extension, and a user `CLAUDE.md` that is still read from the default folder in some cases.
+
+## What the variable does
+
+The environment variable reference says: "Override the configuration directory (default: `~/.claude`). All settings, session history, and plugins are stored under this path." It adds: "Useful for running multiple accounts side by side", and "Set it in your shell, user settings, or managed settings. Ignored in project and local settings."
+
+On Windows, "`~/.claude` means `%USERPROFILE%\.claude`".
+
+To see which folder a running `claude` uses:
+
+```powershell
+claude auth status
+```
+
+The JSON has a `configDirectory` field (Claude Code 2.1.268 or later), which names the folder in use.
+
+## What moves with it
+
+The docs page on the `.claude` directory says: "If you set `CLAUDE_CONFIG_DIR`, every `~/.claude` path on this page lives under that directory instead." That page lists, among others:
+
+| Item | Path inside the folder |
+| --- | --- |
+| Settings | `settings.json` |
+| User memory | `CLAUDE.md`, `rules\*.md` |
+| Skills | `skills\<name>\SKILL.md` |
+| Agents and commands | `agents\*.md`, `commands\*.md` |
+| Plugins | `plugins\` |
+| History | `history.jsonl`, `projects\<project>\...` |
+| Login | `.credentials.json` |
+| Keybindings, output styles, themes | their own files and folders |
+
+Two details matter for accounts:
+
+- **The login is a plain file on Windows.** The docs: "On Windows, credentials are stored in `%USERPROFILE%\.claude\.credentials.json` and inherit the access controls of your user profile directory." And: "If you've set the `CLAUDE_CONFIG_DIR` environment variable, Claude Code keeps the `.credentials.json` file under that directory instead." Windows Credential Manager is not involved.
+- **The account state file moves inside.** For the default account, `.claude.json` sits outside the folder, at `%USERPROFILE%\.claude.json`. The settings docs say it "holds your sign-in session, MCP server configurations, per-project state such as trust decisions". The docs do not say where it goes when the variable is set. In our test, running `claude auth status` with `CLAUDE_CONFIG_DIR` pointing at an empty folder created `.claude.json` (and a `backups` folder) **inside** that folder. There is an open proposal to move the default one inside too ([#83143](https://github.com/anthropics/claude-code/issues/83143)).
+
+So the default account is split across `%USERPROFILE%\.claude` and `%USERPROFILE%\.claude.json`, while every other account is one folder. Keep that in mind when you back up, copy or delete.
+
+## What stays where it was
+
+- **Your repositories.** Project files "live in your repo under `.claude/`", plus `CLAUDE.md` and `.mcp.json` at the root. Every account sees the same project settings, project skills and project MCP servers.
+- **Managed settings.** On Windows, company policy lives in `C:\Program Files\ClaudeCode\` and in the registry under `HKLM\SOFTWARE\Policies\ClaudeCode` and `HKCU\SOFTWARE\Policies\ClaudeCode`. Managed `CLAUDE.md` is at `C:\Program Files\ClaudeCode\CLAUDE.md`. These apply to every config folder.
+- **Credentials from the environment.** The docs list an order: cloud provider credentials, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, `apiKeyHelper`, `CLAUDE_CODE_OAUTH_TOKEN`, then the subscription login from `/login`. Anything earlier in that list wins over the folder's login.
+- **Console sign-ins without an API key.** The docs warn that separate directories "don't keep two Claude Console sign-ins without an API key apart, because Claude Code stores that kind of sign-in outside the configuration directory".
+
+## What breaks, or needs care
+
+These are open issues on the Claude Code GitHub as of 2 October 2026. Check them before you build on top.
+
+**Shared plugin folders.** Linking one account's `plugins` folder to another's is tempting. [#82272](https://github.com/anthropics/claude-code/issues/82272) reports that a marketplace added from one config folder is flagged as "corrupted installLocation" in the other, because the path is checked as text, not as the real folder. The reporter adds that the suggested fix, removing and re-adding the marketplace, removed every installed plugin of that marketplace from their list. Install plugins in each account instead.
+
+**Plugin installs landing in the default folder.** [#74393](https://github.com/anthropics/claude-code/issues/74393) reports `/plugin install` writing to `~/.claude` instead of the folder in `CLAUDE_CONFIG_DIR`. After installing, check with `claude plugin list` under the account you meant.
+
+**The user CLAUDE.md.** [#88528](https://github.com/anthropics/claude-code/issues/88528) and [#80580](https://github.com/anthropics/claude-code/issues/80580) report that `~/.claude/CLAUDE.md` can still be loaded when the variable points elsewhere. If your accounts must not share instructions, test this on your version.
+
+**The VS Code extension.** The extension has a `claudeCode.environmentVariables` setting. The changelog for 2.1.284 says `CLAUDE_CONFIG_DIR` there now applies "only when it is an absolute path". There is also an open bug titled "VS Code extension ignores CLAUDE_CONFIG_DIR environment variable" ([#30538](https://github.com/anthropics/claude-code/issues/30538)). The desktop app's docs do not mention the variable at all.
+
+**Logins and token refresh.** Each folder has its own login and refreshes it on its own. There are open reports in this area, such as [#95822](https://github.com/anthropics/claude-code/issues/95822) (short-lived commands that start a refresh and exit without saving it) and [#91571](https://github.com/anthropics/claude-code/issues/91571) (a Windows refresh problem with `.credentials.json`). Signing the same account in to two folders doubles your exposure to these, with no benefit.
+
+## Never copy these files
+
+When you set up a second folder from your first, leave these out:
+
+- `.credentials.json`: the login itself.
+- `.claude.json`: account state, trust decisions and MCP server entries, some of which may hold API keys.
+- any `*.lock` file.
+
+Sign the new folder in with `claude auth login` instead. The rest of what you want to bring over (skills, agents, commands, `CLAUDE.md`, settings) is covered in [Share Claude Code skills between two accounts](/docs/blog/share-claude-code-skills-between-accounts-windows).
+
+## How Devpit uses the variable
+
+Devpit's Claude Code accounts are built on exactly this documented variable. See [Claude Code accounts](/docs/features/accounts-claude-code).
+
+- **One folder per extra account,** under `%USERPROFILE%\.devpit\accounts\claude\<name>\`, outside OneDrive and outside Devpit's cache. Your default account stays in `%USERPROFILE%\.claude`, untouched. Folders you already have stay where they are and are just pointed at.
+- **Set per process, never per session.** A small `claude.exe` shim sets `CLAUDE_CONFIG_DIR` for the one `claude` it starts, chosen by the nearest folder rule. Nothing is written into your PowerShell session or your user environment.
+- **The login files are never copied.** Devpit's sharing step has a fixed deny list: `.credentials.json`, `.claude.json` and `*.lock` are never cloned. Login and account info are shown in the list, locked.
+- **Plugins are "same list", not a shared folder,** because of [#82272](https://github.com/anthropics/claude-code/issues/82272). Devpit copies the list of enabled plugins and marketplaces, and each account installs its own copy.
+- **MCP servers** are copied only as the server entries from `.claude.json`, never the whole file. That item is unticked by default and asks twice, since entries may contain API keys.
+- **Same email twice** shows a warning when you add the account.
+- **"Who am I"** is `claude auth status` with the folder set. Devpit reads the email and organization, never the token.
+- Devpit's Clean feature refuses to select login and account folders, so a disk clean-up cannot remove them.
+
+Like the variable itself, Devpit's rules apply to `claude` in terminals. Editor extensions and the desktop app keep their own login.
+
+## Checklist
+
+1. Run `claude auth status` and read `configDirectory` to know which folder is in use.
+2. Remember the default account has a second file, `%USERPROFILE%\.claude.json`.
+3. Check for API keys or tokens in your environment; they win over the folder.
+4. Never copy `.credentials.json` or `.claude.json` between folders.
+5. Install plugins per account; do not link the plugins folder.
+6. Test the VS Code extension separately if you rely on it.
+
+## Sources
+
+- [Claude Code: Environment variables (`CLAUDE_CONFIG_DIR`)](https://code.claude.com/docs/en/env-vars)
+- [Claude Code: The .claude directory](https://code.claude.com/docs/en/claude-directory)
+- [Claude Code: Settings (`.claude.json`, Windows paths)](https://code.claude.com/docs/en/settings)
+- [Claude Code: Authentication (credential storage, precedence, multiple accounts)](https://code.claude.com/docs/en/authentication)
+- [Claude Code: Managed settings](https://code.claude.com/docs/en/managed-settings)
+- [Claude Code: CLI reference (`claude auth status`)](https://code.claude.com/docs/en/cli-reference)
+- [Claude Code: Changelog](https://code.claude.com/docs/en/changelog)
+- [Issue #82272: installLocation validated by string prefix](https://github.com/anthropics/claude-code/issues/82272)
+- [Issue #74393: /plugin install writes to ~/.claude](https://github.com/anthropics/claude-code/issues/74393)
+- [Issue #88528: user memory not redirected](https://github.com/anthropics/claude-code/issues/88528)
+- [Issue #80580: user-level CLAUDE.md discovery](https://github.com/anthropics/claude-code/issues/80580)
+- [Issue #30538: VS Code extension ignores CLAUDE_CONFIG_DIR](https://github.com/anthropics/claude-code/issues/30538)
+- [Issue #83143: move ~/.claude.json into the config directory](https://github.com/anthropics/claude-code/issues/83143)
+- [Issue #95822: short-lived commands and OAuth refresh](https://github.com/anthropics/claude-code/issues/95822)
+- [Issue #91571: Windows refresh-token rotation](https://github.com/anthropics/claude-code/issues/91571)

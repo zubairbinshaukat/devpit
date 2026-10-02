@@ -1,0 +1,150 @@
+---
+title: "Shims or shell hooks? Per-folder settings on Windows"
+description: "How direnv, mise, fnm and zoxide switch settings per folder, why a prompt hook never runs for AI agents or VS Code tasks, and the batch-file trap for shims."
+date: 2026-10-02
+authors: [zubair]
+tags: [windows, powershell, shims, tooling]
+excerpt: "Tools switch settings per folder in two ways: a hook in your shell, or a small program in front of the real one. Here is when each works on Windows, and where each breaks."
+related:
+  - blog/two-claude-code-accounts-windows
+  - blog/making-a-cli-ai-agents-can-use-safely
+  - blog/multiple-accounts-vercel-firebase-supabase-cloudflare-convex
+faq:
+  - question: "Does direnv work on Windows?"
+    answer: "direnv lists Windows among its packaged platforms and has a PowerShell hook. Its pwsh hook needs PowerShell 7.2 or later. Like any shell hook, it only runs inside an interactive shell that loaded your profile."
+  - question: "Why does my VS Code task not see my per-folder settings?"
+    answer: "VS Code runs tasks as non-login, non-interactive shells, and says the startup scripts for your shell won't be run. A hook in your PowerShell profile never loads there. A shim on the PATH, or a tool's own exec command, does work."
+  - question: "Why not just make the shim a .cmd file?"
+    answer: "Windows runs .cmd and .bat files through cmd.exe, which parses arguments with its own rules. Characters like % and & in an argument can change what runs. Several language runtimes had to patch or document this in 2024. A small .exe shim avoids it."
+---
+
+Lots of developer tools change something when you enter a folder: the Node version, environment variables, the cloud account. They all solve the same problem, "the right setting for this folder", and they solve it in one of two ways:
+
+- **A shell hook.** Code in your shell profile runs when the prompt shows or when you change folder, and changes your session.
+- **A shim.** A small program with the tool's name sits early on your PATH. Every time anything runs the tool, the shim picks the setting and starts the real tool.
+
+On Windows the difference matters more than on Linux, because so much runs outside your interactive PowerShell window. This post compares the two, with direnv, mise, fnm and zoxide as examples.
+
+## The short answer
+
+| | Shell hook | Shim |
+| --- | --- | --- |
+| Runs in your interactive PowerShell | Yes | Yes |
+| Runs in `cmd.exe`, Git Bash, a second shell | Only if each has its own hook | Yes |
+| Runs for VS Code tasks, schedulers, AI agents | No | Yes |
+| Can change your prompt, aliases, session variables | Yes | No, it only affects the tool it starts |
+| Cost | A little on every prompt or `cd` | A little on every tool call |
+| Windows trap | Execution policy, PowerShell version | Must not be a `.cmd` file |
+
+## How the hook tools work
+
+**direnv.** "Before each prompt it checks for the existence of an `.envrc` file in the current and parent directories." For PowerShell its docs say to add `Invoke-Expression "$(direnv hook pwsh)"` to your `$PROFILE`. Its pwsh hook source hooks `LocationChangedAction` and needs PowerShell 7.2 or later.
+
+**mise (activate mode).** "Every time the prompt is displayed, mise determines what `PATH` and other env vars should be and exports them." For PowerShell: `(&mise activate pwsh) | Out-String | Invoke-Expression` in the profile.
+
+**fnm.** Its README: add `fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression` to the end of your profile. `--use-on-cd` "will hook into your shell upon changing directories, and will switch the Node.js version based on the requirements of the current directory."
+
+**zoxide.** Not a version switcher, but the same mechanism: `Invoke-Expression (& { (zoxide init powershell | Out-String) })`. Its `--hook` option decides when it records a folder: at every prompt, or "whenever the directory is changed" (the default).
+
+A minimal hook of your own looks like this. It runs on every folder change in PowerShell 7:
+
+```powershell
+$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
+  if (Test-Path .\.node-version) { Write-Host "This folder wants Node $(Get-Content .\.node-version)" }
+}
+```
+
+We checked: it works in PowerShell 7.6. In Windows PowerShell 5.1 the property does not exist and the line fails. Note also that assigning it replaces any hook already there. direnv chains its hook onto the existing one instead.
+
+## Why hooks miss so much on Windows
+
+A hook lives in your profile, and only an interactive shell that loaded your profile runs it. That leaves out:
+
+- **VS Code tasks.** The VS Code docs: "Tasks are run as non-login and non-interactive, which means that the startup scripts for your shell won't be run."
+- **AI coding agents.** An agent that runs `git push` or `vercel deploy` starts a process directly, or a fresh non-interactive shell. No prompt is drawn, so a prompt hook never fires.
+- **Other shells.** `cmd.exe` has no such hook. Git Bash needs its own.
+- **Schedulers, IDE run buttons, and programs that start tools.** mise's own docs say "a scheduler or IDE may not inherit that shell's environment."
+
+There is a quieter problem too. A hook changes your **session**, and every child inherits it. If the hook sets a token or an account variable, every program you start from that window gets it, wanted or not.
+
+## How shims work
+
+mise's docs put it simply: "PATH activation (`mise activate`) is recommended over shims for interactive situations", and "Use shims when a program needs a stable path to a tool, such as an IDE configured with a Python executable."
+
+A shim is found the way Windows finds any program: by the first match on the PATH. So it works from PowerShell, `cmd.exe`, Git Bash, VS Code tasks and agents alike. On each call it:
+
+1. Looks at the current folder.
+2. Picks the setting (a version, an account folder, a flag).
+3. Starts the real tool with that setting, for that one process.
+4. Passes the exit code back.
+
+mise has the trade-off in writing too: with shims, cd hooks do not fire, and "environment variables defined in mise are only available to mise tools". That is a limit for a version manager, and exactly the point for an account switcher: the account should reach the tool, not your whole session.
+
+## The batch-file trap
+
+On Windows the tempting way to write a shim is a tiny `.cmd` file. Do not.
+
+Windows runs `.bat` and `.cmd` files through `cmd.exe`, which parses the command line with its own rules. In April 2024 this became the "BatBadBut" class of bugs across several languages:
+
+- Rust: "The Rust standard library did not properly escape arguments when invoking batch files ... on Windows", rated "critical if you are invoking batch files on Windows with untrusted arguments". Rust now returns an error when it cannot escape safely.
+- Node.js (CVE-2024-27980): "Node.js will now error with `EINVAL` if a `.bat` or `.cmd` file is passed to `child_process.spawn` and `child_process.spawnSync` without the `shell` option set."
+- Go documents it instead: "Notable exceptions are msiexec.exe and cmd.exe (and thus, all batch files), which have a different unquoting algorithm. In these or other similar cases, you can do the quoting yourself."
+
+We tested what this means in practice. A copy of a normal npm `.cmd` launcher was called from Go with test arguments. `%PATH%` was expanded into many arguments, `^` disappeared, `<x>` became a redirection, and an argument shaped like `"&echo ...>file&"` ran a command and created a file. Plain arguments with spaces, quotes and Unicode came through fine, which is why the problem is easy to miss.
+
+Two more reasons to avoid `.cmd` shims: pressing <kbd>Ctrl</kbd>+<kbd>C</kbd> can leave you with cmd's "Terminate batch job (Y/N)?" question, and many npm-installed tools are themselves `.cmd` launchers, so a `.cmd` shim calling a `.cmd` tool doubles the parsing.
+
+mise reached the same conclusion: its default Windows shim mode `exe` "copies a native executable shim (`mise-shim.exe`) as `<tool>.exe`. Recommended." The `file` mode makes `.cmd` shims.
+
+## The other trap: PowerShell runs functions first
+
+PowerShell does not go to the PATH first. Microsoft's `about_Command_Precedence`: "1. Alias 2. Function 3. Cmdlet ... 4. External executable files". So a function or alias called `claude` or `git` in your profile wins over any `claude.exe` or `git.exe`, shim or not.
+
+To see everything a name could mean, in order:
+
+```powershell
+Get-Command claude -All
+```
+
+If the first line is an `Alias` or a `Function`, that runs, and no shim on the PATH ever sees the call. `where.exe claude` shows only the PATH side.
+
+## How Devpit chose
+
+Devpit's Accounts feature uses shims, for the reasons above: the account has to reach AI agents, VS Code tasks and `cmd.exe`, and two tools need per-process input that should not sit in your session (Vercel takes a flag; `gh` takes a token that must stay in memory). See [Accounts](/docs/features/accounts).
+
+- **One small `.exe`,** copied as `claude.exe`, `gh.exe`, `vercel.exe`, `firebase.exe` and `supabase.exe` into `%LOCALAPPDATA%\Programs\devpit\shims\`, first on your user PATH. Never `.cmd` shims.
+- **Only when needed.** A shim is created when a tool gets its second account or its first rule. No rule, no shim.
+- **Per process.** It walks up from the current folder to the nearest rule for that tool, applies the account to that one child process, and passes the exit code through. With no rule it starts the real tool untouched.
+- **npm launchers handled.** When the real tool is an npm `.cmd` launcher, the shim reads it and runs `node.exe` with the tool's script directly, so arguments never pass through `cmd.exe`. For any other batch file it refuses arguments with unsafe characters rather than risk mangling them.
+- **Fails open.** If the shim cannot read the rules file, it runs the real tool untouched and prints one warning line.
+- **Known limit:** a PowerShell function or alias with the tool's name still wins. Devpit's verify checks for one and shows the fix.
+
+Git is the exception: it has `includeIf`, so Devpit writes Git rules as config and needs no shim for commits. Pushes use a credential helper, which Git calls itself.
+
+There is no PowerShell prompt hook in this version. It would only add a prompt indicator.
+
+## Checklist
+
+1. If the setting must reach agents, IDE tasks or `cmd.exe`, use a shim or the tool's own exec command.
+2. If it only needs to affect your interactive shell, a hook is fine.
+3. Never make a shim a `.cmd` or `.bat` file.
+4. Check `Get-Command <tool> -All` for functions and aliases that run first.
+5. Keep secrets out of your session environment; give them to one process.
+
+## Sources
+
+- [direnv: Hook (PowerShell)](https://direnv.net/docs/hook.html)
+- [direnv manual](https://direnv.net/man/direnv.1.html)
+- [mise: Shims vs PATH activation](https://mise.jdx.dev/dev-tools/shims.html)
+- [mise: Settings (`windows_shim_mode`)](https://mise.jdx.dev/configuration/settings.html)
+- [mise: Installing (PowerShell activate)](https://mise.jdx.dev/installing-mise.html)
+- [fnm README](https://github.com/Schniz/fnm)
+- [fnm: Configuration (`--use-on-cd`)](https://github.com/Schniz/fnm/blob/master/docs/configuration.md)
+- [zoxide README](https://github.com/ajeetdsouza/zoxide)
+- [VS Code: Tasks](https://code.visualstudio.com/docs/debugtest/tasks)
+- [Rust: CVE-2024-24576](https://blog.rust-lang.org/2024/04/09/cve-2024-24576/)
+- [Flatt Security: BatBadBut](https://flatt.tech/research/posts/batbadbut-you-cant-securely-execute-commands-on-windows/)
+- [Node.js: April 2024 security releases (CVE-2024-27980)](https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2)
+- [Node.js: Spawning .bat and .cmd files on Windows](https://nodejs.org/api/child_process.html#spawning-bat-and-cmd-files-on-windows)
+- [Go: os/exec](https://pkg.go.dev/os/exec)
+- [Microsoft: about_Command_Precedence](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_command_precedence)

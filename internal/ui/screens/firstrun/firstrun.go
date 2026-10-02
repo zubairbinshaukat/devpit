@@ -31,6 +31,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/zubairbinshaukat/devpit/internal/about"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/checklist"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
@@ -377,7 +378,7 @@ func (m Model) layout(ctx uictx.Context) (lines []string, optTop int) {
 			title = e + " " + title
 		}
 		add(" "+th.Title.Render(title), "")
-		para(th.Base, "A pit stop for your dev machine: free disk space, fix stuck ports, and keep your tools up to date, from one menu.")
+		para(th.Base, about.Tagline+". A toolkit for Windows developers: the right account in every folder, disk space back, stuck ports freed, tools updated and big folders moved between PCs, from one menu.")
 		add("")
 		for _, s := range SafetyBullets {
 			add("  " + th.Success.Render(ctx.Icons.Tick) + " " + th.Base.Render(ansi.Truncate(s, max(10, ctx.Width-5), "…")))
@@ -511,7 +512,7 @@ func probe(ctx uictx.Context) string {
 	n := icons.Nerd()
 	shapes := th.Base.Render(strings.Join([]string{u.Tick, u.Safe, u.Folder}, "   "))
 	nerd := th.SectionIcon(theme.SectionClean).Render(n.Section(theme.SectionClean)) + "   " +
-		th.SectionIcon(theme.SectionGitSSH).Render(n.Git) + "   " +
+		th.SectionIcon(theme.SectionAccounts).Render(n.Git) + "   " +
 		th.SectionIcon(theme.SectionUpdate).Render(n.Node)
 	return shapes + "   " + nerd
 }

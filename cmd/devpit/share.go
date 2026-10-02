@@ -20,10 +20,11 @@ import (
 // a crash.
 func newShareCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "share",
-		Short: "Share files between PCs on your network (open the app to do it)",
-		Args:  cobra.NoArgs,
-		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Use:     "share",
+		Short:   "Share files between PCs on your network (open the app to do it)",
+		Example: "devpit share cleanup",
+		Args:    cobra.NoArgs,
+		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "cleanup",
@@ -31,7 +32,8 @@ func newShareCmd() *cobra.Command {
 		Long: "If Devpit or the PC stopped while a folder was shared, the share, its temporary login " +
 			"and the firewall or network changes may still be there. This removes them. " +
 			"Windows asks for permission once.",
-		Args: cobra.NoArgs,
+		Example: "devpit share cleanup",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runShareCleanup(cmd.Context(), cmd.OutOrStdout(), host.StateDir(), host.RealLauncher)
 		},

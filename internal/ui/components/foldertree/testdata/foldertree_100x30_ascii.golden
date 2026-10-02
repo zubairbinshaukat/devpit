@@ -1,0 +1,9 @@
+    FOLDER                   ACCOUNTS SET HERE
+    Everywhere               claude default - git You - github default - vercel default
+    |-   C:\Old\gone         X folder not found - claude old
+    |- v C:\Users\you\code
+    |  |-   api              vercel api-team
+| > |  `-   web (here)       vercel web                                                             
+    |- v C:\Work             claude work - github work - git Work Name
+    |  `-   client           git client
+    `-   D:\oss              ! drive not connected - claude oss - git oss

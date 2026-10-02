@@ -1,7 +1,7 @@
- DEVPIT  vdev  -  Ports                                                          node ...   git ...
+ DEVPIT  vdev  -  Ports & Network › Fix stuck ports                              node ...   git ...
 
-  Clean    Ports    Apps    Update    Network    Git    Settings    Share             tab <-> - 1-8
-----------=======-----------------------------------------------------------------------------------
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                       tab <-> - 1-6
+----------------------=============-----------------------------------------------------------------
 Free a busy port or stop a stuck process.
 
 | > Kill a port

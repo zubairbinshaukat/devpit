@@ -1,0 +1,156 @@
+---
+title: "Which deploy CLIs support multiple accounts in 2026?"
+description: "Vercel, Firebase, Supabase, Cloudflare Wrangler and Convex compared: which CLIs keep several logins, which can follow a folder, and the workarounds that exist."
+date: 2026-10-02
+authors: [zubair]
+tags: [accounts, vercel, firebase, supabase, cloudflare, convex]
+excerpt: "Two of the five have real multi-account support, one has a clean workaround, one has an undocumented one, and one picks the account per project."
+related:
+  - blog/check-account-before-push-or-deploy
+  - blog/shims-vs-shell-hooks-windows
+  - blog/two-claude-code-accounts-windows
+faq:
+  - question: "Can I be signed in to two Vercel accounts at the same time?"
+    answer: "Not with one config folder. Vercel's docs describe no multi-account feature. The --global-config (-Q) option points the CLI at another config folder, and each folder holds its own login, so two folders give you two logins."
+  - question: "Are Wrangler auth profiles safe to rely on?"
+    answer: "Cloudflare labels them beta and says the commands and their behaviour may change. They work for local use. They do not apply in CI, where CLOUDFLARE_API_TOKEN is used, and that variable overrides every profile."
+  - question: "How do I switch Convex accounts?"
+    answer: "Convex keeps one login per machine in ~/.convex/config.json. The documented way to use another account is npx convex logout and then logging in again. Each project picks its deployment from CONVEX_DEPLOYMENT in its .env.local file."
+---
+
+If you freelance, or you have a day job and side projects, you probably have more than one account on the platforms you deploy to. Each CLI handles that differently. Some keep several logins and pick one per folder. Some keep exactly one login per machine.
+
+This post compares five popular CLIs, using only what their docs and source say, plus what we saw when we tested them on Windows. Versions checked: Vercel CLI 60.1.3, firebase-tools 15.32.1, Supabase CLI 2.119.0, Wrangler 4.143.0. Things move fast here, so the version matters.
+
+## The short answer
+
+| CLI | Several logins built in | Per folder | Per command | Token variable for CI |
+| --- | --- | --- | --- | --- |
+| Firebase | Yes (`login:add`) | Yes (`login:use`) | Yes (`--account`) | Service account (the old `FIREBASE_TOKEN` is deprecated) |
+| Cloudflare Wrangler | Yes, auth profiles (beta) | Yes (`auth activate`) | Yes (`--profile`) | `CLOUDFLARE_API_TOKEN` |
+| Vercel | No | No | Yes, with `--global-config` | `VERCEL_TOKEN` |
+| Supabase | No | No | Undocumented only | `SUPABASE_ACCESS_TOKEN` |
+| Convex | No | Deployment per project, login per machine | No | `CONVEX_DEPLOY_KEY` |
+
+## Firebase: built in, and per folder
+
+Firebase has the most complete support. The firebase-tools README says: "By default `firebase login` sets a single global account for use on all projects. If you have multiple Google accounts which you use for Firebase projects you can authorize multiple accounts and use them on a per-project or per-command basis."
+
+```powershell
+firebase login:add                              # add another Google account
+firebase login:use                              # run inside a project folder to pick its account
+firebase --account you@work.example deploy      # one command with one account
+firebase login:list                             # list accounts, the current one first
+```
+
+- `login:use` sets "the default account to use for this project", so the choice belongs to the folder.
+- `--account` works with "any command", and "the specified account must have already been added". In the 15.32.1 source it is a root option that every command applies before it runs.
+- The `--account` option and the multi-account section are in the README. Firebase's main CLI docs page lists `login:add`, `login:list` and `login:use`, but not `--account`.
+
+One warning from reading the source: `firebase login:list --json` prints each account's tokens along with the emails. Use the plain `firebase login:list` to see who is signed in.
+
+## Cloudflare Wrangler: auth profiles, in beta
+
+Cloudflare announced auth profiles on 2 July 2026. The docs say plainly: "Authentication profiles are in beta. The commands and their behavior may change."
+
+"Wrangler authenticates as one user at a time. A profile is a named OAuth login that you scope to a chosen set of accounts and can bind to a directory."
+
+```powershell
+wrangler auth create work                       # sign in and save the login as "work"
+wrangler auth activate work C:\Work             # use "work" in this folder and below
+wrangler auth list                              # profiles and the folders they are bound to
+wrangler deploy --profile work                  # one command with one profile
+```
+
+Wrangler picks the login in this order: `CLOUDFLARE_API_TOKEN` (which "overrides all profiles"), then `--profile`, then "the nearest activated ancestor directory", then the default login from `wrangler login`.
+
+Things to know:
+
+- `--profile` "is not supported by the `auth`, `login`, `logout`, and `whoami` commands".
+- Inside a profile, `account_id` in your Wrangler config picks the Cloudflare account, and "Wrangler does not fall back to another account".
+- Profiles "do not apply in CI, containers, or other automated environments".
+- **A Windows detail from the source (4.143.0):** the folder match is a plain, case-sensitive text comparison. A binding for `C:\Work` did not match a current folder of `c:\work\x`. Bind the folder with the same casing it has on disk.
+
+## Vercel: one login per config folder
+
+Vercel's docs describe no multi-account feature. `vercel switch` changes "to a different team scope", not to another account.
+
+What Vercel does have is a global option: "The `--global-config` option, shorthand `-Q`, can be used to set the path to the global configuration directory." That directory holds `auth.json`, which "exists to contain the authentication information for the Vercel clients". So one folder per account gives you one login per account:
+
+```powershell
+vercel login --global-config "$HOME\.vercel-work"
+vercel whoami --global-config "$HOME\.vercel-work"
+vercel deploy --global-config "$HOME\.vercel-work"
+```
+
+In our test with an empty folder, `vercel whoami -Q <folder>` said "Logged out" and exited with 1, wrote only `config.json` and two telemetry files into that folder, and left the normal Vercel config untouched. The option worked before or after the subcommand.
+
+For CI, Vercel recommends `VERCEL_TOKEN` over `--token`, "because it avoids exposing the token in command-line arguments, which can be visible in process lists and logs".
+
+## Supabase: one login, and an undocumented way around it
+
+The Supabase docs: "Your access token is stored securely in native credentials storage. If native credentials storage is unavailable, it will be written to a plain text file at `~/.supabase/access-token`." For CI, "you may skip login by specifying the `SUPABASE_ACCESS_TOKEN` environment variable". The reference describes no multi-account feature, and the `--profile` flag selects an API endpoint, not an account.
+
+:::caution[Undocumented]
+In the current CLI's source (2.119.0), setting `SUPABASE_NO_KEYRING=1` (exactly `1`) and `SUPABASE_HOME` to a folder makes the CLI keep its token in a plain-text file inside that folder instead of Windows Credential Manager. We tested this with a fake token in a temporary folder: the file appeared there and nothing was added to Credential Manager. Neither variable is in the official docs, the older Go code path does not honour the no-keyring switch, and either could change in any release. The token file is plain text, so protect the folder like a password.
+:::
+
+Recent versions also have `supabase whoami` (first in v2.118.0), which is not in the reference docs yet.
+
+## Convex: the project picks the deployment, the machine has one login
+
+Convex works per project. `npx convex dev` writes `.env.local` with `CONVEX_DEPLOYMENT`, which the docs call "the main configuration for your Convex project". So two folders can point at two deployments.
+
+The login, though, is one per machine: "Logging in stores a user token at `~/.convex/config.json` which is used automatically for all CLI use going forward on that machine." To change accounts, the docs offer `npx convex logout`, which removes the credentials "so subsequent commands like `npx convex dev` can use a different Convex account". For CI and deploys, a `CONVEX_DEPLOY_KEY` identifies the deployment.
+
+There is an open request for per-project login on the Convex GitHub ([issue #326](https://github.com/get-convex/convex-backend/issues/326)). The source also has an `npx convex login status` command that lists accessible teams. It is not in the command reference.
+
+## The pattern behind all five
+
+Every CLI here has the same three layers:
+
+1. **Where the login lives.** A config folder, the OS credential store, or both.
+2. **What picks it.** A flag, an environment variable, a folder binding, or nothing.
+3. **What overrides everything.** A token in an environment variable. If `VERCEL_TOKEN`, `CLOUDFLARE_API_TOKEN`, `SUPABASE_ACCESS_TOKEN` or `CONVEX_DEPLOY_KEY` is set in your session, it usually wins over any login you picked.
+
+A tool without folder support can still be made to follow a folder from the outside: something has to add the flag or variable each time the tool starts. That is what a shim does. See [shims or shell hooks](/docs/blog/shims-vs-shell-hooks-windows).
+
+## How Devpit handles each one
+
+Devpit's Accounts page lists all five, and is honest about what each one allows. The details are on [Accounts: other tools](/docs/features/accounts-other-tools).
+
+| Tool | What Devpit does | Level |
+| --- | --- | --- |
+| Vercel | A shim adds `--global-config <account folder>` to each `vercel` call in a folder with a rule. New accounts sign in with `vercel login --global-config <folder>`. | Full |
+| Firebase | Uses Firebase's own accounts. A shim adds `--account <email>`. "Who am I" reads plain `firebase login:list`, never the `--json` form. | Full |
+| Supabase | Sets `SUPABASE_HOME` and `SUPABASE_NO_KEYRING=1` for that one process, and clears `SUPABASE_ACCESS_TOKEN` for it. Turned on only when a live check on your PC proves your CLI version honours them. | Full if the check passes, else show only |
+| Cloudflare | Mirrors folder rules with `wrangler auth activate`, writing the folder's real casing. "Everywhere" stays Wrangler's own default login. | Folder rules only, labelled beta |
+| Convex | Shows the account and the project's deployment, and verifies them. It does not switch. Only an undocumented token variable could do that, and Devpit handles no tokens. Convex runs through `npx`, which a shim cannot catch anyway. | Show and verify only |
+
+The UI says it in one line for Convex: "Convex picks the account per project. Devpit shows it but does not switch it."
+
+Devpit never stores a token for any of these. Each login stays in the tool's own storage, and Devpit only points the tool at the right one.
+
+## Checklist
+
+1. Firebase: `login:add` once per account, `login:use` in each project folder.
+2. Wrangler: `auth create` and `auth activate`, with the folder's real casing, and remember it is beta.
+3. Vercel: one `--global-config` folder per account, and check the team with `vercel teams ls`.
+4. Supabase and Convex: one login at a time; log out and in to change, or use CI tokens in CI only.
+5. Check for token environment variables before you trust a login.
+
+## Sources
+
+- [firebase-tools README (Multiple accounts)](https://github.com/firebase/firebase-tools#multiple-accounts)
+- [Firebase CLI reference](https://firebase.google.com/docs/cli)
+- [Cloudflare: Wrangler authentication profiles](https://developers.cloudflare.com/workers/wrangler/profiles/)
+- [Cloudflare changelog: Wrangler auth profiles (2 July 2026)](https://developers.cloudflare.com/changelog/post/2026-07-02-wrangler-auth-profiles/)
+- [Cloudflare: Wrangler general commands](https://developers.cloudflare.com/workers/wrangler/commands/general/)
+- [Vercel: Global options (`--global-config`, `--token`)](https://vercel.com/docs/cli/global-options)
+- [Vercel: Global configuration (`auth.json`)](https://vercel.com/docs/project-configuration/global-configuration)
+- [Vercel: vercel switch](https://vercel.com/docs/cli/switch)
+- [Supabase CLI: supabase login](https://supabase.com/docs/reference/cli/supabase-login)
+- [Supabase CLI source](https://github.com/supabase/cli)
+- [Convex: CLI](https://docs.convex.dev/cli)
+- [Convex: Deploy key types (`~/.convex/config.json`)](https://docs.convex.dev/cli/deploy-key-types)
+- [Convex issue #326: Project level CLI login](https://github.com/get-convex/convex-backend/issues/326)

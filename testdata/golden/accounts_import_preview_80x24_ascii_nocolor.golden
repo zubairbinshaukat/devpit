@@ -1,0 +1,20 @@
+ Found accounts already on this PC
+
+ Add the Claude Code account client (you@client.example), using its folder
+ where it is: C:\Users\you\.claude-switch\accounts\client.
+ Add 6 folder rules for Claude Code, one per claude-acc link.
+ Nobody signs in again: the accounts keep their sign-ins where they are.
+
+╭──────────────────────────────────────────────────────────────────────╮
+│ Bring these into Devpit?                                             │
+│ One undo takes all of it back. No account folder is moved or copied. │
+│                                                                      │
+│ [ No ]   [ Yes ]                                                     │
+╰──────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

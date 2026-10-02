@@ -1,0 +1,26 @@
+ Found accounts already on this PC
+
+ ✓ Imported. To retire claude-acc safely:
+
+ 1. Check that Devpit picks the same accounts
+    Run `devpit accounts verify`, or open Accounts in a few of the linked folders: Claude Code
+    should show the account claude-acc used there.
+ 2. Remove claude-acc's line from your PowerShell profile
+    C:\Users\you\Documents\PowerShell\Microsoft.PowerShell_profile.ps1, line 12:
+        Invoke-Expression (& claude-acc init pwsh | Out-String)
+    Devpit does not edit your profile; open it with `notepad $PROFILE` and delete the line
+    yourself.
+ 3. Open a new terminal
+    claude-acc's line sets CLAUDE_CONFIG_DIR every time a terminal changes folder. A terminal
+    started after the line is gone has no such variable.
+ 4. Remove the program
+    Delete C:\Users\you\.claude-switch\bin (claude-acc.exe, and claude-acc.old if it is there). If
+    you added that folder to PATH yourself, take it out of PATH too.
+ 5. Keep the account folders
+    Devpit uses claude-acc's account folders where they are, so they still hold your sign-ins. Do
+    not delete C:\Users\you\.claude-switch\accounts or anything in it while Devpit uses them.
+    Do not run `claude-acc remove` for an account you imported: it moves the account's folder to
+ ▼ 3 more lines (↓ to scroll)
+
+ [↑↓] scroll  [enter] done
+[keys] enter back

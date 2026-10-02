@@ -1,0 +1,189 @@
+---
+title: "A different Git email per folder on Windows (includeIf)"
+description: "Use Git's includeIf to commit with your work email in C:\\Work and your own email everywhere else, plus the Windows gotchas that make a rule silently fail."
+date: 2026-10-02
+authors: [zubair]
+tags: [git, accounts, windows, gitconfig]
+excerpt: "One includeIf block gives every repo in a folder its own Git email. Here is the exact setup, and the six ways it quietly stops working on Windows."
+related:
+  - blog/multiple-github-accounts-gh-gcm-ssh
+  - blog/check-account-before-push-or-deploy
+  - troubleshooting/git-please-tell-me-who-you-are
+  - features/accounts-git-and-github
+faq:
+  - question: "Does includeIf change commits I already made?"
+    answer: "No. It only decides which name and email Git uses for new commits. Old commits keep the email they were made with. To fix the last commit, run git commit --amend --reset-author --no-edit before you push."
+  - question: "Why does git config user.email show my personal email inside my work folder?"
+    answer: "Most often the folder is not a Git repository yet, the pattern has no trailing slash, it uses backslashes, or it lacks /i and the case differs. Run the command inside a repository and check the pattern against the list in this post."
+  - question: "Can I pick the email by the remote URL instead of the folder?"
+    answer: "Yes. Since Git 2.36 the hasconfig condition can match the remote URL of the repository, for example every repository under your organisation on GitHub. The included file may not contain remote URLs itself. The exact command is in the post."
+---
+
+You have a work laptop that is also your own laptop. Work code lives in `C:\Work`. Your side projects live somewhere else. You want commits in `C:\Work` to say `you@work.example`, and every other commit to say `you@example.com`, without remembering to set it per repository.
+
+Git can do this by itself. The feature is called a conditional include, or `includeIf`. This post sets it up on Windows step by step, then covers the gotchas that make a rule match nothing without any error.
+
+## The short answer
+
+Run these three lines in PowerShell. Change the emails and the folder.
+
+```powershell
+git config --global user.email 'you@example.com'
+git config --global 'includeIf.gitdir/i:C:/Work/.path' '~/.gitconfig-work'
+git config --file "$HOME\.gitconfig-work" user.email 'you@work.example'
+```
+
+Your global config file (`%USERPROFILE%\.gitconfig`) now ends like this:
+
+```ini
+[user]
+	email = you@example.com
+[includeIf "gitdir/i:C:/Work/"]
+	path = ~/.gitconfig-work
+```
+
+And `%USERPROFILE%\.gitconfig-work` holds the work email:
+
+```ini
+[user]
+	email = you@work.example
+```
+
+Inside any repository under `C:\Work`, Git now reads the second file too, and its email wins. We ran these exact lines in Windows PowerShell 5.1 and PowerShell 7 against a temporary config, and both gave the work email inside the folder and the personal one outside it.
+
+## How includeIf decides
+
+The Git documentation describes the `gitdir` condition like this: "If the location of the .git directory matches the pattern, the include condition is met." Three rules from the same page matter on Windows:
+
+- **A trailing slash means "and everything inside".** "If the pattern ends with `/`, `**` will be automatically added." So `C:/Work/` matches `C:/Work/api/.git`, `C:/Work/clients/acme/web/.git` and so on.
+- **`gitdir/i` ignores case.** It is "the same as `gitdir` except that matching is done case-insensitively". Windows paths are case-insensitive, so use `/i`.
+- **The include is pasted in place.** "The contents of the included file are inserted immediately, as if they had been found at the location of the include directive." That is why order matters, below.
+
+## Check that it works
+
+Open a terminal inside a repository in the folder and ask Git where the value comes from:
+
+```powershell
+cd C:\Work\api
+git config --show-origin user.email
+git var GIT_AUTHOR_IDENT
+```
+
+`--show-origin` prints the file the value came from. If the rule works, you see the path of `.gitconfig-work`. `git var GIT_AUTHOR_IDENT` prints the exact name, email and time stamp Git would put on a commit made right now, which is the real test.
+
+To see every value Git found, in the order it found them:
+
+```powershell
+git config --show-origin --show-scope --get-all user.email
+```
+
+The last line is the one in effect. Both lines say `global`, because an included file gets the scope of the file that includes it.
+
+## Gotcha 1: no trailing slash
+
+`gitdir/i:C:/Work` (no slash) does not mean "inside C:\Work". Without the slash Git adds no `**`, so the pattern only matches a `.git` directory whose path is exactly `C:/Work`. In our test a repository at `C:\Work\api` got the personal email, with no warning. Always end the folder with `/`.
+
+## Gotcha 2: case and backslashes
+
+Two Windows habits break the match:
+
+- **Case without `/i`.** We wrote the pattern in lower case (`c:/work/`) with plain `gitdir:`. The real folder was `C:\Work`. No match.
+- **Backslashes.** We wrote `gitdir/i:C:\Work\`. No match either. Git compares against a path with forward slashes, so write `C:/Work/`.
+
+The safe form is always `gitdir/i:` plus forward slashes plus a trailing slash.
+
+## Gotcha 3: nothing happens outside a repository
+
+The condition is about "the location of the .git directory". A folder that is not a repository has none, so there is nothing to match. In our test, `git config user.email` in a plain folder inside `C:\Work` printed the personal email.
+
+This trips people up when they check the rule from the folder itself (`C:\Work`) instead of from a repository inside it. Check from inside a repository.
+
+`git clone` is fine. During a clone, Git already knows where the new `.git` will be. In a test on Git 2.55 for Windows, a hook that ran during the clone, and the first entry in the new repository's log, both used the email from the folder rule.
+
+## Gotcha 4: the order of lines
+
+Git reads config files from top to bottom, and for a single value like `user.email` the last value it finds wins. The documentation says the files are read "with last value found taking precedence over values read earlier". Since an include is pasted in place, two problems follow:
+
+- **A `[user]` block after the include beats it.** If you later add `email = ...` under a new `[user]` section at the end of `.gitconfig`, that line wins in every folder. Keep includes at the end.
+- **Nested folders need the deeper rule last.** Say `C:/Work/` uses your work email and `C:/Work/oss/` should use your open-source email. Both rules match a repository in `C:\Work\oss\lib`. The later block wins. When we put the deeper rule first, the shallow one won. Put the deeper rule last.
+
+A repository's own `.git\config` is read after the global file, so a `user.email` set there with `git config user.email ...` (no `--global`) beats every rule. That is often what you want for one odd repository, but it is also a common reason a folder rule "does nothing".
+
+## Gotcha 5: worktrees and submodules
+
+`git worktree add` creates a second working folder for the same repository. The Git docs say that when a repository is found "via a .git file (e.g. from submodules, or a linked worktree), the .git location would be the final location where the .git directory is, not where the .git file is."
+
+For a linked worktree, that final location is inside the main repository, for example `C:\Work\api\.git\worktrees\feature`. So:
+
+- A worktree of a `C:\Work` repository that you put in `D:\scratch` still gets the **work** email.
+- A worktree of a personal repository that you put inside `C:\Work` keeps the **personal** email.
+
+We checked both cases. If you want the rule to follow where the files are checked out, Git 2.56 adds a `worktree` condition (and `worktree/i`), which matches "the path where files are checked out (as returned by `git rev-parse --show-toplevel`)". Git 2.55 does not know it and ignores it without an error, so check `git --version` before you rely on it.
+
+## Gotcha 6: Git is not GitHub
+
+`user.email` only decides what is written into the commit. It does not decide which GitHub account pushes. Pushing uses your credential helper or your SSH key, which is a separate setting. GitHub then links each commit to an account by email: "GitHub links a commit to a user by matching the email address in the commit header to an email address on a GitHub account."
+
+So a correct `includeIf` can still push work commits with your personal GitHub login. The other half is in [Multiple GitHub accounts on one PC](/docs/blog/multiple-github-accounts-gh-gcm-ssh).
+
+If you want GitHub's private address, it has the form `ID+USERNAME@users.noreply.github.com` for accounts made after 18 July 2017. Your exact address is in GitHub's email settings.
+
+## Another option: match by remote URL
+
+Since Git 2.36, `includeIf` can also look at where a repository pushes:
+
+```powershell
+git config --global 'includeIf.hasconfig:remote.*.url:https://github.com/your-org/**.path' '~/.gitconfig-work'
+```
+
+This works wherever the repository sits on disk. It matches only once the repository has a matching remote, and the docs add that files included this way "are not allowed to contain remote URLs". In a test, a fresh repository showed the personal email, and the work email right after `git remote add origin https://github.com/your-org/api.git`.
+
+## How Devpit does the same thing
+
+Devpit's Accounts page writes these rules for you, using the rules above. See [Git and GitHub accounts](/docs/features/accounts-git-and-github) for the screens.
+
+1. Open **Accounts**, then **Git**, and pick **Use another account here…**. You type a name and email. Devpit suggests your GitHub noreply address when it knows your GitHub accounts.
+2. You choose the scope: this folder, another folder, or everywhere. Git has no "just this once" option.
+3. A preview shows the exact lines in plain words, and the answer is already **No**:
+
+```text
+ ? In C:\Work and every folder inside it,
+   Git will commit as Zubair <zubair@work.com>.
+   Everywhere else stays Zubair <zubair@gmail.com>.
+
+   Devpit will write:
+     ~/.devpit/git/rules.gitconfig   [includeIf "gitdir/i:C:/Work/"] path = work.gitconfig
+     ~/.devpit/git/work.gitconfig    [user] name = Zubair   email = zubair@work.com
+```
+
+What it does differently from a hand-written setup:
+
+- All rules live in one Devpit file, `%USERPROFILE%\.devpit\git\rules.gitconfig`, with one small file per identity. Your `.gitconfig` gets one `include.path` line, kept last.
+- Patterns are always `gitdir/i:`, forward slashes and a trailing slash. Rules are written shallow to deep, so the nearest folder wins.
+- **Verify** reads `git config --show-origin` and reports which file won, so a line you added after the include, or a repository's own `user.email`, shows up as the reason.
+- The rule says "applies once this folder is a Git repo" where that matters.
+- It uses `worktree/i:` only after it has checked that your Git understands it. Otherwise linked worktrees follow the main repository's rule, and the page says so.
+- Every change can be undone with `u`, and undo touches only the lines Devpit wrote.
+
+Devpit stores no password or token for this. A Git email rule is plain text config.
+
+## Checklist
+
+1. Write the pattern as `gitdir/i:C:/Your/Folder/`, with forward slashes and a trailing slash.
+2. Keep includes at the end of `.gitconfig`, deeper folders last.
+3. Test from inside a repository with `git var GIT_AUTHOR_IDENT`.
+4. Look for a `user.email` in the repository's own config if a rule seems ignored.
+5. Remember worktrees follow the main repository unless you have Git 2.56 and use `worktree/i:`.
+6. Set up the push account separately.
+
+## Sources
+
+- [Git: git-config, Conditional includes](https://git-scm.com/docs/git-config#_conditional_includes)
+- [Git: git-config, Files (order and "last value found")](https://git-scm.com/docs/git-config#FILES)
+- [Git: git-var](https://git-scm.com/docs/git-var)
+- [Git: git-commit (`--amend`, `--reset-author`)](https://git-scm.com/docs/git-commit)
+- [Git release notes 2.36.0 (`hasconfig:remote.*.url`)](https://github.com/git/git/blob/master/Documentation/RelNotes/2.36.0.adoc)
+- [Git release notes 2.56.0 (`worktree` condition)](https://github.com/git/git/blob/master/Documentation/RelNotes/2.56.0.adoc)
+- [GitHub Docs: Setting your commit email address](https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address)
+- [GitHub Docs: Email addresses reference (noreply format)](https://docs.github.com/en/account-and-profile/reference/email-addresses-reference)
+- [GitHub Docs: Troubleshooting commits](https://docs.github.com/en/pull-requests/how-tos/commit-changes/troubleshooting-commits)
