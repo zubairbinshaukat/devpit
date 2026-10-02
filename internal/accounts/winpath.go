@@ -8,7 +8,10 @@ import (
 
 // Folder paths in rules are Windows paths, and they are compared the way
 // Windows compares them, on every OS: the tests for this run on the Linux CI
-// runner too, so nothing here uses path/filepath.
+// runner too, so nothing here uses path/filepath. Off Windows (posixRoots),
+// a path starting with a single "/" is also absolute, on the volume "/", and
+// keeps its forward slashes, so the same code works on that runner's temp
+// folders.
 
 // ErrRelativePath is returned for a relative folder when no base folder was
 // given to resolve it against.
@@ -57,6 +60,9 @@ func splitWinPath(p, base string) (string, []string, error) {
 			}
 			return "", nil, fmt.Errorf("the folder %q contains %q, which Windows does not allow in a path", p, r)
 		}
+	}
+	if posixRoots && strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "//") {
+		return posixVolume, cleanParts(nil, strings.ReplaceAll(s, "/", `\`)), nil
 	}
 	s = strings.ReplaceAll(s, "/", `\`)
 
@@ -139,8 +145,14 @@ func cleanParts(parts []string, rest string) []string {
 	return out
 }
 
+// posixVolume is the volume of an absolute POSIX path (see posixRoots).
+const posixVolume = "/"
+
 // joinWinPath is the inverse of splitWinPath.
 func joinWinPath(vol string, parts []string) string {
+	if vol == posixVolume {
+		return "/" + strings.Join(parts, "/")
+	}
 	if len(parts) == 0 {
 		if strings.HasPrefix(vol, `\\`) {
 			return vol
@@ -181,8 +193,16 @@ func keyContains(pk, ck string) bool {
 	if pk == ck {
 		return true
 	}
-	return strings.HasPrefix(ck, strings.TrimSuffix(pk, `\`)+`\`)
+	sep := `\`
+	if strings.HasPrefix(pk, posixVolume) {
+		sep = posixVolume
+	}
+	return strings.HasPrefix(ck, strings.TrimSuffix(pk, sep)+sep)
 }
+
+// FolderDepth counts the folders below the drive or share: 0 for C:\ and
+// \\server\share, -1 for a path that does not parse.
+func FolderDepth(p string) int { return folderDepth(p) }
 
 // folderDepth counts the components below the volume: 0 for C:\.
 func folderDepth(p string) int {

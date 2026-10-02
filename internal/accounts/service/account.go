@@ -197,6 +197,11 @@ func (s *Service) PrepareOnce(ctx context.Context, tool accounts.Tool, name stri
 			tool.DisplayName(), l.Args[0], tool.Binary(), tool, acct.Name, tool.Binary())
 	}
 	path, err := launch.Find(argv[0], find)
+	if err != nil && s.Deps.LookPath != nil {
+		// Options.LookPath stands in for PATH (tests, and a caller that
+		// knows where the tool is).
+		path, err = s.Deps.LookPath(argv[0])
+	}
 	if err != nil {
 		return OnceCommand{}, fmt.Errorf("%s was not found on PATH", argv[0])
 	}

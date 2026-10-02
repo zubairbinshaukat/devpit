@@ -62,7 +62,10 @@ func (c Change) normalize(s *Store) (Change, error) {
 		if err != nil {
 			return c, err
 		}
-		c.Scope.Folder = norm
+		// A rule is kept under the folder's long name: a folder typed or
+		// reached through an 8.3 short name (C:\Users\RUNNER~1) is the same
+		// folder, and the tools match their long names.
+		c.Scope.Folder = LongPath(norm)
 	case ScopeEverywhere, ScopeOnce:
 		c.Scope.Folder = ""
 		if c.Remove {

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +42,7 @@ func newAccWorld(t *testing.T) *accWorld {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root = accounts.LongPath(root) // rules are kept under long names (TEMP may be 8.3)
 	w := &accWorld{t: t, root: root, env: map[string]string{"FAKE_WORK_EMAIL": "z@work.com"}, work: filepath.Join(root, "Work")}
 	home := filepath.Join(root, "home")
 	for _, d := range []string{home, filepath.Join(root, "shims"), filepath.Join(w.work, "api"), filepath.Join(root, "cfg")} {
@@ -136,13 +139,25 @@ func (w *accWorld) store() *accounts.Store {
 	return st
 }
 
-// normalize makes output independent of the temporary folder.
+// normalize makes output independent of the temporary folder. The goldens
+// are Windows output; off Windows, the separators of paths under the
+// temporary folder are turned into Windows ones so the same goldens hold.
 func (w *accWorld) normalize(s string) string {
 	for _, r := range []string{strings.ReplaceAll(w.root, `\`, `\\`), w.root, filepath.ToSlash(w.root)} {
 		s = strings.ReplaceAll(s, r, "<root>")
 	}
+	if runtime.GOOS != "windows" {
+		sep := `\`
+		if strings.HasPrefix(strings.TrimSpace(s), "{") {
+			sep = `\\` // inside JSON strings
+		}
+		s = rootPath.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, "/", sep) })
+	}
 	return strings.ReplaceAll(s, "\r\n", "\n")
 }
+
+// rootPath is a path under the normalized temporary folder.
+var rootPath = regexp.MustCompile(`<root>(/[^\s"/,:]+)+`)
 
 func golden(t *testing.T, name, got string) {
 	t.Helper()

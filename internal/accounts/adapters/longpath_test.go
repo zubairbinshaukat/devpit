@@ -51,7 +51,8 @@ func TestLongFolderNamesWorkEndToEnd(t *testing.T) {
 		if err != nil || len(hist) == 0 || !strings.Contains(hist[0].Summary, filepath.Base(w.tmp)) {
 			t.Fatalf("the journal summary lost the folder: %+v %v", hist, err)
 		}
-		if !strings.Contains(p.Text(), filepath.ToSlash(work)) {
+		// The rule is written with the long name Git compares against.
+		if !strings.Contains(p.Text(), filepath.ToSlash(accounts.LongPath(work))) {
 			t.Fatalf("preview:\n%s", p.Text())
 		}
 		if _, err := w.eng.Undo(); err != nil {

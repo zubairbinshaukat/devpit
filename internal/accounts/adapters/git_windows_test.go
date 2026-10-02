@@ -170,7 +170,7 @@ func TestGitCommitsAsSaysWhichFileWon(t *testing.T) {
 	wt := filepath.Join(work, "wt")
 	w.gitOut(main, "worktree", "add", "-q", wt)
 	c, err = w.git.CommitsAs(ctx, w.store(), wt)
-	if err != nil || !c.Repo.LinkedWorktree || !accounts.SameFolder(c.Repo.MatchFolder, main) {
+	if err != nil || !c.Repo.LinkedWorktree || !accounts.SameFolder(accounts.LongPath(c.Repo.MatchFolder), accounts.LongPath(main)) {
 		t.Fatalf("worktree: %+v %v", c, err)
 	}
 	if caps, _ := w.git.probe.get(ctx, w.deps); !caps.worktree {

@@ -122,12 +122,14 @@ func gitQuote(v string) (string, error) {
 // forward slashes, the drive letter or //server/share, and a trailing slash
 // (Git then adds "**", so the rule covers every repo inside). '[' starts a
 // character class in Git's wildmatch, so it is escaped; '*' and '?' cannot
-// be in a Windows path.
+// be in a Windows path. Short 8.3 names are expanded first: Git matches the
+// pattern against the repository's real, long path.
 func gitdirPattern(folder string) (string, error) {
 	norm, err := accounts.NormalizeFolder(folder, "")
 	if err != nil {
 		return "", err
 	}
+	norm = accounts.LongPath(norm)
 	p := slashPath(norm)
 	p = strings.ReplaceAll(p, "[", `\[`)
 	if !strings.HasSuffix(p, "/") {

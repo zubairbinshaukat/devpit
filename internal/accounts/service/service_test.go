@@ -41,7 +41,9 @@ func shortDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(d) })
-	return d
+	// Rules are kept under long names; this world is not about 8.3 names
+	// (TEMP is C:\Users\RUNNER~1\… on GitHub's runners).
+	return accounts.LongPath(d)
 }
 
 func newWorld(t *testing.T) *world {
@@ -460,6 +462,15 @@ func TestPrepareOnce(t *testing.T) {
 	w := newWorld(t)
 	a := w.addAccount(accounts.ToolClaude, "work", "z@work.com")
 	w.addAccount(accounts.ToolVercel, "work", "z@work.com")
+	// cmd stands for any program; where there is none (Linux), the world's
+	// LookPath finds it.
+	look := w.s.Deps.LookPath
+	w.s.Deps.LookPath = func(n string) (string, error) {
+		if n == "cmd" {
+			return `C:\Windows\System32\cmd.exe`, nil
+		}
+		return look(n)
+	}
 	c, err := w.s.PrepareOnce(context.Background(), accounts.ToolClaude, "wo", []string{"cmd", "/c", "echo"})
 	must(t, err)
 	env := strings.Join(c.Env, "\n")
