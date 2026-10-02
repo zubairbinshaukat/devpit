@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
@@ -544,7 +545,7 @@ func TestManagerCycles(t *testing.T) {
 	want := []string{"scoop", "winget", "choco", ""}
 	for _, w := range want {
 		var changed bool
-		cfg, changed = apply(cfg, rowManager)
+		cfg, changed = apply(cfg, rowManager, 1)
 		if !changed {
 			t.Fatal("apply(rowManager) reported no change")
 		}
@@ -562,12 +563,13 @@ func TestSpaceCyclesASetting(t *testing.T) {
 	cfg.Icons = config.IconsUnicode
 	ctx := testContext(cfg)
 
-	m := New()
+	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
+	m.cursor = rowIcons
 	space := tea.KeyPressMsg{Code: ' ', Text: " "}
 	if space.String() != "space" {
 		t.Fatalf("the space key reports %q; this test is wired wrong", space.String())
 	}
-	if !key.Matches(space, m.toggle) {
+	if !key.Matches(space, m.keys.Change) {
 		t.Fatal("the toggle binding does not match the space key")
 	}
 

@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildLlms, buildLlmsFull } from './gen-llms.mjs';
+import { buildTwins, verifyTwins } from './md-twins.mjs';
 import { mergeSitemap } from './sitemap.mjs';
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -74,9 +75,35 @@ for (const f of fs.readdirSync(path.join(DIST, 'docs'))) {
   if (/^sitemap-.*\.xml$/.test(f)) fs.rmSync(path.join(DIST, 'docs', f));
 }
 
-// 5. llms.txt and llms-full.txt from the same pages.
+// 5. A Markdown twin of every docs page: /docs/<page>.md (the docs home is
+// /docs/index.md). vercel.json serves them as text/markdown with noindex;
+// they are not in the sitemap. A component the converter does not know is an
+// error here, so raw JSX can never ship in a twin.
+let twins;
+try {
+  twins = buildTwins();
+} catch (e) {
+  console.error(`\nbuild: Markdown twin: ${e.message}`);
+  process.exit(1);
+}
+for (const t of twins) {
+  const file = path.join(DIST, t.rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, t.text);
+}
+
+// 6. llms.txt and llms-full.txt from the same pages.
 fs.writeFileSync(path.join(DIST, 'llms.txt'), buildLlms());
 fs.writeFileSync(path.join(DIST, 'llms-full.txt'), buildLlmsFull());
 
+// 7. Every page has its twin, no twin has JSX left, and every link in the
+// twins and in llms.txt is absolute and points at something that exists.
+const problems = verifyTwins(DIST);
+if (problems.length) {
+  for (const p of problems) console.error(`  FAIL  ${p}`);
+  console.error(`\nbuild: ${problems.length} problem(s) in the Markdown twins or llms.txt`);
+  process.exit(1);
+}
+
 const count = (dir) => fs.readdirSync(dir, { recursive: true }).filter((f) => f.endsWith('.html')).length;
-console.log(`\nbuild: web/dist ready (${count(DIST)} HTML files, docs under /docs)`);
+console.log(`\nbuild: web/dist ready (${count(DIST)} HTML files, ${twins.length} Markdown twins, docs under /docs)`);

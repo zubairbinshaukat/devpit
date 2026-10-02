@@ -122,6 +122,12 @@ type Config struct {
 	LifetimeFreedBytes uint64 `toml:"lifetime_freed_bytes"`
 	// FirstRunDone is set once the first-run screen has been completed.
 	FirstRunDone bool `toml:"first_run_done"`
+	// LastSeenVersion is the newest Devpit release whose "What's new" card
+	// this user has seen (or whose first run they finished), without a
+	// leading "v". It needs no schema bump: a file from before it existed
+	// simply has none, and with FirstRunDone set that reads as "updated
+	// from an older version". An older Devpit ignores the key.
+	LastSeenVersion string `toml:"last_seen_version"`
 }
 
 // DefaultDevPorts is the recommended dev port list from the implementation

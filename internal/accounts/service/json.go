@@ -134,6 +134,7 @@ type VerifyCheckJSON struct {
 	How      string             `json:"how"`
 	Status   VerifyStatus       `json:"status"`
 	Notes    []string           `json:"notes"`
+	Docs     string             `json:"docs,omitempty"`
 }
 
 // VerifyJSON is `devpit accounts verify --json`. mismatch is true exactly
@@ -152,7 +153,7 @@ func (r VerifyReport) JSON() VerifyJSON {
 	for _, c := range r.Checks {
 		out.Checks = append(out.Checks, VerifyCheckJSON{
 			Tool: string(c.Tool), Account: c.Account, Here: c.Here, Expected: c.Expected, Actual: c.Actual,
-			Says: c.ActualDisplay, How: c.How, Status: c.Status, Notes: append([]string{}, c.Notes...),
+			Says: c.ActualDisplay, How: c.How, Status: c.Status, Notes: append([]string{}, c.Notes...), Docs: c.Docs,
 		})
 	}
 	return out

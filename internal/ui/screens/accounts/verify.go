@@ -349,11 +349,15 @@ func (m verifyScreen) details(ctx uictx.Context) []string {
 		for _, n := range c.Notes {
 			out = append(out, wrap(ctx, th.Muted, n, 1, 2)...)
 		}
+		if c.Docs != "" {
+			out = append(out, docsLine(ctx, service.Problem{Docs: c.Docs}, 1)...)
+		}
 		for _, p := range m.problemsOf(c.Tool) {
 			out = append(out, wrap(ctx, th.Warning, ctx.Icons.Warn+" "+p.Message, 1, 2)...)
 			if p.Fix != "" {
 				out = append(out, wrap(ctx, th.Muted, "Fix: "+p.Fix, 3, 5)...)
 			}
+			out = append(out, docsLine(ctx, p, 3)...)
 		}
 		if m.fixable(m.cursor) {
 			out = append(out, " "+ctx.KeyHint("f", "fix this"))

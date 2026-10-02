@@ -1,0 +1,24 @@
+ DEVPIT  vdev  -  Settings                                   node ...   git ...
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+------------------------------------------------------==========----------------
+  ^ 6 more
+    Never-touch folders   2 folders             >
+    Recent projects       last 7 days           >
+    Age filter            older than 30 days    >
+    Forget last scan                            >
+  Tools -----------------------------------------
+    Package manager       < auto >
+    Dev ports             27 ports              >
+  AI agents -------------------------------------
+    AI agent skill        not installed         >
+  Privacy and updates ---------------------------
+| > Usage stats           [ ] off
+  v 3 more
+
+  Usage stats ------------------------ Changes save as soon as you make them.
+  When on, Devpit sends one small report after a cleanup: space freed and how
+  many items. Never a file name, a path or anything about you. Off unless you
+  turn it on.
+--------------------------------------------------------------------------------
+esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

@@ -56,6 +56,8 @@ type VerifyCheck struct {
 	How    string
 	Status VerifyStatus
 	Notes  []string
+	// Docs is the troubleshooting page for a mismatch, or "".
+	Docs string
 }
 
 // VerifyReport is everything Verify found.
@@ -131,10 +133,10 @@ func (s *Service) Verify(ctx context.Context, opt VerifyOptions) (VerifyReport, 
 				c.Notes = append(c.Notes, accounts.Scrub(derr.Error()))
 			}
 			for _, p := range drift {
-				rep.Problems = append(rep.Problems, Problem{
+				rep.Problems = append(rep.Problems, withDocs(Problem{
 					Kind: string(p.Kind), Tool: string(t), Message: p.Message,
 					Fix: "Run `devpit cloudflare use <account> --folder <folder> --yes` to set the binding again, or remove a binding made by hand with `wrangler auth deactivate <folder>`.",
-				})
+				}))
 				rep.Mismatch = true
 				if c.Status == VerifyOK {
 					c.Status = VerifyMismatch
@@ -144,6 +146,7 @@ func (s *Service) Verify(ctx context.Context, opt VerifyOptions) (VerifyReport, 
 		if c.Status == VerifyMismatch || (c.Status == VerifyError && ts.Managed) {
 			rep.Mismatch = true
 		}
+		c = withCheckDocs(c)
 		rep.Checks = append(rep.Checks, c)
 
 		if opt.All && t != accounts.ToolGit && t != accounts.ToolConvex {
@@ -178,8 +181,17 @@ func (s *Service) verifyOthers(ctx context.Context, a adapters.Adapter, st *acco
 		if c.Status == VerifyMismatch {
 			rep.Mismatch = true
 		}
-		rep.Checks = append(rep.Checks, c)
+		rep.Checks = append(rep.Checks, withCheckDocs(c))
 	}
+}
+
+// withCheckDocs gives a mismatch with no page of its own the wrong-account
+// page.
+func withCheckDocs(c VerifyCheck) VerifyCheck {
+	if c.Status == VerifyMismatch && c.Docs == "" {
+		c.Docs = DocsURL(verifyPages["mismatch"])
+	}
+	return c
 }
 
 // verifyLive asks the tool who acct is and compares it with what Devpit
@@ -221,6 +233,7 @@ func (s *Service) verifyLive(ctx context.Context, a adapters.Adapter, st *accoun
 		}
 		if managed {
 			c.Status = VerifyMismatch
+			c.Docs = DocsURL(verifyPages["signed out"])
 		} else {
 			c.Status = VerifyInfo
 		}
@@ -286,6 +299,7 @@ func (s *Service) addPushNotes(ctx context.Context, a adapters.Adapter, st *acco
 	c.Notes = append(c.Notes, push.Notes...)
 	if ts.Managed && !ts.Account.IsDefault() && (push.Via == adapters.PushViaHelper || push.Via == adapters.PushViaRepoHelper) {
 		c.Status = VerifyMismatch
+		c.Docs = DocsURL(verifyPages["push"])
 	}
 }
 
@@ -308,6 +322,9 @@ func (r VerifyReport) Lines() []string {
 		out = append(out, line)
 		for _, n := range c.Notes {
 			out = append(out, "    "+n)
+		}
+		if c.Docs != "" {
+			out = append(out, "    Docs: "+c.Docs)
 		}
 	}
 	if len(r.Problems) > 0 {

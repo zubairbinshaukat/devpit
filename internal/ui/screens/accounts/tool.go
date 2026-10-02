@@ -258,6 +258,7 @@ func (m toolScreen) View(ctx uictx.Context) string {
 		if p.Fix != "" {
 			out = append(out, wrap(ctx, th.Muted, "Fix: "+p.Fix, 3, 5)...)
 		}
+		out = append(out, docsLine(ctx, p, 3)...)
 	}
 	return strings.Join(out, "\n")
 }
@@ -288,6 +289,7 @@ func (m toolScreen) problemRoom(ctx uictx.Context) int {
 	if p.Fix != "" {
 		n += len(wrap(ctx, ctx.Theme.Muted, "Fix: "+p.Fix, 3, 5))
 	}
+	n += len(docsLine(ctx, p, 3))
 	return n
 }
 

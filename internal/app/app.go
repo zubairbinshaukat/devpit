@@ -30,6 +30,8 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/firstrun"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/theme"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
@@ -95,6 +97,11 @@ type Options struct {
 	// ExePath is where this executable lives, for the upgrade hint.
 	// Production leaves it empty, which means os.Executable.
 	ExePath string
+	// Skill opens the engine behind the AI agent skill, for the What's new
+	// card's offer and the screen it opens. Production leaves it nil, which
+	// means the real Accounts engine; tests pass a fake so no test reads a
+	// real ~/.claude.
+	Skill func() (settings.SkillService, error)
 }
 
 // configSaver writes the configuration. It is a field so tests can capture
@@ -153,12 +160,64 @@ func New(opts Options) Model {
 	return m
 }
 
-// rootScreen is first run on a fresh install and home after that.
+// rootScreen is first run on a fresh install, the What's new card once
+// after an update (see whatsnew.Due for exactly when), and home otherwise.
 func (m Model) rootScreen() uictx.Screen {
 	if !m.cfg.FirstRunDone {
 		return firstrun.New(m.cfg)
 	}
+	if e, ok := whatsnew.Due(m.opts.Version, m.cfg.LastSeenVersion, m.cfg.FirstRunDone); ok {
+		return whatsnew.New(m.opts.Version, e)
+	}
 	return home.New(m.iconSet).WithFactories(m.opts.ScreenFactory)
+}
+
+// onCard reports whether the What's new card is up.
+func (m Model) onCard() bool {
+	s, ok := m.router.Top()
+	if !ok {
+		return false
+	}
+	_, card := s.(whatsnew.Model)
+	return card && m.router.Len() == 1
+}
+
+// skillOfferCmd looks at the AI agent skill for the card, off the first
+// frame. It runs only while the card is up.
+func (m Model) skillOfferCmd() tea.Cmd {
+	if !m.onCard() {
+		return nil
+	}
+	open := m.opts.Skill
+	return func() tea.Msg {
+		show, older := settings.SkillOffer(open)
+		return whatsnew.OfferMsg{Show: show, Older: older}
+	}
+}
+
+// closeCard records that this version's card was seen, never moving the
+// stored version backwards, and shows home. With openSkill it goes on to
+// Settings and the AI agent skill screen there; nothing is installed until
+// the person says yes on that screen.
+func (m Model) closeCard(openSkill bool) (tea.Model, tea.Cmd) {
+	cfg := m.cfg
+	cfg.LastSeenVersion = whatsnew.Record(cfg.LastSeenVersion, m.opts.Version)
+	root := home.New(m.iconSet).WithFactories(m.opts.ScreenFactory)
+	m.router.Reset(root)
+	next, save := m.applyConfig(uictx.ConfigChangedMsg{Config: cfg, Persist: true})
+	m = next.(Model)
+	if !openSkill {
+		return m, save
+	}
+	var scr uictx.Screen = settings.NewWith(settings.Options{Skill: m.opts.Skill, Version: m.opts.Version})
+	if f, ok := m.opts.ScreenFactory[home.SectionSettings]; ok && f != nil {
+		scr = f()
+	}
+	if s, ok := scr.(settings.Model); ok {
+		scr = s.OpeningSkill()
+	}
+	m.router.Push(scr)
+	return m, tea.Batch(save, scr.Init())
 }
 
 // resolveIcons applies the tier rule to the config and environment.
@@ -193,6 +252,9 @@ func (m Model) Init() tea.Cmd {
 		if c := s.Init(); c != nil {
 			cmds = append(cmds, c)
 		}
+	}
+	if c := m.skillOfferCmd(); c != nil {
+		cmds = append(cmds, c)
 	}
 	return tea.Batch(cmds...)
 }
@@ -243,7 +305,7 @@ func (m Model) updateCmd() tea.Cmd {
 // screen is busy, because tearing a delete out from under the user is not
 // what a tab click means.
 func (m Model) switchSection(id string) (tea.Model, tea.Cmd) {
-	if m.topBusy() || !m.cfg.FirstRunDone {
+	if m.topBusy() || !m.cfg.FirstRunDone || m.onCard() {
 		return m, nil
 	}
 	if s, ok := m.router.At(1); ok && home.SectionFor(s) == id && m.router.Len() == 1+1 {
@@ -446,7 +508,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case firstrun.DoneMsg:
-		return m.applyConfig(uictx.ConfigChangedMsg{Config: msg.Config, Persist: true})
+		// Finishing first run counts as having seen this version's news.
+		cfg := msg.Config
+		cfg.LastSeenVersion = whatsnew.Record(cfg.LastSeenVersion, m.opts.Version)
+		return m.applyConfig(uictx.ConfigChangedMsg{Config: cfg, Persist: true})
+
+	case whatsnew.DoneMsg:
+		return m.closeCard(msg.OpenSkill)
 
 	case stopPollMsg:
 		return m.pollStop()

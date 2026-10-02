@@ -41,3 +41,36 @@ Then check the causes below.
 3. For Git, check you are inside a repository: `git rev-parse --show-toplevel`.
 4. For a moved folder, open **Browse folders**, then **Fix old rules**, and point the rule at the new place, or remove it.
 5. Follow the fix that `devpit accounts verify` prints for anything else.
+
+## When verify says a shim is missing or old
+
+Folder rules for Claude Code, `gh`, Vercel, Firebase and Supabase work through small programs called shims, in `%LOCALAPPDATA%\Programs\devpit\shims`.
+Verify reports these:
+
+| Verify says | What to do |
+| --- | --- |
+| `The shim for Claude Code is missing (…).` | Open **Accounts** in Devpit, or make any account change. Devpit creates it again. |
+| `The shim for Claude Code is from an older Devpit.` | The same: open **Accounts**, or make any account change, and Devpit refreshes it. |
+| `devpit-shim.exe is missing next to devpit.exe (…), so Devpit cannot make or refresh the shims folder rules need.` | Run the installer again, or put `devpit-shim.exe` next to `devpit.exe`. This happens when only `devpit.exe` was replaced by hand: both files ship in the release zip. |
+
+If verify says the shim is not first on PATH, or that a new terminal is needed, see [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
+
+## Cloudflare: Wrangler's binding differs
+
+Devpit mirrors each Cloudflare folder rule into Wrangler's own folder bindings, and verify compares the two.
+It reports a difference like this:
+
+```text
+Devpit's rule says Cloudflare uses work in C:\Work, but Wrangler binds it to the profile personal.
+Devpit's rule says Cloudflare uses work in C:\Work, but Wrangler has no binding there.
+Devpit's rule says Cloudflare uses work in C:\Work, but Wrangler's binding is spelled c:\work (profile work), and Wrangler matches letter case exactly.
+Wrangler binds C:\Other to the profile work, but Devpit has no rule there (it was made with `wrangler auth activate`).
+```
+
+Wrangler follows its own binding, not Devpit's rule. To make them agree, pick one:
+
+- Make Wrangler follow the rule, with Wrangler's own command: `wrangler auth activate work "C:\Work"`, spelled exactly as the folder is on disk.
+- Remove a binding you do not want: `wrangler auth deactivate "C:\Other"`.
+- Keep a binding made outside Devpit and give it a Devpit rule instead: `devpit cloudflare use work --folder "C:\Other"`. It shows a preview and asks first.
+
+Then run `devpit accounts verify` again.

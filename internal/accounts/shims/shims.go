@@ -80,6 +80,10 @@ type Manager struct {
 	Broadcast func()
 	// Getenv reads the current process's environment.
 	Getenv func(string) string
+
+	// rename is os.Rename when nil; tests make it fail to check that a
+	// shim is never left missing.
+	rename func(oldpath, newpath string) error
 }
 
 // New returns a Manager with the real locations.
@@ -158,28 +162,77 @@ func (m *Manager) ShimPath(t accounts.Tool) string {
 	return filepath.Join(m.Dir, t.ShimName()+".exe")
 }
 
+// ErrProgramMissing is wrapped by every error that comes from
+// devpit-shim.exe missing next to devpit.exe (someone replaced only
+// devpit.exe by hand). ProgramMissingFix is what to do about it.
+var ErrProgramMissing = accounts.ErrShimProgramMissing
+
+// ProgramMissingFix is the one-sentence fix for ErrProgramMissing.
+const ProgramMissingFix = "Run the installer again, or put devpit-shim.exe next to devpit.exe."
+
+// source is devpit-shim.exe as it is now: its hash and size, worked out once
+// per call that needs them.
+type source struct {
+	sum  string
+	size int64
+}
+
+// readSource hashes devpit-shim.exe, or returns an error wrapping
+// ErrProgramMissing (with the fix) when it is not there.
+func (m *Manager) readSource() (source, error) {
+	fi, err := os.Stat(m.Source)
+	if err != nil {
+		return source{}, fmt.Errorf("%w (%s). %s", ErrProgramMissing, m.Source, ProgramMissingFix)
+	}
+	sum, err := fileHash(m.Source)
+	if err != nil {
+		return source{}, fmt.Errorf("reading %s: %w", m.Source, err)
+	}
+	return source{sum: sum, size: fi.Size()}, nil
+}
+
+// CheckSource returns nil when devpit-shim.exe is next to devpit.exe, and an
+// error wrapping ErrProgramMissing, with the fix, when it is not.
+func (m *Manager) CheckSource() error {
+	if _, err := os.Stat(m.Source); err != nil {
+		return fmt.Errorf("%w (%s). %s", ErrProgramMissing, m.Source, ProgramMissingFix)
+	}
+	return nil
+}
+
 // Ensure creates the shim for t if it is missing, or replaces it if it is
 // an older copy of devpit-shim.exe. created is true when a file was written.
 func (m *Manager) Ensure(t accounts.Tool) (bool, error) {
 	if t.ShimName() == "" {
 		return false, fmt.Errorf("%s is never shimmed", t.DisplayName())
 	}
-	want, err := fileHash(m.Source)
+	src, err := m.readSource()
 	if err != nil {
-		return false, fmt.Errorf("Devpit's shim program is missing (%s); reinstall Devpit: %w", m.Source, err) //nolint:revive,staticcheck // a name
+		return false, err
+	}
+	return m.ensure(t, src)
+}
+
+// ensure is Ensure with devpit-shim.exe already read. A copy whose size
+// differs from the source is out of date without hashing it.
+func (m *Manager) ensure(t accounts.Tool, src source) (bool, error) {
+	if t.ShimName() == "" {
+		return false, fmt.Errorf("%s is never shimmed", t.DisplayName())
 	}
 	dst := m.ShimPath(t)
-	if have, err := fileHash(dst); err == nil && have == want {
-		return false, m.remember(t, dst, want)
+	if fi, err := os.Stat(dst); err == nil && fi.Size() == src.size {
+		if have, err := fileHash(dst); err == nil && have == src.sum {
+			return false, m.remember(t, dst, src.sum)
+		}
 	}
 	if err := os.MkdirAll(m.Dir, 0o755); err != nil { //nolint:gosec // a program folder others may read
 		return false, err
 	}
 	m.sweepOld()
-	if err := copyExe(m.Source, dst); err != nil {
+	if err := copyExe(m.Source, dst, m.rename); err != nil {
 		return false, err
 	}
-	return true, m.remember(t, dst, want)
+	return true, m.remember(t, dst, src.sum)
 }
 
 func (m *Manager) remember(t accounts.Tool, file, sum string) error {
@@ -247,9 +300,16 @@ func (m *Manager) Refresh() ([]accounts.Tool, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(r.Shims) == 0 {
+		return nil, nil
+	}
+	src, err := m.readSource()
+	if err != nil {
+		return nil, err
+	}
 	var out []accounts.Tool
 	for _, s := range r.Shims {
-		created, err := m.Ensure(s.Tool)
+		created, err := m.ensure(s.Tool, src)
 		if err != nil {
 			return out, err
 		}
@@ -260,16 +320,60 @@ func (m *Manager) Refresh() ([]accounts.Tool, error) {
 	return out, nil
 }
 
+// RefreshUnneeded refreshes the recorded shims of tools that no longer need
+// one in st (Sync already keeps the needed ones current): a shim with no
+// rule still starts its tool, so it must not stay an old copy after an
+// update. It returns the tools refreshed.
+func (m *Manager) RefreshUnneeded(st *accounts.Store) ([]accounts.Tool, error) {
+	r, err := m.readRecord()
+	if err != nil {
+		return nil, err
+	}
+	var todo []accounts.Tool
+	for _, s := range r.Shims {
+		if !st.NeedsShim(s.Tool) {
+			todo = append(todo, s.Tool)
+		}
+	}
+	if len(todo) == 0 {
+		return nil, nil
+	}
+	src, err := m.readSource()
+	if err != nil {
+		return nil, err
+	}
+	var out []accounts.Tool
+	for _, t := range todo {
+		created, err := m.ensure(t, src)
+		if err != nil {
+			return out, err
+		}
+		if created {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
 // Sync makes the shims match the store: a shim for every tool that needs
 // one, and the shim folder on the user PATH when any shim exists. It never
 // removes a shim (a shim with no rule just starts the tool untouched);
 // cleanup does that.
 func (m *Manager) Sync(s *accounts.Store) (created []accounts.Tool, pathChanged bool, err error) {
+	m.sweepOld() // shims renamed aside while running, by an earlier refresh
+	var src *source
 	for _, t := range accounts.Tools() {
 		if !s.NeedsShim(t) {
 			continue
 		}
-		c, ensureErr := m.Ensure(t)
+		if src == nil {
+			got, serr := m.readSource()
+			if serr != nil {
+				return created, false, serr
+			}
+			src = &got
+		}
+		c, ensureErr := m.ensure(t, *src)
 		if ensureErr != nil {
 			return created, false, ensureErr
 		}
@@ -288,7 +392,10 @@ func (m *Manager) Sync(s *accounts.Store) (created []accounts.Tool, pathChanged 
 // copyExe copies src to dst through a temporary file and a rename. If dst
 // is running (Windows will not overwrite it), the old file is renamed aside
 // first and removed on a later run.
-func copyExe(src, dst string) error {
+func copyExe(src, dst string, rename func(oldpath, newpath string) error) error {
+	if rename == nil {
+		rename = os.Rename
+	}
 	in, err := os.Open(src) // #nosec G304 -- devpit-shim.exe next to devpit.exe
 	if err != nil {
 		return err
@@ -307,12 +414,20 @@ func copyExe(src, dst string) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(name, dst); err != nil {
+	if err := rename(name, dst); err != nil {
+		// A running shim cannot be replaced, but it can be renamed aside
+		// (and swept up by a later run). If the new copy then cannot take its
+		// place, the old one goes back, so the tool always has a shim.
 		old := dst + ".old-" + randHex()
-		if rerr := os.Rename(dst, old); rerr != nil {
+		if rerr := rename(dst, old); rerr != nil {
 			return fmt.Errorf("replacing %s: %w (is the tool running?)", dst, err)
 		}
-		return os.Rename(name, dst)
+		if ferr := rename(name, dst); ferr != nil {
+			if berr := rename(old, dst); berr != nil {
+				return fmt.Errorf("replacing %s: %w; putting the old shim back from %s also failed: %w", dst, ferr, old, berr)
+			}
+			return fmt.Errorf("replacing %s: %w; the old shim is back in place", dst, ferr)
+		}
 	}
 	return nil
 }
@@ -464,6 +579,9 @@ const (
 	IssueShadowed    IssueKind = "real tool ahead of the shim"
 	IssueNotOnPath   IssueKind = "shim folder not on PATH"
 	IssueNewTerminal IssueKind = "new terminal needed"
+	// IssueShimProgramMissing: devpit-shim.exe is not next to devpit.exe, so
+	// no shim can be made or refreshed.
+	IssueShimProgramMissing IssueKind = "shim program missing"
 )
 
 // Issue is one thing Check found, in plain words, with the fix.
@@ -482,6 +600,14 @@ type Issue struct {
 func (m *Manager) Check(tools []accounts.Tool) []Issue {
 	var out []Issue
 	want, _ := fileHash(m.Source)
+	noSource := m.CheckSource() != nil
+	if noSource && len(tools) > 0 {
+		out = append(out, Issue{
+			Kind:    IssueShimProgramMissing,
+			Message: "devpit-shim.exe is missing next to devpit.exe (" + m.Source + "), so Devpit cannot make or refresh the shims folder rules need.",
+			Fix:     ProgramMissingFix,
+		})
+	}
 
 	// With no PathStore (DEVPIT_SHIM_DIR) the person keeps the PATH; only
 	// this terminal's PATH is checked below.
@@ -509,6 +635,9 @@ func (m *Manager) Check(tools []accounts.Tool) []Issue {
 		}
 		dst := m.ShimPath(t)
 		have, err := fileHash(dst)
+		if err != nil && noSource {
+			continue // the missing program above is the cause and the fix
+		}
 		if err != nil {
 			out = append(out, Issue{
 				Kind: IssueShimMissing, Tool: t,

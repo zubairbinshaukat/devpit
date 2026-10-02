@@ -9,6 +9,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/about"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/logo"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/version"
 )
@@ -18,13 +19,17 @@ import (
 // release it also says so, with the one command that upgrades this install,
 // because a notice that does not say what to do is just a nag.
 type aboutScreen struct {
-	back key.Binding
+	version  string
+	back     key.Binding
+	whatsNew key.Binding
 }
 
-// newAboutScreen returns the credits sub-screen.
-func newAboutScreen() aboutScreen {
+// newAboutScreen returns the credits sub-screen for the running version.
+func newAboutScreen(ver string) aboutScreen {
 	return aboutScreen{
-		back: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		version:  ver,
+		back:     key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		whatsNew: key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "what's new")),
 	}
 }
 
@@ -35,13 +40,19 @@ func (s aboutScreen) Init() tea.Cmd { return nil }
 func (s aboutScreen) Title() string { return "About" }
 
 // ShortHelp implements uictx.Screen.
-func (s aboutScreen) ShortHelp() []key.Binding { return []key.Binding{s.back} }
+func (s aboutScreen) ShortHelp() []key.Binding { return []key.Binding{s.whatsNew, s.back} }
 
 // FullHelp implements uictx.Screen.
-func (s aboutScreen) FullHelp() [][]key.Binding { return [][]key.Binding{{s.back}} }
+func (s aboutScreen) FullHelp() [][]key.Binding { return [][]key.Binding{{s.whatsNew, s.back}} }
 
-// Update implements uictx.Screen. Esc is the router's; nothing else to do.
-func (s aboutScreen) Update(tea.Msg, uictx.Context) (uictx.Screen, tea.Cmd) { return s, nil }
+// Update implements uictx.Screen. Esc is the router's; w opens the What's
+// new card for this version.
+func (s aboutScreen) Update(msg tea.Msg, _ uictx.Context) (uictx.Screen, tea.Cmd) {
+	if km, ok := msg.(tea.KeyPressMsg); ok && key.Matches(km, s.whatsNew) {
+		return s, uictx.Push(whatsnew.Reopened(s.version, whatsNewEntry(s.version)))
+	}
+	return s, nil
+}
 
 // View implements uictx.Screen.
 func (s aboutScreen) View(ctx uictx.Context) string {
@@ -57,7 +68,7 @@ func (s aboutScreen) View(ctx uictx.Context) string {
 	b.WriteString("\n\n")
 
 	rows := [][2]string{
-		{"Version", "v" + version.Short()},
+		{"Version", "v" + s.version},
 		{"Build", version.Commit + ", " + version.Date},
 		{"Author", about.Author + " (" + about.Handle + ")"},
 		{"Portfolio", about.Portfolio},
@@ -67,18 +78,20 @@ func (s aboutScreen) View(ctx uictx.Context) string {
 		{"License", about.License + ", free and open source"},
 	}
 	for _, r := range rows {
-		b.WriteString(row(ctx, r[0], r[1]))
+		b.WriteString(creditRow(ctx, r[0], r[1]))
 		b.WriteByte('\n')
 	}
 
 	b.WriteByte('\n')
+	b.WriteString(ctx.KeyHint("w", "What's new in this version"))
+	b.WriteString("\n\n")
 	if u := ctx.Update; u.Available() {
 		b.WriteString(th.Success.Render("Update available: v" + u.Version))
 		b.WriteByte('\n')
-		b.WriteString(row(ctx, "Upgrade", u.Hint))
+		b.WriteString(creditRow(ctx, "Upgrade", u.Hint))
 		b.WriteByte('\n')
 		if u.URL != "" {
-			b.WriteString(row(ctx, "Notes", u.URL))
+			b.WriteString(creditRow(ctx, "Notes", u.URL))
 			b.WriteByte('\n')
 		}
 	} else if ctx.Config.SkipUpdateCheck {
@@ -91,10 +104,10 @@ func (s aboutScreen) View(ctx uictx.Context) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// row draws one labelled line of the credits, the label in the key colour
+// creditRow draws one labelled line of the credits, the label in the key colour
 // and the value in the default text colour, so the values are what the eye
 // lands on.
-func row(ctx uictx.Context, label, value string) string {
+func creditRow(ctx uictx.Context, label, value string) string {
 	const labelWidth = 11
 	pad := labelWidth - len(label)
 	if pad < 1 {

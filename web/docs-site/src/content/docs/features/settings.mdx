@@ -25,33 +25,96 @@ faq:
 import Shot from '@/components/Shot.astro';
 
 Open **Devpit Settings** from the main menu with <kbd>6</kbd>.
-Changes save the moment you make them.
+Changes save as soon as you make them, and the row says **✓ saved** for a moment.
 
-Press <kbd>Enter</kbd> or <kbd>Space</kbd> on a row.
-Some rows switch to the next value right away.
-Others open a small screen.
+The settings are in six groups: **Look**, **Cleaning**, **Tools**, **AI agents**, **Privacy and updates** and **About**.
+Each row shows its name on the left and its current value on the right.
+The row you are on is explained in plain words: under the list, or in a pane on the right when the window is at least 100 columns wide.
+
+There are three kinds of rows:
+
+- **Choices** such as Theme, shown as `‹ auto ›`. <kbd>←</kbd> and <kbd>→</kbd> pick the one before or after, and <kbd>Enter</kbd> or <kbd>Space</kbd> picks the next.
+- **On and off** switches such as Emoji. <kbd>Enter</kbd>, <kbd>Space</kbd>, <kbd>←</kbd> or <kbd>→</kbd> flip them.
+- **Rows that open a screen**, marked `›`. <kbd>Enter</kbd> or <kbd>Space</kbd> opens it.
 
 <Shot name="settings-list" />
 
 ## The settings
 
+### Look
+
 | Setting | What it does | How it changes |
 | --- | --- | --- |
-| **Icons** | Which icon set to draw: `auto`, `nerd`, `unicode` or `ascii`. | Cycles |
-| **Theme** | `auto` follows your terminal. `dark` and `light` pick a background. `aqua`, `blue`, `rose` and `mono` change the accent colour. | Cycles |
-| **Emoji** | Allow emoji in headers and summaries. Never used in tables. | On or off |
-| **Usage stats** | Anonymous totals after a clean-up. Off by default. | On or off |
-| **Projects folder** | The folder **Project Junk** scans, and your recent folders. | Opens a screen |
-| **Preferred package manager** | Which manager installs and updates use: `auto`, `scoop`, `winget` or `choco`. `auto` picks Scoop, then winget, then Chocolatey. | Cycles |
-| **Never-touch list** | Folders Devpit never scans and never deletes. | Opens a screen |
-| **Dev ports** | The ports that **Busy dev ports** checks. | Opens a screen |
-| **Active project window** | Projects touched within this many days are never pre-ticked. Default 7. | Opens a screen (1 to 365) |
-| **Older-than filter** | The age used by the results screen's older-only filter. Default 30 days. | Opens a screen (1 to 365) |
-| **Icon font** | Installs or removes the icon font and patches Windows Terminal. | Opens a screen |
-| **Icon check** | Asks if the icons render, and turns the icon set on if you say Yes. | Opens a screen |
-| **Rescan my tools** | Clears the scan cache so the next scan reads the disk fresh. | Asks first |
-| **Update check** | Asks GitHub once a day if a newer Devpit exists. | On or off |
-| **About Devpit** | Version, author, links, licence and the command to upgrade. | Opens a screen |
+| **Theme** | The colours Devpit uses. `auto` follows your terminal, light or dark; `dark` and `light` pick one. `aqua`, `blue` and `rose` change the accent colour, and `mono` uses no colour at all, only shapes and words. | Choice |
+| **Icons** | The symbols Devpit draws. `unicode` works in every modern terminal. `nerd` adds file and tool icons but needs the icon font. `ascii` uses plain letters for old consoles. `auto` picks for you. | Choice |
+| **Emoji** | An emoji now and then in titles and summaries. Never in lists or tables, so columns always line up. | On or off |
+| **Icon font** | Installs the free Symbols Nerd Font for your Windows user (no admin needed) and adds it to Windows Terminal as a fallback, so nerd icons can draw. Your own font stays as it is. | Opens a screen |
+| **Icon check** | Shows a few icons and asks whether they look right. Nerd icons are only used after you say yes. | Opens a screen |
+
+### Cleaning
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **Projects folder** | The folder Free Up Disk Space looks through first, usually where you keep your code. It also lists the folders you scanned lately, so you can remove one. | Opens a screen |
+| **Never-touch folders** | Folders Devpit never scans and never deletes from, whatever is inside them. Devpit's own files and login folders such as `.ssh` and `.claude` are protected anyway. | Opens a screen |
+| **Recent projects** | A project you changed in the last 7 days (the default) counts as in use. Its junk is still listed but never ticked for you. | Opens a screen (1 to 365 days) |
+| **Age filter** | In the cleaning results, the age filter shows only folders nobody touched for more than this many days (default 30). | Opens a screen (1 to 365 days) |
+| **Forget last scan** | Devpit remembers the last scan so results show up at once next time. This clears that memory, so the next scan reads the disk from scratch. Nothing on disk is deleted. | Asks first (default No) |
+
+### Tools
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **Package manager** | Which installer Install & Update uses for new apps. `auto` uses Scoop if you have it, then winget, then Chocolatey. Pick one to always use it. | Choice |
+| **Dev ports** | The ports **Busy dev ports** looks at in Ports & Network. Add your own, or go back to the defaults. | Opens a screen |
+
+### AI agents
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **AI agent skill** | Lets Claude Code use Devpit for you: check which account a folder uses and explain why. It never changes anything without your yes. | Opens a screen |
+
+The value says **installed**, **installed (shared link)**, **update available**, **another skill is there** or **not installed**.
+When Claude Code is not on this PC, the group shows one line instead: "Claude Code is not installed, so there is no skill to add."
+See [the AI agent skill screen](#the-ai-agent-skill) below.
+
+### Privacy and updates
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **Usage stats** | When on, Devpit sends one small report after a cleanup: space freed and how many items. Never a file name, a path or anything about you. Off unless you turn it on. | On or off |
+| **Update check** | When on, Devpit asks GitHub once a day whether a newer version is out, and says so at the top. It sends nothing about you and never installs anything by itself. | On or off |
+
+### About
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **About Devpit** | The version you are running, who makes Devpit, links to the website and the source, and the one command that updates your install. | Opens a screen |
+| **What's new** | What changed in this version and where things moved: the same card Devpit shows once after an update. See [After an update](/docs/getting-started#after-an-update). | Opens a screen |
+
+## The AI agent skill
+
+**AI agent skill** opens a screen that says:
+
+- **What it lets Claude Code do:** check which account each tool uses in a folder and explain why, by running Devpit's read-only commands and reading its help pages. It can suggest a change and make it once you agree.
+- **What it never does:** it never changes anything without your yes, and never reads account folders, login files or tokens.
+- **Where it goes:** each Claude Code account and the state of the skill there.
+
+<Shot name="settings-agent-skill" />
+
+Below that are the buttons that apply: **Install**, **Update** or **Remove**.
+Move between them with <kbd>←</kbd> <kbd>→</kbd> and press <kbd>Enter</kbd>, or press <kbd>i</kbd> to install or update and <kbd>x</kbd> to remove.
+Each one asks first, with No as the default, and then shows what happened in each place.
+A `devpit` skill that Devpit did not write is never touched.
+
+The same can be done from a terminal with `devpit agent install`, `devpit agent status` and `devpit agent remove`.
+[Using Devpit with AI agents](/docs/ai-agents) explains what the skill contains.
+
+## Forget last scan
+
+Devpit keeps the results of the last disk scan so they show up at once the next time.
+**Forget last scan** asks "Forget the last scan?" and starts on **No**.
+Yes clears only that memory: the next scan reads the disk from scratch. Nothing on disk is deleted.
 
 ## Themes and icons
 
@@ -94,7 +157,7 @@ More about the font is in [Getting started](/docs/getting-started#the-icon-font)
 - The first row is the **default folder**. Press <kbd>Enter</kbd> to edit it. It must exist. Network paths are not allowed.
 - Below it are your **recent folders**. Press <kbd>x</kbd> to remove one.
 
-### Never-touch list
+### Never-touch folders
 
 1. Press <kbd>a</kbd> to add a path.
 2. Type the full path and press <kbd>Enter</kbd>.
@@ -143,11 +206,17 @@ Your old file stays so you can look at it.
 
 | Key | What it does |
 | --- | --- |
-| <kbd>↑</kbd> <kbd>↓</kbd> | Move |
-| <kbd>Enter</kbd> / <kbd>Space</kbd> | Change the row |
-| <kbd>a</kbd> | Add a path (never-touch list) |
-| <kbd>x</kbd> | Remove a path or folder |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move (headings are skipped) |
+| <kbd>Home</kbd> / <kbd>End</kbd> | First or last setting |
+| <kbd>PgUp</kbd> / <kbd>PgDn</kbd> | Half a page up or down, when the list is taller than the window |
+| <kbd>Enter</kbd> / <kbd>Space</kbd> | Change the row, or open its screen |
+| <kbd>←</kbd> <kbd>→</kbd> | The choice before or after; flip an on/off row |
+| <kbd>a</kbd> | Add a path (never-touch folders) |
+| <kbd>x</kbd> | Remove a path or folder; remove the skill (AI agent skill) |
+| <kbd>i</kbd> | Install or update the skill (AI agent skill) |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reset dev ports to the default |
 | <kbd>Esc</kbd> | Go back |
+
+With the mouse: pointing at a row selects it and shows its description, a click on a row's value changes it (or opens its screen), and the wheel moves through the list.
 
 See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.

@@ -301,11 +301,27 @@
   },
   {
     "name": "settings-list",
-    "alt": "Devpit Settings list with rows for Icons, Theme, Emoji, Usage stats, Projects folder, Preferred package manager, Never-touch list, Dev ports and more, each with its current value",
+    "alt": "Devpit Settings in six groups, Look, Cleaning, Tools, AI agents, Privacy and updates, and About, each row a label with its current value in a column of its own, and a pane on the right explaining the highlighted setting in plain words",
     "screen": "settings",
     "state": "menu",
     "cols": 110,
-    "rows": 32
+    "rows": 34
+  },
+  {
+    "name": "settings-agent-skill",
+    "alt": "AI agent skill screen in Settings: what the skill lets Claude Code do, what it never does, where SKILL.md is written, and an Install button",
+    "screen": "settings",
+    "state": "agent-skill",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "whats-new",
+    "alt": "What's new card shown once after updating to Devpit 0.4: Accounts is new, where Git & SSH, the ports and network tools and Install and Update moved, an offer to open the AI agent skill screen, and the link to the full notes",
+    "screen": "whatsnew",
+    "state": "card",
+    "cols": 100,
+    "rows": 30
   },
   {
     "name": "share-card",

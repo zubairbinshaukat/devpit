@@ -23,6 +23,7 @@ const TYPES = {
   '.json': 'application/json; charset=utf-8',
   '.xml': 'application/xml; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
   '.png': 'image/png',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
@@ -32,11 +33,14 @@ const TYPES = {
   '.webmanifest': 'application/manifest+json',
 };
 
-/** vercel.json header sources use path-to-regexp; only `(.*)` and literals appear here. */
+/**
+ * vercel.json header sources use path-to-regexp; only `(.*)`, literals and
+ * backslash-escaped characters (`\\.`) appear here.
+ */
 function headerRules(pathname) {
   const out = {};
   for (const rule of config.headers ?? []) {
-    const literal = (s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    const literal = (s) => s.replace(/\\(.)/g, '$1').replace(/[.+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(`^${rule.source.split('(.*)').map(literal).join('.*')}$`);
     if (re.test(pathname)) for (const h of rule.headers) out[h.key] = h.value;
   }

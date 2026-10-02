@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
 	"github.com/zubairbinshaukat/devpit/internal/accounts"
 	"github.com/zubairbinshaukat/devpit/internal/accounts/adapters"
+	"github.com/zubairbinshaukat/devpit/internal/accounts/shims"
 )
 
 // Plan builds the preview of a change: the plain-words sentences (Git shows
@@ -36,9 +39,37 @@ func (s *Service) plan(ctx context.Context, st *accounts.Store, c accounts.Chang
 		}
 		return accounts.Preview{}, fmt.Errorf("%s: %w", strings.TrimRight(why, "."), accounts.ErrNotSupported)
 	}
-	return a.Plan(accounts.PreviewInput{
+	p, err := a.Plan(accounts.PreviewInput{
 		Store: st, Change: c, StorePath: s.DisplayPath(s.Deps.Paths.Store), Home: s.Deps.Home,
 	})
+	if err != nil || p.NoChange {
+		return p, err
+	}
+	if err := s.shimGuard(st, c); err != nil {
+		return accounts.Preview{}, err
+	}
+	return p, nil
+}
+
+// shimGuard stops a change before anything is written when it needs a shim
+// for its tool and none can be made: devpit-shim.exe is missing next to
+// devpit.exe and the tool has no shim yet, so the rule could never apply.
+// "Just this once" and removing a rule need no shim.
+func (s *Service) shimGuard(st *accounts.Store, c accounts.Change) error {
+	if s.Shims == nil || c.Remove || c.Scope.Kind == accounts.ScopeOnce || c.Tool.ShimName() == "" {
+		return nil
+	}
+	after, err := c.ApplyTo(st)
+	if err != nil || !after.NeedsShim(c.Tool) {
+		return nil //nolint:nilerr // the adapter's own plan reports a bad change
+	}
+	if _, err := os.Stat(s.Shims.ShimPath(c.Tool)); err == nil {
+		return nil // the shim is already there; the rule works
+	}
+	if err := s.Shims.CheckSource(); err != nil {
+		return fmt.Errorf("nothing was changed: %w", err)
+	}
+	return nil
 }
 
 // Apply makes a previewed change and reports each step; the last event is
@@ -54,6 +85,16 @@ func (s *Service) Apply(ctx context.Context, p accounts.Preview) <-chan accounts
 		if err != nil {
 			out <- accounts.Failed("Saving the change", err)
 			return
+		}
+		if !p.NoChange {
+			st, _, lerr := s.Load()
+			if lerr == nil {
+				lerr = s.shimGuard(st, p.Change)
+			}
+			if lerr != nil {
+				out <- accounts.Failed("Saving the change", lerr)
+				return
+			}
 		}
 		var final *accounts.Event
 		for ev := range adapters.Apply(ctx, s.Engine, a, p) {
@@ -102,16 +143,51 @@ func (s *Service) syncShims(emit func(accounts.Event)) {
 	for _, t := range accounts.Tools() {
 		need = need || st.NeedsShim(t)
 	}
-	if !need {
+	recorded, _, _ := s.Shims.Added()
+	if !need && len(recorded) == 0 {
 		return
 	}
-	created, pathChanged, err := s.Shims.Sync(st)
-	for _, t := range created {
-		emit(accounts.NewEvent("Added Devpit's shim for "+t.DisplayName(), accounts.StepDone, s.Shims.ShimPath(t)))
+	shimWarning := func(err error) {
+		msg := "The shims could not be set up: " + accounts.Scrub(err.Error()) + ". Run `devpit accounts verify` to see what is missing."
+		if errors.Is(err, shims.ErrProgramMissing) {
+			msg = "devpit-shim.exe is missing next to devpit.exe, so Devpit's shims cannot be made or refreshed. " + shims.ProgramMissingFix
+		}
+		emit(accounts.NewEvent("Setting up Devpit's shims", accounts.StepWarning, msg))
+	}
+	var created []accounts.Tool
+	pathChanged := false
+	if need {
+		had := map[accounts.Tool]bool{}
+		for _, t := range accounts.Tools() {
+			if t.ShimName() != "" {
+				_, serr := os.Stat(s.Shims.ShimPath(t))
+				had[t] = serr == nil
+			}
+		}
+		created, pathChanged, err = s.Shims.Sync(st)
+		for _, t := range created {
+			verb := "Added"
+			if had[t] {
+				verb = "Updated" // an older devpit-shim.exe, after an update
+			}
+			emit(accounts.NewEvent(verb+" Devpit's shim for "+t.DisplayName(), accounts.StepDone, s.Shims.ShimPath(t)))
+		}
+		if err != nil {
+			shimWarning(err)
+			return
+		}
+	}
+	// Every shim Devpit made, needed now or not, is a copy of
+	// devpit-shim.exe: after an update it is replaced by the new one.
+	refreshed, err := s.Shims.RefreshUnneeded(st)
+	for _, t := range refreshed {
+		emit(accounts.NewEvent("Updated Devpit's shim for "+t.DisplayName(), accounts.StepDone, s.Shims.ShimPath(t)))
 	}
 	if err != nil {
-		emit(accounts.NewEvent("Setting up Devpit's shims", accounts.StepWarning,
-			"The change is saved, but the shims could not be set up: "+accounts.Scrub(err.Error())+". Run `devpit accounts verify` to see what is missing."))
+		shimWarning(err)
+		return
+	}
+	if !need {
 		return
 	}
 	if pathChanged {

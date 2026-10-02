@@ -184,6 +184,7 @@ func fakeScreens() map[string]func() uictx.Screen {
 			)
 		},
 		home.SectionShare:    func() uictx.Screen { return share.NewWith(share.Deps{}) },
+		home.SectionSettings: settingsScreen,
 		home.SectionAccounts: func() uictx.Screen { return accountsui.NewWith(accountsOptions(demo.New())) },
 		home.SectionUpdate: func() uictx.Screen {
 			return update.New(
@@ -362,8 +363,8 @@ func TestSettingsTogglePersists(t *testing.T) {
 		t.Fatalf("the settings screen did not open:\n%s", view(m))
 	}
 
-	// The first row is the icon tier. Cycling it moves unicode to ascii.
-	m = drive(m, press("enter"))
+	// The second row is the icon tier. Cycling it moves unicode to ascii.
+	m = drive(m, press("down"), press("enter"))
 
 	saved, ok := spy.last()
 	if !ok {
@@ -372,7 +373,7 @@ func TestSettingsTogglePersists(t *testing.T) {
 	if saved.Icons != config.IconsASCII {
 		t.Errorf("Icons = %q after one cycle from unicode, want ascii", saved.Icons)
 	}
-	if !strings.Contains(view(m), "Icons: ascii") {
+	if !strings.Contains(ansi.Strip(view(m)), "< ascii >") {
 		t.Error("the settings screen did not show the new value")
 	}
 

@@ -232,26 +232,6 @@ func TestScreenGoldens(t *testing.T) {
 	}
 }
 
-// TestSettingsBottomGolden is the regression frame for the scrolling bug: the
-// settings list is longer than a 24-row terminal can hold, so walking to the
-// last row has to scroll the list rather than draw it off the bottom of the
-// screen. The frame proves the cursor, the last row and both "n more" markers
-// are all on it.
-func TestSettingsBottomGolden(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-
-	m := openSection(t, settledConfig(), home.SectionSettings, "", 80, 24)
-	for range 12 {
-		m = drive(m, press("down"))
-	}
-
-	got := []byte(ansi.Strip(m.View().Content))
-	if !bytes.Contains(got, []byte("Rescan my tools")) {
-		t.Fatalf("the last settings row never scrolled into view:\n%s", got)
-	}
-	requireGolden(t, "settings_bottom_80x24_unicode_nocolor", got)
-}
-
 // openSection sizes an app, walks the main menu to the section with the given
 // id and opens it, then, when child is set, walks the parent's menu to that
 // entry and opens it too, running every command the model returns along the

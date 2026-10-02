@@ -341,9 +341,10 @@ func TestUpdateNoticeShowsWhereAndHow(t *testing.T) {
 		t.Errorf("the footer does not say how to upgrade:\n%s", out)
 	}
 
-	// The About screen repeats it, with the release page.
+	// The About screen repeats it, with the release page. About is the
+	// second to last row.
 	m = drive(m, digitFor(t, home.SectionSettings))
-	for range 14 {
+	for range 15 {
 		m = drive(m, press("down"))
 	}
 	m = drive(m, press("enter"))

@@ -72,6 +72,7 @@ func sentinels() []error {
 		ErrLocked, ErrNewerSchema, ErrReservedName, ErrInvalidName, ErrNameTaken,
 		ErrRelativePath, ErrNothingToUndo, ErrChangedByHand, ErrStalePreview,
 		ErrNotFoundTool, ErrTimeout, ErrTooOld, ErrNotSupported, ErrSignInCancelled,
+		ErrShimProgramMissing,
 	}
 }
 
@@ -102,4 +103,7 @@ var (
 	ErrNotSupported = errors.New("not something Devpit does for this tool")
 	// ErrSignInCancelled: a sign-in did not finish; nothing was saved.
 	ErrSignInCancelled = errors.New("sign-in did not finish, so nothing was saved")
+	// ErrShimProgramMissing: devpit-shim.exe is not next to devpit.exe, so
+	// no shim can be made (shims.ErrProgramMissing is the same error).
+	ErrShimProgramMissing = errors.New("devpit-shim.exe is missing next to devpit.exe, so Devpit cannot make the shims folder rules need")
 )

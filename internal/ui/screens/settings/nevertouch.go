@@ -48,7 +48,7 @@ func newNeverTouchScreen(cfg config.Config) neverTouchScreen {
 // neverTouchItems rebuilds the list rows from cfg.
 func neverTouchItems(cfg config.Config) []menu.Item {
 	if len(cfg.NeverTouch) == 0 {
-		return []menu.Item{{ID: "empty", Title: "No paths added yet.", Desc: "Press a to add one.", Disabled: true}}
+		return []menu.Item{{ID: "empty", Title: "No folders added yet.", Desc: "Press a to add one.", Disabled: true}}
 	}
 	items := make([]menu.Item, 0, len(cfg.NeverTouch))
 	for _, p := range cfg.NeverTouch {
@@ -61,7 +61,7 @@ func neverTouchItems(cfg config.Config) []menu.Item {
 func (s neverTouchScreen) Init() tea.Cmd { return nil }
 
 // Title implements uictx.Screen.
-func (s neverTouchScreen) Title() string { return "Never-touch list" }
+func (s neverTouchScreen) Title() string { return "Never-touch folders" }
 
 // ShortHelp implements uictx.Screen.
 func (s neverTouchScreen) ShortHelp() []key.Binding {
@@ -107,7 +107,7 @@ func (s neverTouchScreen) updateAdding(msg tea.Msg, ctx uictx.Context) (uictx.Sc
 	if km, ok := msg.(tea.KeyPressMsg); ok && key.Matches(km, s.submit) {
 		path := strings.TrimSpace(s.input.Value())
 		if path == "" {
-			s.errMsg = "Enter a path first."
+			s.errMsg = "Type a folder first."
 			return s, nil
 		}
 		cfg := ctx.Config
@@ -135,11 +135,11 @@ func (s neverTouchScreen) View(ctx uictx.Context) string {
 	th := ctx.Theme
 	var b strings.Builder
 	b.WriteString(th.Muted.Render(ctx.Wrap(
-		"Paths here are always skipped by scanning and deleting, on top of Devpit's own built-in protections.")))
+		"Devpit never scans these folders and never deletes anything inside them, on top of its own built-in protections.")))
 	b.WriteString("\n\n")
 
 	if s.adding {
-		b.WriteString(th.Base.Render("Path to protect:"))
+		b.WriteString(th.Base.Render("Folder to protect:"))
 		b.WriteString("\n")
 		b.WriteString(s.input.View())
 	} else {

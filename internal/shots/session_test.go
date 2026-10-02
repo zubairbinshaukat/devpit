@@ -63,12 +63,19 @@ type session struct {
 // from constants instead.
 func newSession(t *testing.T, e entry, cfg config.Config, screens map[string]func() uictx.Screen) *session {
 	t.Helper()
+	return newSessionWith(t, e, cfg, screens, nil)
+}
+
+// newSessionWith is newSession with a last say over the app's options, for
+// a scene that needs, say, a running version.
+func newSessionWith(t *testing.T, e entry, cfg config.Config, screens map[string]func() uictx.Screen, tweak func(*app.Options)) *session {
+	t.Helper()
 
 	env := icons.MapEnv(map[string]string{
 		"WT_SESSION":           "demo",
 		uictx.ReducedMotionEnv: "1",
 	})
-	m := app.New(app.Options{
+	o := app.Options{
 		Config:     cfg,
 		Env:        env,
 		SaveConfig: func(config.Config) error { return nil },
@@ -80,7 +87,11 @@ func newSession(t *testing.T, e entry, cfg config.Config, screens map[string]fun
 			return header.ToolVersionsMsg{Node: demoNode, Git: demoGit}
 		},
 		CheckUpdate: func(context.Context) (selfupdate.Result, error) { return selfupdate.Result{}, nil },
-	})
+	}
+	if tweak != nil {
+		tweak(&o)
+	}
+	m := app.New(o)
 
 	s := &session{
 		t: t, m: m, w: e.Cols, h: e.Rows,

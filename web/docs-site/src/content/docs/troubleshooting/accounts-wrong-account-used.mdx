@@ -32,6 +32,25 @@ It compares, for each tool, the account Devpit expects in this folder with the o
 - **The tool was started another way.** `npx vercel`, an editor extension and a desktop app do not go through Devpit's shim.
 - **Git: the repository says otherwise.** A `user.email` set inside the repository beats every rule. A linked worktree follows the rule of its main repository's folder.
 - **Convex** picks the account per project, in `.env.local`. Devpit shows it but does not switch it.
+- **The rule names an account that no longer exists.** The account was removed or renamed after the rule was made. Devpit skips that rule and the next rule out, or the account for everywhere, applies instead. The same goes for the account picked for everywhere: if it is gone, the tool's default sign-in is used.
+
+## When a rule names a missing account
+
+Verify and `devpit accounts` say it in one of these ways:
+
+```text
+The rule on C:\Work says Claude Code should use "work", but that account no longer exists, so the rule is skipped.
+Claude Code is set to use "work" everywhere, but that account no longer exists, so the default account is used.
+```
+
+Devpit never removes or changes the rule by itself. Pick one:
+
+- Point the folder at an account that exists: `devpit <tool> use <name> --folder "C:\Work"`.
+- Remove the rule: open **Accounts**, press <kbd>b</kbd> for **Browse folders**, and change or remove it there.
+- For everywhere, pick the account again: `devpit <tool> use <name> --everywhere`.
+- If the account was signed out rather than removed, see [Login expired or signed out](/docs/troubleshooting/accounts-signed-out-or-expired).
+
+Each of these shows a preview and asks first.
 
 ## How to fix it
 

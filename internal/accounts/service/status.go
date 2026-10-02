@@ -14,20 +14,37 @@ import (
 // Problem is something wrong for a tool in a folder, in plain words, with
 // its one-sentence fix. Kind is an accounts.ProblemKind, a shim issue kind
 // ("real tool ahead of the shim", "new terminal needed"…) or a stale rule
-// kind ("folder not found", "drive not connected").
+// kind ("folder not found", "drive not connected"). Docs is the
+// troubleshooting page that explains it (see DocsSlug), when there is one.
 type Problem struct {
 	Kind    string `json:"kind"`
 	Tool    string `json:"tool,omitempty"`
 	Message string `json:"message"`
 	Fix     string `json:"fix,omitempty"`
+	Docs    string `json:"docs,omitempty"`
 }
 
-// Line is the problem as the command line prints it.
-func (p Problem) Line() string {
-	if p.Fix == "" {
-		return "! " + p.Message
+// Link is the problem's docs page: Docs, or the page the kind → page table
+// names for it when Docs was left empty (a problem built outside the
+// service), or "".
+func (p Problem) Link() string {
+	if p.Docs != "" {
+		return p.Docs
 	}
-	return "! " + p.Message + "\n  Fix: " + p.Fix
+	return DocsURL(DocsSlug(p.Kind, p.Tool))
+}
+
+// Line is the problem as the command line prints it: the message, the fix
+// and the docs link, each on its own line.
+func (p Problem) Line() string {
+	out := "! " + p.Message
+	if p.Fix != "" {
+		out += "\n  Fix: " + p.Fix
+	}
+	if l := p.Link(); l != "" {
+		out += "\n  Docs: " + l
+	}
+	return out
 }
 
 // ToolStatus is which account one tool uses in one folder, why, and what is
@@ -159,7 +176,7 @@ func (s *Service) status(ctx context.Context, st *accounts.Store, tool accounts.
 	}
 	for _, sr := range accounts.StaleRules(st, nil) {
 		if _, ok := sr.Rule.Accounts[tool]; ok {
-			ts.Problems = append(ts.Problems, Problem{Kind: string(sr.Kind), Tool: string(tool), Message: sr.Message, Fix: accounts.StaleFix})
+			ts.Problems = append(ts.Problems, withDocs(Problem{Kind: string(sr.Kind), Tool: string(tool), Message: sr.Message, Fix: accounts.StaleFix}))
 		}
 	}
 	ts.Problems = append(ts.Problems, shimProbs[tool]...)
@@ -167,7 +184,7 @@ func (s *Service) status(ctx context.Context, st *accounts.Store, tool accounts.
 }
 
 func fromAccounts(p accounts.Problem) Problem {
-	return Problem{Kind: string(p.Kind), Tool: string(p.Tool), Message: p.Message, Fix: p.Fix}
+	return withDocs(Problem{Kind: string(p.Kind), Tool: string(p.Tool), Message: p.Message, Fix: p.Fix})
 }
 
 // shimProblems checks the shims of every tool that needs one. Problems that
@@ -187,12 +204,12 @@ func (s *Service) shimProblems(st *accounts.Store) map[accounts.Tool][]Problem {
 	for _, is := range s.Shims.Check(need) {
 		p := Problem{Kind: string(is.Kind), Tool: string(is.Tool), Message: is.Message, Fix: is.Fix}
 		if is.Tool != "" {
-			out[is.Tool] = append(out[is.Tool], p)
+			out[is.Tool] = append(out[is.Tool], withDocs(p))
 			continue
 		}
 		for _, t := range need {
 			p.Tool = string(t)
-			out[t] = append(out[t], p)
+			out[t] = append(out[t], withDocs(p))
 		}
 	}
 	return out

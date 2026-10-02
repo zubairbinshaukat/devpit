@@ -9,6 +9,10 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
+	"github.com/zubairbinshaukat/devpit/internal/app"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
 	"github.com/zubairbinshaukat/devpit/internal/network"
@@ -17,6 +21,7 @@ import (
 	networkui "github.com/zubairbinshaukat/devpit/internal/ui/screens/network"
 	portsui "github.com/zubairbinshaukat/devpit/internal/ui/screens/ports"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/wt"
 )
@@ -48,20 +53,24 @@ func firstRun(n int, want string) scene {
 
 // settingsRows are the indexes of the settings list rows a scene walks to.
 const (
-	settingsStats   = 3
-	settingsFolders = 4
+	settingsFont    = 3
+	settingsProbe   = 4
+	settingsFolders = 5
 	settingsNever   = 6
-	settingsPorts   = 7
-	settingsFont    = 10
-	settingsProbe   = 11
-	settingsAbout   = 14
+	settingsPorts   = 11
+	settingsSkill   = 12
+	settingsStats   = 13
+	settingsAbout   = 15
 )
 
 // settingsScreen returns the settings section over demo hooks: the font is
-// not installed and Windows Terminal is nowhere to be found, so opening the
-// font screen touches nothing.
+// not installed, Windows Terminal is nowhere to be found and the AI agent
+// skill is answered from memory, so opening any of it touches nothing.
 func settingsScreen() uictx.Screen {
-	return settings.New().WithHooks(settings.Hooks{
+	return settings.NewWith(settings.Options{
+		Skill: func() (settings.SkillService, error) { return demoSkill{}, nil },
+		Tick:  func(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil },
+	}).WithHooks(settings.Hooks{
 		FontStatus:    func(fonts.Options) (fonts.State, error) { return fonts.State{}, nil },
 		FindTerminals: func(wt.FindOptions) []wt.Location { return nil },
 		ClearCache:    func() error { return nil },
@@ -84,6 +93,38 @@ func settingsAt(row int, open bool, want string) scene {
 		s.waitFor(want)
 		return s
 	}
+}
+
+// demoSkill is the AI agent skill on the demo PC: Claude Code is there and
+// the skill is not installed yet.
+type demoSkill struct{}
+
+func (demoSkill) AgentStatus(context.Context) (service.AgentStatus, error) {
+	return service.AgentStatus{
+		ClaudeCode: true, Version: service.AgentSkillVersion,
+		Targets: []service.AgentTarget{{Account: "default", File: `C:\Users\you\.claude\skills\devpit\SKILL.md`, State: service.AgentCreate}},
+	}, nil
+}
+
+func (demoSkill) AgentInstall(ts []service.AgentTarget) ([]string, error) { return nil, nil }
+
+func (demoSkill) AgentRemove(files []string) ([]string, error) { return nil, nil }
+
+// sceneWhatsNew is the card a person sees once after updating to 0.4 from
+// 0.3, with Claude Code on the demo PC and the skill not installed yet. The
+// look at the skill is the app's own Init, which a scene never runs, so its
+// answer is sent the way the app would send it.
+func sceneWhatsNew(t *testing.T, e entry) *session {
+	cfg := demoConfig()
+	cfg.LastSeenVersion = "0.3.2"
+	s := newSessionWith(t, e, cfg, nil, func(o *app.Options) {
+		o.Version = "0.4.0"
+		o.Skill = func() (settings.SkillService, error) { return demoSkill{}, nil }
+	})
+	show, older := settings.SkillOffer(func() (settings.SkillService, error) { return demoSkill{}, nil })
+	s.send(whatsnew.OfferMsg{Show: show, Older: older})
+	s.waitFor("What's new in Devpit 0.4", "AI agent skill")
+	return s
 }
 
 // --- Network --------------------------------------------------------------

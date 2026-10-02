@@ -231,14 +231,45 @@ question has a non-empty answer and that the visible text is present.
 - `check-site` (needs `node web/scripts/build.mjs` first): the merged
   `sitemap.xml` lists exactly the indexable pages plus the landing page, robots.txt
   points at it, the landing page is byte-identical to `web/index.html`, and the
-  committed `web/llms.txt` is up to date (`node web/scripts/gen-llms.mjs --write`).
+  committed `web/llms.txt` is up to date (`node web/scripts/gen-llms.mjs --write`)
+  and lists every page by its Markdown twin, with the blog under "Optional".
+- `check-markdown` (needs `node web/scripts/build.mjs` first; the build runs the
+  same checks and fails on them): every page has its Markdown twin, no twin has
+  an `import`/`export` line, a JSX or HTML tag, an MDX comment or a `:::` aside
+  left, every link in the twins, `llms.txt` and `llms-full.txt` is absolute and
+  points at a page (and `#anchor`) that exists, no twin is in the sitemap, and
+  `vercel.json` serves them as `text/markdown` with `X-Robots-Tag: noindex`.
+
+## Markdown twins (for AI agents)
+
+Every page is also served as plain Markdown at its URL plus `.md`
+(`/docs/features/accounts.md`; the docs home is `/docs/index.md`).
+`web/scripts/md-twins.mjs` makes them at build time from the content sources:
+H1 title, the description, the body with MDX turned into Markdown, the `faq` as
+"Common questions", `related` as a "Related" list, and the canonical HTML URL as
+the last line. Links become absolute HTML URLs.
+
+| In the page | In the twin |
+| --- | --- |
+| `<Shot name>` | `*Screenshot: <alt from the manifest> (<caption>)*` |
+| `<SectionList dir>` | a list of the folder's pages, in the same order |
+| `<CardGrid>` with `<Card>` / `<LinkCard>` | one list, one item per card |
+| `:::note[Title]` (and tip, caution, danger) | a blockquote starting `**Note: Title**` |
+| `<kbd>x</kbd>` | `` `x` `` |
+| `import` lines, `{/* comments */}` | removed |
+
+`Aside`, `Steps`, `Tabs`/`TabItem`, `Badge` and `LinkButton` are converted too.
+Any other component, an expression attribute such as `title={x}`, or an
+`export` fails the build: add its conversion to `md-twins.mjs` first. The
+twins are not in the sitemap and are served `noindex`, so search engines only
+see the HTML page.
 
 ## Not in your way
 
 - The landing page (`web/index.html`) and Vercel functions are untouched by
   the docs build.
-- The merged `sitemap.xml`, `llms-full.txt` and the sidebar entries for the
-  Troubleshooting folder and blog are generated at build time.
+- The merged `sitemap.xml`, `llms-full.txt`, the Markdown twins and the sidebar
+  entries for the Troubleshooting folder and blog are generated at build time.
   `web/llms.txt` is generated too, but committed: run
   `npm run llms` in `web/docs-site` after adding or retitling a page.
 - To add a top-level nav entry, edit `sidebar` in `site.config.mjs`.

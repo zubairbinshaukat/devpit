@@ -1,0 +1,30 @@
+ DEVPIT  vdev  -  What's new                                                     node ...   git ...
+----------------------------------------------------------------------------------------------------
+
+
+         What's new in Devpit 0.4
+
+         Accounts is new.
+         Tell Devpit once which account a folder uses, and claude, git, gh, vercel,
+         firebase, supabase and wrangler use it in that folder by themselves.
+
+         Where things moved
+           Git & SSH                       ->  Accounts > Git
+           Fix stuck ports, Network tools  ->  Ports & Network
+           Install, Update                 ->  Install & Update
+           Keys 1-8                        ->  keys 1-6, one per section
+
+         * For AI agents
+           Claude Code is on this PC. Devpit has a skill that lets it check which account a
+           folder uses and explain why, and it asks you before any change.
+           [a] open the AI agent skill screen  nothing is installed until you say yes
+
+         Everything that changed: https://devpit.zubyr.dev/docs/whats-new
+
+          Continue ->
+
+
+
+
+----------------------------------------------------------------------------------------------------
+enter continue  -  a AI agent skill  -  ? help

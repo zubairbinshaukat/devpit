@@ -46,7 +46,7 @@ export const sidebar = [
   },
   {
     label: 'Reference',
-    items: ['keyboard-and-mouse', 'command-line', 'safety-and-privacy', 'whats-new'],
+    items: ['keyboard-and-mouse', 'command-line', 'ai-agents', 'safety-and-privacy', 'whats-new'],
   },
   {
     label: 'Troubleshooting',

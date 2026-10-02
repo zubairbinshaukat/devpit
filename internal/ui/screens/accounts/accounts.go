@@ -350,6 +350,7 @@ func (m Model) below(ctx uictx.Context, t acctable.Model) []string {
 			if p.Fix != "" {
 				out = append(out, wrap(ctx, th.Muted, "Fix: "+p.Fix, 3, 5)...)
 			}
+			out = append(out, docsLine(ctx, p, 3)...)
 			if n := len(ts.Problems) - 1; n > 0 {
 				out = append(out, "   "+th.Muted.Render(plural(n, "1 more problem", "%d more problems")+": press v to see them all"))
 			}

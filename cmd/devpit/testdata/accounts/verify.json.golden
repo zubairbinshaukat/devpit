@@ -85,7 +85,8 @@
       "kind": "set in this terminal",
       "tool": "github",
       "message": "GH_TOKEN is set in this terminal by something other than Devpit. gh uses this token instead of any signed-in account, wherever Devpit's rules do not pick one.",
-      "fix": "If you did not mean to set it, remove it here with `Remove-Item Env:GH_TOKEN` (PowerShell) or `set GH_TOKEN=` (cmd), and from wherever sets it (a PowerShell profile, the system environment), then open a new terminal."
+      "fix": "If you did not mean to set it, remove it here with `Remove-Item Env:GH_TOKEN` (PowerShell) or `set GH_TOKEN=` (cmd), and from wherever sets it (a PowerShell profile, the system environment), then open a new terminal.",
+      "docs": "https://devpit.zubyr.dev/docs/troubleshooting/accounts-wrong-account-used"
     }
   ],
   "skipped": []

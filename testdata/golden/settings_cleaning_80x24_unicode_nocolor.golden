@@ -1,0 +1,24 @@
+ DEVPIT  vdev  ·  Settings                                       node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings     tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────
+
+  Look ──────────────────────────────────────────
+    Theme                 ‹ auto ›
+    Icons                 ‹ unicode ›
+    Emoji                 ○ off
+    Icon font             not installed         ›
+    Icon check            needs the icon font   ›
+  Cleaning ──────────────────────────────────────
+▌ ▸ Projects folder       D:\work\projects      ›
+    Never-touch folders   2 folders             ›
+    Recent projects       last 7 days           ›
+    Age filter            older than 30 days    ›
+  ▼ 8 more
+
+  Projects folder ──────────────────── Changes save as soon as you make them.
+  The folder Free Up Disk Space looks through first, usually where you keep
+  your code. It also lists the folders you scanned lately, so you can remove
+  one. Now: D:\work\projects
+────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ move  ·  enter change/open  ·  ←→ choose  ·  ? help

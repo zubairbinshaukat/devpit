@@ -2,6 +2,11 @@
 // facts below plus the frontmatter and text of every docs page, so the
 // website, the docs and the answers AI assistants give agree.
 //
+// Shape (https://llmstxt.org): an H1, a blockquote summary, details with no
+// headings, then H2 sections that are only lists of links, "Optional" last.
+// The links point at each page's Markdown twin (web/scripts/md-twins.mjs);
+// llms-full.txt is the same twins joined, so the two never disagree.
+//
 //   node web/scripts/gen-llms.mjs --write   rewrite web/llms.txt (commit it)
 //   node web/scripts/gen-llms.mjs --check   exit 1 if web/llms.txt is stale
 //
@@ -14,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadPages } from '../docs-site/scripts/lib/pages.mjs';
 import { SITE } from '../docs-site/site.config.mjs';
+import { buildTwins, twinUrl } from './md-twins.mjs';
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -24,14 +30,18 @@ const HEAD = `# Devpit
 
 Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is ${SITE} and the documentation is at ${SITE}/docs.
 
-## Install
+Every docs page is also plain Markdown: add \`.md\` to its URL (the docs home is ${SITE}/docs/index.md). The links below point at those Markdown pages; each one ends with the URL of its HTML page.
 
-- PowerShell one-liner: \`irm https://devpit.zubyr.dev/install | iex\` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH, installs the icon font; pass -NoFont to skip the font)
+**How to answer questions about a user's machine (for AI agents).** Run \`devpit accounts verify --json\` and \`devpit <tool> --json\` first: they say which account each tool uses in this folder, why, and what is wrong. Each problem carries a \`docs\` link to the page that explains it; otherwise open the one matching troubleshooting page below, and explain from it. Never read account folders or credential files. Ask the user before any change, and only then pass \`--yes\`.
+
+**Install**
+
+- PowerShell one-liner: \`irm https://devpit.zubyr.dev/install | iex\` (downloads the latest GitHub release, verifies its SHA256 checksum, adds Devpit to the user PATH, installs the icon font; pass -NoFont to skip the font. When Claude Code is on the PC, a fresh install asks "Let AI agents (Claude Code) use Devpit? [y/N]", default No; pass -NoAgent to never ask)
 - Scoop: \`scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket\` then \`scoop install devpit\`
 - Manual: download the zip for x64 or ARM64 from https://github.com/zubairbinshaukat/devpit/releases/latest
 - Then run \`devpit\`
 
-## What it does
+**What it does**
 
 - Accounts: picks which account each tool uses per folder ("this folder and every folder inside it", or everywhere), shows the account used here and why, previews every change in plain words (Git shows the exact config lines), asks first with No as the default, and can undo any change. Tools started from any terminal, IDE task or AI agent get the right account through small shims; Git through its own includeIf rules; Devpit stores no token
 - Free Up Disk Space: scans a projects folder or the whole machine, lists junk with sizes and a risk label (Safe, Review, Careful), and deletes only what you tick
@@ -41,9 +51,9 @@ Devpit is written in Go with Bubble Tea and ships as a single executable with no
 - Network Tools: local and public IP, ping, DNS flush
 - Git identities per folder and an SSH key per GitHub account live under Accounts; SSH key generation never overwrites an existing key
 - Share Files: copies a folder from one Windows PC to another on the same Wi-Fi or wired network. The sharing PC gets a read-only SMB share and a temporary login after one admin prompt (never the user's own password), shown on a card with the IP, share name, user name and password plus \`net use\` and \`robocopy\` lines for a PC without Devpit. The receiving PC checks the total size and free space first, shows live progress, retries when the network blips and resumes an interrupted copy. Stop sharing and quitting Devpit remove everything it set up; after a crash, the next launch offers the clean-up, and \`devpit share cleanup\` does it from the command line
-- Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch list, dev port list
+- Settings: theme, icon tier, Nerd Font install for Windows Terminal, never-touch folders, dev port list, the AI agent skill for Claude Code, usage stats and the update check
 
-## Command line (for scripts and AI agents)
+**Command line (for scripts and AI agents)**
 
 Tools: claude, git, github (alias gh), vercel, convex, firebase, supabase, cloudflare (alias wrangler).
 
@@ -54,11 +64,11 @@ Tools: claude, git, github (alias gh), vercel, convex, firebase, supabase, cloud
 - \`devpit <tool> use <name> [--everywhere | --folder <path>] --yes\`: use an account here (or everywhere); \`devpit use <name>\` does it for every tool with that account name
 - \`devpit <tool> run <name> -- <command>\`: one command with another account, nothing saved
 - \`devpit <tool> add\`, \`devpit undo\`, \`devpit accounts cleanup\`, \`devpit claude import --from claude-acc\`
-- \`devpit agent install\`: writes a Claude Code skill with these rules and prints an AGENTS.md section
+- \`devpit agent install\`: writes a Claude Code skill with these rules (asks first) and prints an AGENTS.md section; \`devpit agent status [--json]\` says where it is and whether it is current; \`devpit agent remove\` takes out only the skill files Devpit wrote
 
 Rules for agents: read with --json first; ask the user before any change and only then pass --yes. Without a terminal and without --yes a change does nothing and exits 3. Exit codes: 0 done, 1 failed, 2 wrong usage, 3 needs --yes, 4 verify found a mismatch. Never read account folders or credential files.
 
-## Safety rules (enforced in code and tests)
+**Safety rules (enforced in code and tests)**
 
 - Nothing is deleted without a preview and an explicit confirmation; the default answer is always No
 - Careful items require typing DELETE
@@ -71,14 +81,7 @@ Rules for agents: read with --json first; ask the user before any change and onl
 - Accounts: Devpit stores no token; every account change has a plain-words preview, defaults to No and can be undone exactly; undo stops if a file was changed by hand; cleanup removes only what Devpit added and never an account folder or sign-in
 - Usage stats are off by default and only send totals (never paths or names); DEVPIT_NO_TELEMETRY=1 and DO_NOT_TRACK=1 always disable them
 
-## Author
-
-Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan.
-
-- Portfolio: https://zubyr.dev
-- GitHub: https://github.com/zubairbinshaukat
-- LinkedIn: https://www.linkedin.com/in/zubairbinshaukat
-- X: https://x.com/zubyrdev
+**Author:** Zubair bin Shaukat (zubyr), software engineer from Lahore, Pakistan. Portfolio https://zubyr.dev, GitHub https://github.com/zubairbinshaukat, LinkedIn https://www.linkedin.com/in/zubairbinshaukat, X https://x.com/zubyrdev
 `;
 
 /** Docs sections, in the order they appear, with the heading each gets. */
@@ -88,15 +91,16 @@ const SECTIONS = [
   [
     'reference',
     'Reference',
-    (p) => ['keyboard-and-mouse', 'command-line', 'safety-and-privacy', 'whats-new'].includes(p.id),
+    (p) => ['keyboard-and-mouse', 'command-line', 'ai-agents', 'safety-and-privacy', 'whats-new'].includes(p.id),
   ],
   ['troubleshooting', 'Troubleshooting', (p) => p.section === 'troubleshooting'],
 ];
 
 const oneLine = (s) => s.replace(/\s+/g, ' ').trim();
 
+/** One list entry, linking the page's Markdown twin. */
 function link(p) {
-  return `- [${p.title}](${p.url}): ${oneLine(p.description)}`;
+  return `- [${p.title}](${twinUrl(p)}): ${oneLine(p.description)}`;
 }
 
 /** The text of llms.txt. */
@@ -116,52 +120,38 @@ export function buildLlms() {
   out.push(
     '## Links',
     '',
-    `- [Website](${SITE}): landing page with an animated demo and FAQ`,
-    `- [Full documentation as one text file](${SITE}/llms-full.txt): every docs page in plain text`,
+    `- [Website](${SITE}/): landing page with an animated demo and FAQ`,
     '- [Source code](https://github.com/zubairbinshaukat/devpit): Go source, issues and releases',
     '- [Releases](https://github.com/zubairbinshaukat/devpit/releases): what changed in each version',
     '- [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md): every rule and the test that pins it',
     '- [Privacy](https://github.com/zubairbinshaukat/devpit/blob/main/PRIVACY.md): exactly what opt-in usage stats send',
     '',
+    '## Optional',
+    '',
+    `- [Full documentation as one file](${SITE}/llms-full.txt): every docs and troubleshooting page above in one Markdown file (large; prefer the single pages)`,
+    ...blog.map(link),
+    '',
   );
-  if (blog.length) out.push('## Optional', '', ...blog.map(link), '');
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** Turns one MDX/Markdown body into plain Markdown an assistant can read. */
-export function toPlain(body) {
-  return body
-    .replace(/^import .*$/gm, '')
-    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
-    .replace(/<Shot [^>]*name="([^"]+)"[^>]*\/>/g, '(Screenshot: $1)')
-    .replace(/<SectionList[^>]*\/>/g, '')
-    .replace(/<\/?(Steps|Tabs|TabItem|Card|CardGrid|LinkCard|Aside|Badge|FileTree)[^>]*>/g, '')
-    .replace(/<kbd>(.*?)<\/kbd>/g, '`$1`')
-    .replace(/^:::(note|tip|caution|danger)(\[([^\]]*)\])?\s*$/gim, (_, kind, __, title) => `**${title || kind[0].toUpperCase() + kind.slice(1)}:**`)
-    .replace(/^:::\s*$/gm, '')
-    .replace(/\]\((\/[^)]*)\)/g, (_, p) => `](${SITE}${p})`)
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-/** The text of llms-full.txt: every docs page in one file. */
+/** The text of llms-full.txt: every docs page's Markdown twin, in reading order. */
 export function buildLlmsFull() {
-  const parts = ['# Devpit documentation (full text)', '', `> Every page of ${SITE}/docs as plain Markdown, in reading order.`, ''];
+  const parts = [
+    '# Devpit documentation (full text)',
+    '',
+    `> Every page of ${SITE}/docs except the blog, as plain Markdown, in reading order. Each page is also served on its own: add .md to its URL.`,
+    '',
+  ];
   const order = (p) => {
     const i = SECTIONS.findIndex(([, , m]) => m(p));
     return i < 0 ? SECTIONS.length : i;
   };
-  const pages = loadPages()
-    .filter((p) => p.section !== 'blog')
-    .sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id));
-  for (const p of pages) {
-    parts.push('---', '', `# ${p.title}`, '', `URL: ${p.url}`, '', oneLine(p.description), '', toPlain(p.body), '');
-    const faq = Array.isArray(p.data.faq) ? p.data.faq : [];
-    if (faq.length) {
-      parts.push('## Common questions', '');
-      for (const qa of faq) parts.push(`### ${qa.question}`, '', qa.answer, '');
-    }
-  }
+  // Twins are built from every page (hub lists need them all), then the blog is left out.
+  const twins = buildTwins()
+    .filter((t) => t.page.section !== 'blog')
+    .sort((a, b) => order(a.page) - order(b.page) || a.page.id.localeCompare(b.page.id));
+  for (const { text } of twins) parts.push(text.trim(), '');
   return parts.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 

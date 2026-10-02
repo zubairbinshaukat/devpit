@@ -15,7 +15,7 @@
    rule instead.
    Fix: If you did not mean to set it, remove it here with `Remove-Item Env:CLAUDE_CONFIG_DIR`
         (PowerShell), and from wherever sets it, then open a new terminal.
-
+   Docs: https://devpit.zubyr.dev/docs/troubleshooting/claude-config-dir-set-by-something-else
 
 
 

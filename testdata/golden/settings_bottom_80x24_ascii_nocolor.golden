@@ -1,0 +1,24 @@
+ DEVPIT  vdev  -  Settings                                   node ...   git ...
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+------------------------------------------------------==========----------------
+  ^ 10 more
+  Tools -----------------------------------------
+    Package manager       < auto >
+    Dev ports             27 ports              >
+  AI agents -------------------------------------
+    AI agent skill        not installed         >
+  Privacy and updates ---------------------------
+    Usage stats           [ ] off
+    Update check          [x] on
+  About -----------------------------------------
+    About Devpit          v0.4.0                >
+| > What's new            in 0.4                >
+
+
+  What's new ------------------------- Changes save as soon as you make them.
+  What changed in this version and where things moved: the same card Devpit
+  shows once after an update.
+
+--------------------------------------------------------------------------------
+esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

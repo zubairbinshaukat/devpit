@@ -31,8 +31,8 @@ type rescanScreen struct {
 // newRescanScreen returns the rescan confirmation sub-screen.
 func newRescanScreen(clearFn clearCacheFunc) rescanScreen {
 	return rescanScreen{
-		confirm: confirm.New("rescan", "Clear the scan cache?",
-			"The next scan will read the disk from scratch instead of showing last time's results first."),
+		confirm: confirm.New("rescan", "Forget the last scan?",
+			"The next scan reads the disk from scratch instead of showing last time's results first. Nothing on disk is deleted."),
 		clearFn: clearFn,
 	}
 }
@@ -41,7 +41,7 @@ func newRescanScreen(clearFn clearCacheFunc) rescanScreen {
 func (s rescanScreen) Init() tea.Cmd { return nil }
 
 // Title implements uictx.Screen.
-func (s rescanScreen) Title() string { return "Rescan my tools" }
+func (s rescanScreen) Title() string { return "Forget last scan" }
 
 // ShortHelp implements uictx.Screen.
 func (s rescanScreen) ShortHelp() []key.Binding { return s.confirm.Keys.ShortHelp() }
@@ -61,9 +61,9 @@ func (s rescanScreen) Update(msg tea.Msg, _ uictx.Context) (uictx.Screen, tea.Cm
 		s.done = true
 		if err := s.clearFn(); err != nil {
 			s.errMsg = err.Error()
-			return s, uictx.Status("danger", "Could not clear the scan cache: "+err.Error())
+			return s, uictx.Status("danger", "Could not forget the last scan: "+err.Error())
 		}
-		return s, uictx.Status("success", "Scan cache cleared")
+		return s, uictx.Status("success", "Last scan forgotten")
 	}
 
 	next, cmd := s.confirm.Update(msg)
@@ -78,7 +78,7 @@ func (s rescanScreen) View(ctx uictx.Context) string {
 		if s.errMsg != "" {
 			return th.Danger.Render(ctx.Icons.Fail + " " + s.errMsg)
 		}
-		return th.Success.Render(ctx.Icons.Tick + " Scan cache cleared. Esc to go back.")
+		return th.Success.Render(ctx.Icons.Tick + " Done: the next scan starts fresh. Esc to go back.")
 	}
 	return s.confirm.View(ctx)
 }

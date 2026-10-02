@@ -1,71 +1,80 @@
 // Package settings is the preferences screen.
 //
-// Four settings cycle in place — icon tier, theme, emoji, telemetry and the
-// preferred package manager — the same way this screen always has: Enter or
-// Space moves the value to its next choice and saves immediately, so there
-// is no separate save step to forget.
+// The settings sit in short groups under headings, most used first: Look,
+// Cleaning, Tools, AI agents, Privacy and updates, About. Each row is a
+// label and its current value in a column of its own; one place, beside
+// the list on a wide terminal and under it on a narrow one, says in plain
+// words what the focused setting does and what its values mean.
 //
-// Everything else (folders, the never-touch list, dev ports, the active/
-// older day windows, the icon font and the tool rescan) needs more than one
-// value at a time, so Enter on those rows pushes a small private sub-screen
-// instead. Esc is handled globally by the router (see internal/app), so
-// popping a sub-screen without having pressed its save key already discards
-// whatever was half-typed: nothing in this package persists a value except
-// through an explicit uictx.SaveConfig call.
+// A value that is one of a few choices cycles in place and is drawn
+// ‹ like this ›; on and off are a dot and the word. Enter or Space moves to
+// the next choice (←/→ step either way) and saves at once, so there is no
+// separate save step to forget, and the row says "✓ saved" for a moment.
+//
+// Everything else (folders, the never-touch list, dev ports, the day
+// counts, the icon font, the icon check, forgetting the last scan, the AI
+// agent skill, About and What's new) needs more than one value at a time,
+// so Enter on those rows, which end in a chevron, pushes a small private
+// sub-screen instead. Esc is handled globally by the router (see
+// internal/app), so popping a sub-screen without having pressed its save
+// key already discards whatever was half-typed: nothing in this package
+// persists a value except through an explicit uictx.SaveConfig call.
 package settings
 
 import (
-	"fmt"
-	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
-	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
+	"github.com/zubairbinshaukat/devpit/internal/version"
 	"github.com/zubairbinshaukat/devpit/internal/wt"
 )
 
-// Row identifiers.
-const (
-	rowIcons      = "icons"
-	rowTheme      = "theme"
-	rowEmoji      = "emoji"
-	rowTelemetry  = "telemetry"
-	rowFolders    = "folders"
-	rowManager    = "manager"
-	rowNeverT     = "never_touch"
-	rowDevPorts   = "dev_ports"
-	rowActiveDays = "active_days"
-	rowOlderDays  = "older_days"
-	rowFont       = "font"
-	rowProbe      = "probe"
-	rowRescan     = "rescan"
-	rowUpdates    = "updates"
-	rowAbout      = "about"
-)
+// savedFor is how long a row says "✓ saved" after a change.
+const savedFor = 1500 * time.Millisecond
 
-// menuTop is the body row the settings menu starts on: after the lead-in
-// sentence and the blank line under it. Clicks are translated with it.
-const menuTop = 2
+// keyMap is the list's keys.
+type keyMap struct {
+	Up, Down, Home, End, PageUp, PageDown key.Binding
+	Change, Left, Right                   key.Binding
+}
 
-// iconTiers, themes and managers are the cycle orders for the in-place enum
-// settings. managers starts with "", which Preferred (internal/tools/
-// managers) already treats as "auto": try Scoop, then winget, then
-// Chocolatey.
-var (
-	iconTiers = []string{config.IconsAuto, config.IconsNerd, config.IconsUnicode, config.IconsASCII}
-	themes    = config.Themes
-	managers  = []string{"", "scoop", "winget", "choco"}
-)
+func newKeyMap() keyMap {
+	return keyMap{
+		Up:       key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑↓", "move")),
+		Down:     key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
+		Home:     key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("home", "first")),
+		End:      key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("end", "last")),
+		PageUp:   key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
+		PageDown: key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdown", "page down")),
+		Change:   key.NewBinding(key.WithKeys("enter", "space"), key.WithHelp("enter", "change/open")),
+		Left:     key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←→", "choose")),
+		Right:    key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→", "next")),
+	}
+}
 
 // Model is the settings screen.
 type Model struct {
-	menu   menu.Model
-	toggle key.Binding
-	back   key.Binding
+	opts  Options
+	keys  keyMap
+	skill *skillSession
+
+	// cursor is the id of the highlighted row; "" means the first.
+	cursor string
+	// offset is the first line drawn when the list scrolls.
+	offset int
+	// openSkill opens the AI agent skill screen as soon as Settings is up:
+	// the What's new card's offer lands there.
+	openSkill bool
+	// savedID is the row showing "✓ saved"; savedSeq tells a stale fade
+	// from the current one.
+	savedID  string
+	savedSeq int
 
 	// Engine hooks. Production leaves these at their New defaults, which
 	// call the real internal/fonts and internal/wt packages plus the real
@@ -82,12 +91,24 @@ type Model struct {
 	clearCacheFn  clearCacheFunc
 }
 
-// New returns the settings screen.
-func New() Model {
+// New returns the settings screen over the real engines.
+func New() Model { return NewWith(Options{}) }
+
+// NewWith returns the settings screen over the given options.
+func NewWith(o Options) Model {
+	if o.Skill == nil {
+		o.Skill = openSkillService
+	}
+	if o.Tick == nil {
+		o.Tick = tea.Tick
+	}
+	if o.Version == "" {
+		o.Version = version.Short()
+	}
 	return Model{
-		menu:   menu.New(nil).DescOnSelectedOnly(true),
-		toggle: key.NewBinding(key.WithKeys("enter", "space"), key.WithHelp("enter/space", "change")),
-		back:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		opts:  o,
+		keys:  newKeyMap(),
+		skill: &skillSession{open: o.Skill},
 
 		fontStatusFn:  fonts.Status,
 		fontInstallFn: fonts.Install,
@@ -99,95 +120,199 @@ func New() Model {
 	}
 }
 
-// Init implements uictx.Screen.
-func (m Model) Init() tea.Cmd { return nil }
+// Init implements uictx.Screen: look at the AI agent skill, off the first
+// frame. Each opening of Settings looks again, so Claude Code installed
+// since last time shows up.
+func (m Model) Init() tea.Cmd {
+	if m.openSkill {
+		return tea.Batch(m.skill.load(), uictx.Push(newSkillScreen(m.skill)))
+	}
+	return m.skill.load()
+}
+
+// OpeningSkill is Settings that opens the AI agent skill screen on top of
+// itself once pushed, sharing what it learns about the skill, so an install
+// made there is on the Settings row on the way back.
+func (m Model) OpeningSkill() Model {
+	m.openSkill = true
+	m.cursor = rowSkill
+	return m
+}
 
 // Title implements uictx.Screen.
 func (m Model) Title() string { return "Settings" }
 
 // ShortHelp implements uictx.Screen.
 func (m Model) ShortHelp() []key.Binding {
-	return []key.Binding{m.menu.Keys.Up, m.toggle, m.back}
+	return []key.Binding{m.keys.Up, m.keys.Change, m.keys.Left}
 }
 
 // FullHelp implements uictx.Screen.
 func (m Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{m.menu.Keys.Up, m.menu.Keys.Down},
-		{m.toggle, m.back},
+		{m.keys.Up, m.keys.Down, m.keys.Home, m.keys.End, m.keys.PageUp, m.keys.PageDown},
+		{m.keys.Change, m.keys.Left, m.keys.Right},
 	}
+}
+
+// savedFadeMsg clears the "✓ saved" mark it was scheduled for.
+type savedFadeMsg struct{ seq int }
+
+// arrange is this frame's layout.
+func (m Model) arrange(ctx uictx.Context) layout {
+	return arrange(ctx, groups(ctx.Config, m.skill, m.opts.Version), m.cursor, m.offset)
 }
 
 // Update implements uictx.Screen.
 func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
-	m.menu = m.menu.SetItems(rows(ctx.Config))
-
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if key.Matches(msg, m.toggle) {
-			return m.activate(ctx)
+	case skillLoadedMsg:
+		m.skill.apply(msg)
+		return m.settle(ctx), nil
+
+	case savedFadeMsg:
+		if msg.seq == m.savedSeq {
+			m.savedID = ""
 		}
+		return m, nil
+
+	case tea.KeyPressMsg:
+		return m.onKey(msg, ctx)
+
+	case tea.MouseWheelMsg:
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			return m.move(ctx, -1), nil
+		case tea.MouseWheelDown:
+			return m.move(ctx, 1), nil
+		}
+		return m, nil
+
 	case tea.MouseClickMsg:
-		// A click lands on a row and acts on it, the same as moving there
-		// and pressing Enter. The menu answers with a SelectedMsg, which is
-		// folded straight back in rather than sent round the program loop,
-		// so the click and its effect are one Update.
 		if msg.Button != tea.MouseLeft {
 			return m, nil
 		}
-		next, cmd := m.menu.Click(ctx, ctx.BodyRow(msg.Y)-menuTop)
-		m.menu = next
-		if cmd == nil {
+		lo := m.arrange(ctx)
+		r, onValue, ok := lo.rowAt(ctx.BodyRow(msg.Y), msg.X)
+		if !ok {
 			return m, nil
 		}
-		if _, ok := cmd().(menu.SelectedMsg); ok {
-			return m.activate(ctx)
+		// A click on a row's value changes it, as does a second click on the
+		// row already highlighted; a first click elsewhere only moves there.
+		already := r.id == lo.cur
+		m.cursor = r.id
+		m = m.settle(ctx)
+		if onValue || already {
+			return m.activate(ctx, r, 1)
 		}
 		return m, nil
-	case tea.MouseMotionMsg:
-		// The pointer passing over a row highlights it, so its description
-		// shows under it the way it does for the keyboard cursor.
-		m.menu, _ = m.menu.Hover(ctx, ctx.BodyRow(msg.Y)-menuTop)
-		return m, nil
-	case menu.SelectedMsg:
-		return m.activate(ctx)
-	}
 
-	next, cmd := m.menu.Update(msg)
-	m.menu = next
-	return m, cmd
+	case tea.MouseMotionMsg:
+		// The pointer passing over a row highlights it and shows its
+		// description. It never scrolls the list: a row under the pointer is
+		// already on screen, so the list stays put under a still pointer.
+		lo := m.arrange(ctx)
+		if r, _, ok := lo.rowAt(ctx.BodyRow(msg.Y), msg.X); ok && r.id != lo.cur {
+			next := m
+			next.cursor, next.offset = r.id, lo.start
+			if next.arrange(ctx).start == lo.start {
+				return next, nil
+			}
+		}
+		return m, nil
+	}
+	return m, nil
 }
 
-// activate acts on the highlighted row: pushes its sub-screen, or cycles
-// its value and saves.
-func (m Model) activate(ctx uictx.Context) (uictx.Screen, tea.Cmd) {
-	it, ok := m.menu.Selected()
-	if !ok || it.Disabled {
+// onKey handles the list's keys.
+func (m Model) onKey(msg tea.KeyPressMsg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
+	lo := m.arrange(ctx)
+	switch {
+	case key.Matches(msg, m.keys.Up):
+		return m.move(ctx, -1), nil
+	case key.Matches(msg, m.keys.Down):
+		return m.move(ctx, 1), nil
+	case key.Matches(msg, m.keys.Home):
+		return m.move(ctx, -len(lo.sel)), nil
+	case key.Matches(msg, m.keys.End):
+		return m.move(ctx, len(lo.sel)), nil
+	case key.Matches(msg, m.keys.PageUp):
+		return m.move(ctx, -max(1, lo.listH/2)), nil
+	case key.Matches(msg, m.keys.PageDown):
+		return m.move(ctx, max(1, lo.listH/2)), nil
+	}
+	r, ok := m.focused(lo)
+	if !ok {
 		return m, nil
 	}
-	if scr, ok := m.subScreen(it.ID, ctx.Config); ok {
-		return m, uictx.Push(scr)
+	switch {
+	case key.Matches(msg, m.keys.Change):
+		return m.activate(ctx, r, 1)
+	case key.Matches(msg, m.keys.Left) && r.kind != kindOpen:
+		return m.activate(ctx, r, -1)
+	case key.Matches(msg, m.keys.Right) && r.kind != kindOpen:
+		return m.activate(ctx, r, 1)
 	}
-	cfg, changed := apply(ctx.Config, it.ID)
+	return m, nil
+}
+
+// move steps the cursor by n rows, stopping at the ends, and scrolls the list
+// so it stays on screen. Headings and notes are never stopped on.
+func (m Model) move(ctx uictx.Context, n int) Model {
+	lo := m.arrange(ctx)
+	if len(lo.sel) == 0 {
+		return m
+	}
+	at := 0
+	for i, r := range lo.sel {
+		if r.id == lo.cur {
+			at = i
+		}
+	}
+	at = min(max(0, at+n), len(lo.sel)-1)
+	m.cursor = lo.sel[at].id
+	return m.settle(ctx)
+}
+
+// settle keeps the scroll position that puts the cursor on screen.
+func (m Model) settle(ctx uictx.Context) Model {
+	lo := m.arrange(ctx)
+	m.offset = lo.start
+	m.cursor = lo.cur
+	return m
+}
+
+// activate acts on a row: cycles or flips it and saves, or opens its screen.
+// dir is +1 for the next choice and -1 for the one before.
+func (m Model) activate(ctx uictx.Context, r row, dir int) (uictx.Screen, tea.Cmd) {
+	switch r.kind {
+	case kindNote:
+		return m, nil
+	case kindOpen:
+		if scr, ok := m.subScreen(r.id, ctx.Config); ok {
+			return m, uictx.Push(scr)
+		}
+		return m, nil
+	}
+	cfg, changed := apply(ctx.Config, r.id, dir)
 	if !changed {
 		return m, nil
 	}
-	return m, tea.Batch(uictx.SaveConfig(cfg), uictx.Status("success", "Saved"))
+	m.savedID = r.id
+	m.savedSeq++
+	seq := m.savedSeq
+	return m, tea.Batch(
+		uictx.SaveConfig(cfg),
+		m.opts.Tick(savedFor, func(time.Time) tea.Msg { return savedFadeMsg{seq: seq} }),
+	)
 }
 
 // View implements uictx.Screen.
 func (m Model) View(ctx uictx.Context) string {
-	mm := m.menu.SetItems(rows(ctx.Config))
-	var b strings.Builder
-	b.WriteString(ctx.Theme.Muted.Render("Changes save as soon as you make them."))
-	b.WriteString("\n\n")
-	b.WriteString(mm.View(ctx))
-	return b.String()
+	return m.view(ctx, m.arrange(ctx))
 }
 
-// subScreen builds the private sub-screen a row pushes, if it has one. Rows
-// that just cycle a value in place (icons, theme, emoji, telemetry,
-// manager) have none and fall through to apply instead.
+// subScreen builds the private sub-screen a row pushes, if it has one.
 func (m Model) subScreen(id string, cfg config.Config) (uictx.Screen, bool) {
 	switch id {
 	case rowFolders:
@@ -198,15 +323,17 @@ func (m Model) subScreen(id string, cfg config.Config) (uictx.Screen, bool) {
 		return newDevPortsScreen(cfg), true
 	case rowActiveDays:
 		return newNumberScreen(numberField{
-			title: "Active project window",
-			hint:  "Projects touched within this many days count as active and are never pre-ticked for cleanup.",
+			title: "Recent projects",
+			hint: "A project you changed within this many days counts as in use: its junk is still listed, " +
+				"but never ticked for you. From 1 to 365 days.",
 			value: cfg.ActiveDays,
 			apply: func(c config.Config, n int) config.Config { c.ActiveDays = n; return c },
 		}), true
 	case rowOlderDays:
 		return newNumberScreen(numberField{
-			title: "Older-than filter",
-			hint:  `The results screen's "older than" filter uses this many days.`,
+			title: "Age filter",
+			hint: "The age filter on the cleaning results shows only folders nobody touched for more than " +
+				"this many days. From 1 to 365 days.",
 			value: cfg.OlderDays,
 			apply: func(c config.Config, n int) config.Config { c.OlderDays = n; return c },
 		}), true
@@ -216,48 +343,31 @@ func (m Model) subScreen(id string, cfg config.Config) (uictx.Screen, bool) {
 		return newProbeScreen(), true
 	case rowRescan:
 		return newRescanScreen(m.clearCacheFn), true
+	case rowSkill:
+		return newSkillScreen(m.skill), true
 	case rowAbout:
-		return newAboutScreen(), true
+		return newAboutScreen(m.opts.Version), true
+	case rowWhatsNew:
+		return whatsnew.Reopened(m.opts.Version, whatsNewEntry(m.opts.Version)), true
 	default:
 		return nil, false
 	}
 }
 
-// rows builds the settings list from the current configuration, so the screen
-// always shows real values rather than a snapshot taken when it was pushed.
-func rows(cfg config.Config) []menu.Item {
-	return []menu.Item{
-		{ID: rowIcons, Title: "Icons: " + cfg.Icons, Desc: "auto, nerd, unicode or ascii"},
-		{ID: rowTheme, Title: "Theme: " + cfg.Theme, Desc: "auto follows your terminal; aqua, blue, rose and mono change the accent"},
-		{ID: rowEmoji, Title: "Emoji: " + onOff(cfg.Emoji), Desc: "emoji in headers and summaries only, never in tables"},
-		{ID: rowTelemetry, Title: "Usage stats: " + onOff(cfg.TelemetryOptIn), Desc: "totals only, never paths or names. Off unless you turn it on"},
-		{ID: rowFolders, Title: "Projects folder: " + folderSummary(cfg), Desc: "Default scan folder and your recent folders"},
-		{ID: rowManager, Title: "Preferred package manager: " + managerLabel(cfg.PreferredManager), Desc: "auto picks Scoop, then winget, then Chocolatey"},
-		{ID: rowNeverT, Title: fmt.Sprintf("Never-touch list: %d path(s)", len(cfg.NeverTouch)), Desc: "Folders Devpit will never scan or delete"},
-		{ID: rowDevPorts, Title: fmt.Sprintf("Dev ports: %d configured", len(cfg.DevPorts)), Desc: "Ports the busy-ports view checks"},
-		{ID: rowActiveDays, Title: fmt.Sprintf("Active project window: %d days", cfg.ActiveDays), Desc: "Projects touched this recently are never pre-ticked"},
-		{ID: rowOlderDays, Title: fmt.Sprintf("Older-than filter: %d days", cfg.OlderDays), Desc: "Used by the results screen's age filter"},
-		{ID: rowFont, Title: "Icon font: " + fontLabel(cfg), Desc: "Installs Symbols Nerd Font Mono and patches Windows Terminal"},
-		{ID: rowProbe, Title: "Icon check: " + probeLabel(cfg), Desc: "Checks whether Nerd Font glyphs render here before using them"},
-		{ID: rowRescan, Title: "Rescan my tools", Desc: "Clears the scan cache so the next scan reads the disk fresh"},
-		{ID: rowUpdates, Title: "Update check: " + onOff(!cfg.SkipUpdateCheck), Desc: "Asks GitHub once a day whether a newer Devpit is out. Sends nothing else"},
-		{ID: rowAbout, Title: "About Devpit", Desc: "Version, author, links and how to upgrade"},
-	}
-}
-
-// apply cycles one in-place setting and reports whether anything changed.
-func apply(cfg config.Config, id string) (config.Config, bool) {
+// apply cycles one in-place setting by dir (+1 next, -1 previous) and
+// reports whether anything changed.
+func apply(cfg config.Config, id string, dir int) (config.Config, bool) {
 	switch id {
 	case rowIcons:
-		cfg.Icons = cycle(iconTiers, cfg.Icons)
+		cfg.Icons = cycle(iconTiers, cfg.Icons, dir)
 	case rowTheme:
-		cfg.Theme = cycle(themes, cfg.Theme)
+		cfg.Theme = cycle(themes, cfg.Theme, dir)
 	case rowEmoji:
 		cfg.Emoji = !cfg.Emoji
 	case rowTelemetry:
 		cfg.TelemetryOptIn = !cfg.TelemetryOptIn
 	case rowManager:
-		cfg.PreferredManager = cycle(managers, cfg.PreferredManager)
+		cfg.PreferredManager = cycle(managers, cfg.PreferredManager, dir)
 	case rowUpdates:
 		cfg.SkipUpdateCheck = !cfg.SkipUpdateCheck
 	default:
@@ -266,45 +376,14 @@ func apply(cfg config.Config, id string) (config.Config, bool) {
 	return cfg, true
 }
 
-// cycle returns the value after current in values, wrapping around.
-func cycle(values []string, current string) string {
+// cycle returns the value dir steps away from current in values, wrapping
+// around.
+func cycle(values []string, current string, dir int) string {
+	n := len(values)
 	for i, v := range values {
 		if v == current {
-			return values[(i+1)%len(values)]
+			return values[((i+dir)%n+n)%n]
 		}
 	}
 	return values[0]
-}
-
-// onOff renders a boolean the way the UI words it.
-func onOff(b bool) string {
-	if b {
-		return "on"
-	}
-	return "off"
-}
-
-// folderSummary is the one-line value shown on the folders row.
-func folderSummary(cfg config.Config) string {
-	if cfg.DefaultProjectsFolder == "" {
-		return "not set"
-	}
-	return cfg.DefaultProjectsFolder
-}
-
-// managerLabel renders the preferred-manager value the way the UI words it;
-// the empty string is "auto".
-func managerLabel(m string) string {
-	if m == "" {
-		return "auto"
-	}
-	return m
-}
-
-// fontLabel is the one-line value shown on the font row.
-func fontLabel(cfg config.Config) string {
-	if cfg.FontInstalled {
-		return "installed"
-	}
-	return "not installed"
 }

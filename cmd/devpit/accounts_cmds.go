@@ -159,7 +159,7 @@ func newAccountsCmd(env accountsEnv) *cobra.Command {
 			"wrong with its fix. It never runs a tool's sign-in check.\n\n--json shape: {folder, tools: [{tool, " +
 			"tool_name, folder, account: {name, email, login, display}, why, reason, rule_folder, everywhere, " +
 			"chain: [{folder, account, won, skipped}], installed, managed, supports: {folder_rules, everywhere, " +
-			"just_once, add_account, show_only, beta, why}, problems: [{kind, tool, message, fix}]}], warning}.",
+			"just_once, add_account, show_only, beta, why}, problems: [{kind, tool, message, fix, docs}]}], warning}. docs is the troubleshooting page that explains a problem.",
 		Example: "devpit accounts\ndevpit accounts --json\ndevpit accounts verify",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -203,7 +203,7 @@ func newVerifyCmd(env accountsEnv) *cobra.Command {
 			"folder is asked. --all asks every account; a check that can sign an idle account out (Claude Code) is " +
 			"skipped, with the reason, unless you agree at the prompt or pass --yes after the user agreed.\n\n" +
 			"--json shape: {folder, mismatch, checks: [{tool, account, here, expected, actual: {state, email, login, " +
-			"name, org, plan, method, note}, says, how, status, notes}], problems: [{kind, tool, message, fix}], skipped}. " +
+			"name, org, plan, method, note}, says, how, status, notes, docs}], problems: [{kind, tool, message, fix, docs}], skipped}. " +
 			"status is ok, mismatch, info, not installed or error.",
 		Example: "devpit accounts verify\ndevpit accounts verify --json\ndevpit accounts verify --all",
 		Args:    cobra.NoArgs,
@@ -328,17 +328,39 @@ func newAgentCmd(env accountsEnv) *cobra.Command {
 		Use:   "agent",
 		Short: "Teach AI agents to use Devpit safely",
 		Long: "`devpit agent install` writes a Devpit skill (SKILL.md) into Claude Code's skills folder and into each " +
-			"Claude Code account Devpit manages, and prints an AGENTS.md section for other agents. `devpit agent remove` " +
-			"takes out only the files it wrote.",
-		Example: "devpit agent install\ndevpit agent remove",
+			"Claude Code account Devpit manages, and prints an AGENTS.md section for other agents. The skill tells an " +
+			"agent to check with read commands first, to explain with the matching page from devpit.zubyr.dev/llms.txt, " +
+			"to ask before any change, and never to read account folders. `devpit agent status` says where it is and " +
+			"whether it is current. `devpit agent remove` takes out only the files it wrote.",
+		Example: "devpit agent status\ndevpit agent install\ndevpit agent remove",
 		Args:    cobra.NoArgs,
 		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	var yesI, yesR bool
+	var yesI, yesR, js bool
+	status := &cobra.Command{
+		Use:   "status",
+		Short: "Show whether the Devpit skill is installed for Claude Code, and its version",
+		Long: "Says whether Claude Code was found (claude on PATH, a ~/.claude folder, or a Claude Code account in " +
+			"Devpit; claude is never run) and, for each place the skill goes, whether Devpit's skill is there, older, " +
+			"newer, in the way of a devpit skill someone else wrote, or shared through a link. Changes nothing.\n\n" +
+			"--json shape: {claude_code, claude_code_why, version, state, can_install, targets: [{account, file, state, " +
+			"version, shared_with, through_link, note}]}. state is one of: Claude Code not found, not installed, " +
+			"installed, installed through a shared link, update available, a different devpit skill is in the way. " +
+			"A target's state is create, update, up to date, newer, not Devpit's or shared.",
+		Example: "devpit agent status\ndevpit agent status --json",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return asJSON(js, accountsError(runAgentStatus(cmd, env, js)))
+		},
+	}
+	status.Flags().BoolVar(&js, "json", false, "print machine-readable output")
 	install := &cobra.Command{
-		Use:     "install",
-		Short:   "Write the Devpit skill for Claude Code and print an AGENTS.md section",
-		Long:    "Writes skills\\devpit\\SKILL.md into ~/.claude and into each Devpit-managed Claude Code account that does not already get it through a shared link. A devpit skill Devpit did not write is never overwritten.",
+		Use:   "install",
+		Short: "Write the Devpit skill for Claude Code and print an AGENTS.md section",
+		Long: "Writes skills\\devpit\\SKILL.md into ~/.claude and into each Devpit-managed Claude Code account that does " +
+			"not already get it through a shared link, and updates Devpit's own older skill. A devpit skill Devpit did " +
+			"not write, or one from a newer Devpit, is never overwritten. Running it again changes nothing. Without " +
+			"Claude Code on this PC it writes nothing.",
 		Example: "devpit agent install\ndevpit agent install --yes",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -349,6 +371,7 @@ func newAgentCmd(env accountsEnv) *cobra.Command {
 	remove := &cobra.Command{
 		Use:     "remove",
 		Short:   "Remove the Devpit skill files Devpit wrote",
+		Long:    "Removes only SKILL.md files carrying Devpit's marker, written in place (never through a shared link), and their devpit folder when it is then empty.",
 		Example: "devpit agent remove\ndevpit agent remove --yes",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -356,8 +379,77 @@ func newAgentCmd(env accountsEnv) *cobra.Command {
 		},
 	}
 	remove.Flags().BoolVar(&yesR, "yes", false, "remove without asking; only after the user agreed")
-	cmd.AddCommand(install, remove)
+	cmd.AddCommand(status, install, remove)
 	return cmd
+}
+
+// agentStatusJSON is `devpit agent status --json`.
+type agentStatusJSON struct {
+	ClaudeCode    bool              `json:"claude_code"`
+	ClaudeCodeWhy string            `json:"claude_code_why"`
+	Version       int               `json:"version"`
+	State         string            `json:"state"`
+	CanInstall    bool              `json:"can_install"`
+	Targets       []agentTargetJSON `json:"targets"`
+}
+
+type agentTargetJSON struct {
+	Account     string `json:"account"`
+	File        string `json:"file"`
+	State       string `json:"state"`
+	Version     int    `json:"version"`
+	SharedWith  string `json:"shared_with,omitempty"`
+	ThroughLink bool   `json:"through_link"`
+	Note        string `json:"note,omitempty"`
+}
+
+func runAgentStatus(cmd *cobra.Command, env accountsEnv, js bool) error {
+	out := cmd.OutOrStdout()
+	s, err := env.openService(cmd, js)
+	if err != nil {
+		return err
+	}
+	st, err := s.AgentStatus(cmd.Context())
+	if err != nil {
+		return err
+	}
+	if js {
+		j := agentStatusJSON{
+			ClaudeCode: st.ClaudeCode, ClaudeCodeWhy: st.ClaudeCodeWhy, Version: st.Version,
+			State: string(st.Overall()), CanInstall: st.CanInstall(), Targets: []agentTargetJSON{},
+		}
+		for _, t := range st.Targets {
+			j.Targets = append(j.Targets, agentTargetJSON{
+				Account: t.Account, File: t.File, State: string(t.State), Version: t.Version,
+				SharedWith: t.SharedWith, ThroughLink: t.ThroughLink, Note: t.Note,
+			})
+		}
+		return printJSON(out, j)
+	}
+	_, _ = fmt.Fprintf(out, "Devpit skill for Claude Code: %s (this Devpit writes version %d)\n", st.Overall(), st.Version)
+	if !st.ClaudeCode {
+		_, _ = fmt.Fprintln(out, "Claude Code was not found: "+st.ClaudeCodeWhy+".")
+		return nil
+	}
+	_, _ = fmt.Fprintln(out)
+	say(out, agentLinesWithNotes(st.Targets))
+	if st.CanInstall() {
+		_, _ = fmt.Fprintln(out, "\nInstall or update it with: devpit agent install")
+	}
+	return nil
+}
+
+// agentLinesWithNotes is service.AgentLines with each place's note under it.
+func agentLinesWithNotes(ts []service.AgentTarget) []string {
+	lines := service.AgentLines(ts)
+	var out []string
+	for i, l := range lines {
+		out = append(out, l)
+		if ts[i].Note != "" && (ts[i].State == service.AgentForeign || ts[i].State == service.AgentNewer) {
+			out = append(out, "           "+ts[i].Note)
+		}
+	}
+	return out
 }
 
 func runAgentInstall(cmd *cobra.Command, env accountsEnv, yes bool) error {
@@ -366,30 +458,30 @@ func runAgentInstall(cmd *cobra.Command, env accountsEnv, yes bool) error {
 	if err != nil {
 		return err
 	}
-	ts, err := s.AgentTargets()
+	st, err := s.AgentStatus(cmd.Context())
 	if err != nil {
 		return err
 	}
-	say(out, service.AgentLines(ts))
-	todo := 0
-	for _, t := range ts {
-		if t.State == service.AgentCreate || t.State == service.AgentUpdate {
-			todo++
-		}
+	if !st.ClaudeCode {
+		_, _ = fmt.Fprintln(out, "Claude Code was not found on this PC ("+st.ClaudeCodeWhy+"), so there is nowhere to put the skill. Nothing changed.")
+	} else {
+		say(out, agentLinesWithNotes(st.Targets))
 	}
-	if todo > 0 {
+	if st.CanInstall() {
 		_, _ = fmt.Fprintln(out)
 		ok, err := agree(cmd, newPrompter(cmd), yes, "files in your Claude Code folders", "Write the skill?")
 		if err != nil || !ok {
 			return err
 		}
-		done, err := s.AgentInstall(ts)
+		done, err := s.AgentInstall(st.Targets)
 		for _, f := range done {
 			_, _ = fmt.Fprintln(out, glyphOK+" Wrote "+f)
 		}
 		if err != nil {
 			return err
 		}
+	} else if st.ClaudeCode {
+		_, _ = fmt.Fprintln(out, "\nNothing to write.")
 	}
 	_, _ = fmt.Fprintln(out, "\nFor other agents, add this to AGENTS.md in your repository (Devpit does not write into your repos):")
 	_, _ = fmt.Fprintln(out)

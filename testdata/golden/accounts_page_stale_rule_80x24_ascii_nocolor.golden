@@ -14,7 +14,7 @@
    remove it, and works again when the drive is back.
    Fix: Open devpit › Accounts › Browse folders › Fix old rules to remove it or
         point it at the folder's new place.
-
+   devpit.zubyr.dev/docs/troubleshooting/accounts-folder-rule-not-applying
 
 
 [keys] v verify  ·  b folders  ·  f folder  ·  u undo

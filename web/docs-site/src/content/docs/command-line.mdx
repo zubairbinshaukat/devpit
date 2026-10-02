@@ -24,6 +24,7 @@ This page is generated from the app's own command definitions, so it always matc
 - [`devpit agent`](#devpit-agent): Teach AI agents to use Devpit safely
 - [`devpit agent install`](#devpit-agent-install): Write the Devpit skill for Claude Code and print an AGENTS.md section
 - [`devpit agent remove`](#devpit-agent-remove): Remove the Devpit skill files Devpit wrote
+- [`devpit agent status`](#devpit-agent-status): Show whether the Devpit skill is installed for Claude Code, and its version
 - [`devpit claude`](#devpit-claude): Show the Claude Code account used here, and why
 - [`devpit claude add`](#devpit-claude-add): Sign in to another Claude Code account and name it
 - [`devpit claude import`](#devpit-claude-import): Bring claude-acc's accounts and folder links into Devpit
@@ -153,7 +154,7 @@ Show every tool's account in this folder.
 
 The Accounts table for this folder (or --folder): every tool, the account it uses, why, and anything wrong with its fix. It never runs a tool's sign-in check.
 
---json shape: \{folder, tools: [\{tool, tool_name, folder, account: \{name, email, login, display\}, why, reason, rule_folder, everywhere, chain: [\{folder, account, won, skipped\}], installed, managed, supports: \{folder_rules, everywhere, just_once, add_account, show_only, beta, why\}, problems: [\{kind, tool, message, fix\}]\}], warning\}.
+--json shape: \{folder, tools: [\{tool, tool_name, folder, account: \{name, email, login, display\}, why, reason, rule_folder, everywhere, chain: [\{folder, account, won, skipped\}], installed, managed, supports: \{folder_rules, everywhere, just_once, add_account, show_only, beta, why\}, problems: [\{kind, tool, message, fix, docs\}]\}], warning\}. docs is the troubleshooting page that explains a problem.
 
 ```text
 devpit accounts [flags]
@@ -223,7 +224,7 @@ For every installed tool, compares the account Devpit expects in this folder wit
 
 By default only the account used in this folder is asked. --all asks every account; a check that can sign an idle account out (Claude Code) is skipped, with the reason, unless you agree at the prompt or pass --yes after the user agreed.
 
---json shape: \{folder, mismatch, checks: [\{tool, account, here, expected, actual: \{state, email, login, name, org, plan, method, note\}, says, how, status, notes\}], problems: [\{kind, tool, message, fix\}], skipped\}. status is ok, mismatch, info, not installed or error.
+--json shape: \{folder, mismatch, checks: [\{tool, account, here, expected, actual: \{state, email, login, name, org, plan, method, note\}, says, how, status, notes, docs\}], problems: [\{kind, tool, message, fix, docs\}], skipped\}. status is ok, mismatch, info, not installed or error.
 
 ```text
 devpit accounts verify [flags]
@@ -256,7 +257,7 @@ devpit accounts verify --all
 
 Teach AI agents to use Devpit safely.
 
-`devpit agent install` writes a Devpit skill (SKILL.md) into Claude Code's skills folder and into each Claude Code account Devpit manages, and prints an AGENTS.md section for other agents. `devpit agent remove` takes out only the files it wrote.
+`devpit agent install` writes a Devpit skill (SKILL.md) into Claude Code's skills folder and into each Claude Code account Devpit manages, and prints an AGENTS.md section for other agents. The skill tells an agent to check with read commands first, to explain with the matching page from devpit.zubyr.dev/llms.txt, to ask before any change, and never to read account folders. `devpit agent status` says where it is and whether it is current. `devpit agent remove` takes out only the files it wrote.
 
 ```text
 devpit agent
@@ -271,6 +272,7 @@ devpit agent
 **Examples**
 
 ```powershell
+devpit agent status
 devpit agent install
 devpit agent remove
 ```
@@ -279,12 +281,13 @@ devpit agent remove
 
 - [`install`](#devpit-agent-install): Write the Devpit skill for Claude Code and print an AGENTS.md section
 - [`remove`](#devpit-agent-remove): Remove the Devpit skill files Devpit wrote
+- [`status`](#devpit-agent-status): Show whether the Devpit skill is installed for Claude Code, and its version
 
 ## `devpit agent install`
 
 Write the Devpit skill for Claude Code and print an AGENTS.md section.
 
-Writes skills\devpit\SKILL.md into ~/.claude and into each Devpit-managed Claude Code account that does not already get it through a shared link. A devpit skill Devpit did not write is never overwritten.
+Writes skills\devpit\SKILL.md into ~/.claude and into each Devpit-managed Claude Code account that does not already get it through a shared link, and updates Devpit's own older skill. A devpit skill Devpit did not write, or one from a newer Devpit, is never overwritten. Running it again changes nothing. Without Claude Code on this PC it writes nothing.
 
 ```text
 devpit agent install [flags]
@@ -313,6 +316,8 @@ devpit agent install --yes
 
 Remove the Devpit skill files Devpit wrote.
 
+Removes only SKILL.md files carrying Devpit's marker, written in place (never through a shared link), and their devpit folder when it is then empty.
+
 ```text
 devpit agent remove [flags]
 ```
@@ -334,6 +339,37 @@ devpit agent remove [flags]
 ```powershell
 devpit agent remove
 devpit agent remove --yes
+```
+
+## `devpit agent status`
+
+Show whether the Devpit skill is installed for Claude Code, and its version.
+
+Says whether Claude Code was found (claude on PATH, a ~/.claude folder, or a Claude Code account in Devpit; claude is never run) and, for each place the skill goes, whether Devpit's skill is there, older, newer, in the way of a devpit skill someone else wrote, or shared through a link. Changes nothing.
+
+--json shape: \{claude_code, claude_code_why, version, state, can_install, targets: [\{account, file, state, version, shared_with, through_link, note\}]\}. state is one of: Claude Code not found, not installed, installed, installed through a shared link, update available, a different devpit skill is in the way. A target's state is create, update, up to date, newer, not Devpit's or shared.
+
+```text
+devpit agent status [flags]
+```
+
+**Flags**
+
+| Flag | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `--json` | bool | `false` | print machine-readable output |
+
+**Flags from `devpit`**
+
+| Flag | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `--ascii` | bool | `false` | force the plain ASCII icon tier |
+
+**Examples**
+
+```powershell
+devpit agent status
+devpit agent status --json
 ```
 
 ## `devpit claude`

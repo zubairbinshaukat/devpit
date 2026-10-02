@@ -1,0 +1,24 @@
+ DEVPIT  vdev  -  Settings                                   node ...   git ...
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+------------------------------------------------------==========----------------
+  ^ 5 more
+  Cleaning --------------------------------------
+    Projects folder       D:\work\projects      >
+    Never-touch folders   2 folders             >
+    Recent projects       last 7 days           >
+    Age filter            older than 30 days    >
+    Forget last scan                            >
+  Tools -----------------------------------------
+    Package manager       < auto >
+    Dev ports             27 ports              >
+  AI agents -------------------------------------
+| > AI agent skill        not installed         >
+  v 4 more
+
+  AI agent skill --------------------- Changes save as soon as you make them.
+  Lets Claude Code use Devpit for you: check which account a folder uses and
+  explain why. It never changes anything without your yes. Open it to see the
+  details, then install or remove it.
+--------------------------------------------------------------------------------
+esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

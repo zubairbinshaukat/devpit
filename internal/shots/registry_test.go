@@ -57,7 +57,7 @@ var registry = map[string]scene{
 	"firstrun/theme":   firstRun(2, "Step 3"),
 	"firstrun/privacy": firstRun(3, "Step 4"),
 
-	"settings/menu":        settingsAt(0, false, "Icons:"),
+	"settings/menu":        settingsAt(0, false, "Icons"),
 	"settings/menu-stats":  settingsAt(settingsStats, false, "Usage stats"),
 	"settings/menu-font":   settingsAt(settingsFont, false, "Icon font"),
 	"settings/folders":     settingsAt(settingsFolders, true, "Projects"),
@@ -66,6 +66,9 @@ var registry = map[string]scene{
 	"settings/font":        settingsAt(settingsFont, true, "Not installed"),
 	"settings/probe":       settingsAt(settingsProbe, true, "render"),
 	"settings/about":       settingsAt(settingsAbout, true, "Version"),
+	"settings/agent-skill": settingsAt(settingsSkill, true, "AI agent skill for Claude Code"),
+
+	"whatsnew/card": sceneWhatsNew,
 
 	"network/menu":        networkAt(-1, nil, "My IP addresses"),
 	"network/ip":          networkAt(0, nil, "203.0.113.42"),

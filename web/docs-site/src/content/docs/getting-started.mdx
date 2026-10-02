@@ -42,12 +42,13 @@ Pick one way. The first one is the easiest.
    irm https://devpit.zubyr.dev/install | iex
    ```
 
-3. Wait for the five steps to finish. The installer:
+3. Wait for the six steps to finish. The installer:
    1. finds the latest release on GitHub,
    2. downloads the zip for your PC (x64 or ARM64),
    3. checks its SHA256 checksum,
-   4. puts `devpit.exe` in `%LOCALAPPDATA%\Programs\devpit`,
-   5. installs the [icon font](#the-icon-font).
+   4. puts `devpit.exe` and `devpit-shim.exe` in `%LOCALAPPDATA%\Programs\devpit`,
+   5. installs the [icon font](#the-icon-font),
+   6. if Claude Code is on your PC, asks `Let AI agents (Claude Code) use Devpit? [y/N]`. The default is No. See [Using Devpit with AI agents](/docs/ai-agents).
 4. The installer adds that folder to your user PATH. Open a new terminal window, or run the path it prints.
 5. Type `devpit` and press <kbd>Enter</kbd>.
 
@@ -60,6 +61,8 @@ The `iex` command cannot take flags, so use a script block:
 ```powershell
 & ([scriptblock]::Create((irm https://devpit.zubyr.dev/install))) -NoFont
 ```
+
+Pass `-NoAgent` the same way and the installer never asks about the AI agent skill.
 
 If Devpit is already installed, the installer asks what to do.
 Type `U` to update, `R` to remove, or `C` to cancel.
@@ -248,6 +251,18 @@ To update:
 You can turn the check off in Settings.
 See [What's new](/docs/whats-new) for what each release changed.
 
+### After an update
+
+The first time you open Devpit after an update to a new version, a **What's new** card comes before the main menu, once.
+It says what is new in a line or two, lists **Where things moved** (for example, Git & SSH is now under Accounts › Git), and links to the full notes.
+If Claude Code is on your PC and Devpit's AI agent skill is missing or older, the card also offers it: press <kbd>a</kbd> to open the **AI agent skill** screen. Nothing is installed until you say yes there.
+Press <kbd>Enter</kbd> to go on to the main menu.
+
+<Shot name="whats-new" />
+
+The card is never shown on a fresh install (the first-run wizard covers it) or when you run a `devpit` command.
+To see it again, open **Settings**, then **What's new**.
+
 ## Uninstall Devpit
 
 If you used **Accounts**, run this first, while Devpit is still installed:
@@ -263,7 +278,7 @@ Add `--copy-links` to turn shared Claude Code skills and folders into each accou
 
 Then:
 
-- **Installed with the one-liner:** run the install line again and type `R`. It removes Devpit, the icon font and its PATH entry. Your settings are left alone.
+- **Installed with the one-liner:** run the install line again and type `R`. It removes Devpit, the icon font, Devpit's AI agent skill and its PATH entry. Your settings are left alone.
 - **Installed with Scoop:** run `scoop uninstall devpit`.
 - **Zip file:** delete `devpit.exe`.
 
