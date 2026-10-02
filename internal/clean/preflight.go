@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
 // Preflight runs every refusal check for one item and returns nil only when
 // the item may be deleted. It is the second, independent enforcement point for
-// the never-touch list (the scanner's root filter is the first), and the only
-// one for drive roots, %WINDIR%, network paths, Devpit's own executable,
-// reparse points and the rule re-verification.
+// the never-touch list and the login and account folder list (the scanner's
+// filters are the first), and the only one for drive roots, %WINDIR%, network
+// paths, Devpit's own executable, reparse points and the rule
+// re-verification.
 //
 // Preflight never modifies anything. Run calls it for every item, including in
 // a dry run, and callers may call it on its own to grey out a row.
@@ -28,6 +31,9 @@ func Preflight(it Item, opts Options) error {
 		return err
 	}
 	if err := checkNeverTouch(p, opts); err != nil {
+		return err
+	}
+	if err := checkProtected(p, opts); err != nil {
 		return err
 	}
 	if err := checkExists(p); err != nil {
@@ -90,6 +96,9 @@ func preflightTombstone(tomb, original string, opts Options) error {
 			return err
 		}
 		if err := checkNeverTouch(p, opts); err != nil {
+			return err
+		}
+		if err := checkProtected(p, opts); err != nil {
 			return err
 		}
 	}
@@ -156,6 +165,22 @@ func checkNeverTouch(p string, opts Options) error {
 			if within(exe, c) {
 				return fmt.Errorf("%w: %s", ErrOwnExecutable, exe)
 			}
+		}
+	}
+	return nil
+}
+
+// checkProtected is rule 30: login and account folders. The built-in list is
+// read from this process's environment on every call and the caller's extra
+// folders are added to it, so no option can switch it off. Like the
+// never-touch list it is checked in both directions, against every spelling
+// of the path: a path inside a protected folder is refused, and so is one
+// whose removal would take a protected folder with it.
+func checkProtected(p string, opts Options) error {
+	list := protect.Default(os.LookupEnv).Union(opts.Protect)
+	for _, c := range pathSpellings(p) {
+		if hit, why := list.Covers(c); hit {
+			return &ProtectedError{Path: p, Why: why}
 		}
 	}
 	return nil

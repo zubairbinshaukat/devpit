@@ -1,0 +1,20 @@
+ What work shares
+
+ ! 1 new skill in work is not shared yet: my-new-skill
+
+▌ ▸ Skills: review-pr                                                     shared
+▌   Shared with the default account.
+
+    Skills: deploy-notes                                                  shared
+    Shared with the default account.
+
+    Skills: my-new-skill                                          not shared yet
+    New in work, not shared yet.
+
+    Agents                                                           broken link
+    Links to C:\Users\you\.claude\agents, which is gone.
+
+
+
+
+[keys] s stop sharing  ·  b bring more over

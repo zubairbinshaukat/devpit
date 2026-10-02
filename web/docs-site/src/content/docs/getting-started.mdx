@@ -6,6 +6,7 @@ sidebar:
   order: 1
 published: 2026-09-29
 related:
+  - features/accounts
   - features/free-up-disk-space
   - keyboard-and-mouse
   - safety-and-privacy
@@ -24,9 +25,9 @@ faq:
 
 import Shot from '@/components/Shot.astro';
 
-Devpit is a free terminal app for Windows 10 and 11.
+Devpit is a free toolkit for developers on Windows 10 and 11, in one terminal menu.
 It runs on x64 and ARM64.
-This page takes you from nothing to your first scan.
+This page takes you from nothing to your first useful run.
 
 ## Install Devpit
 
@@ -41,12 +42,13 @@ Pick one way. The first one is the easiest.
    irm https://devpit.zubyr.dev/install | iex
    ```
 
-3. Wait for the five steps to finish. The installer:
+3. Wait for the six steps to finish. The installer:
    1. finds the latest release on GitHub,
    2. downloads the zip for your PC (x64 or ARM64),
    3. checks its SHA256 checksum,
-   4. puts `devpit.exe` in `%LOCALAPPDATA%\Programs\devpit`,
-   5. installs the [icon font](#the-icon-font).
+   4. puts `devpit.exe` and `devpit-shim.exe` in `%LOCALAPPDATA%\Programs\devpit`,
+   5. installs the [icon font](#the-icon-font),
+   6. if Claude Code is on your PC, asks `Let AI agents (Claude Code) use Devpit? [y/N]`. The default is No. See [Using Devpit with AI agents](/docs/ai-agents).
 4. The installer adds that folder to your user PATH. Open a new terminal window, or run the path it prints.
 5. Type `devpit` and press <kbd>Enter</kbd>.
 
@@ -59,6 +61,8 @@ The `iex` command cannot take flags, so use a script block:
 ```powershell
 & ([scriptblock]::Create((irm https://devpit.zubyr.dev/install))) -NoFont
 ```
+
+Pass `-NoAgent` the same way and the installer never asks about the AI agent skill.
 
 If Devpit is already installed, the installer asks what to do.
 Type `U` to update, `R` to remove, or `C` to cancel.
@@ -145,28 +149,40 @@ After the wizard you see the main menu.
 
 <Shot name="home-menu" />
 
-The menu has eight sections:
+The menu has six sections, in this order:
 
-| Key | Section | Guide |
-| --- | --- | --- |
-| <kbd>1</kbd> | Free Up Disk Space | [Free up disk space](/docs/features/free-up-disk-space) |
-| <kbd>2</kbd> | Fix Stuck Ports & Apps | [Fix stuck ports and apps](/docs/features/fix-stuck-ports) |
-| <kbd>3</kbd> | Install Developer Apps | [Install developer apps](/docs/features/install-developer-apps) |
-| <kbd>4</kbd> | Update Everything | [Update everything](/docs/features/update-everything) |
-| <kbd>5</kbd> | Network Tools | [Network tools](/docs/features/network-tools) |
-| <kbd>6</kbd> | Git & SSH Setup | [Git and SSH setup](/docs/features/git-and-ssh) |
-| <kbd>7</kbd> | Devpit Settings | [Settings](/docs/features/settings) |
-| <kbd>8</kbd> | Share Files | [Share files](/docs/features/share-files) |
+| Key | Section | What is inside | Guide |
+| --- | --- | --- | --- |
+| <kbd>1</kbd> | Accounts | The right account in every folder for Claude Code, Git, GitHub, Vercel and more | [Accounts](/docs/features/accounts) |
+| <kbd>2</kbd> | Free Up Disk Space | Scan and clean dev junk, caches and temp files | [Free up disk space](/docs/features/free-up-disk-space) |
+| <kbd>3</kbd> | Ports & Network | **Fix stuck ports & apps** and **Network tools** | [Fix stuck ports](/docs/features/fix-stuck-ports), [Network tools](/docs/features/network-tools) |
+| <kbd>4</kbd> | Install & Update | **Install developer apps** and **Update everything** | [Install developer apps](/docs/features/install-developer-apps), [Update everything](/docs/features/update-everything) |
+| <kbd>5</kbd> | Share Files | Move big folders between two PCs on your network | [Share files](/docs/features/share-files) |
+| <kbd>6</kbd> | Devpit Settings | Theme, icons, never-touch list, dev ports, privacy | [Settings](/docs/features/settings) |
 
+**Ports & Network** and **Install & Update** each open a small menu with two entries.
+Press <kbd>1</kbd> or <kbd>2</kbd> there, or move and press <kbd>Enter</kbd>.
 Move with <kbd>↑</kbd> and <kbd>↓</kbd>, press <kbd>Enter</kbd> to open a section, and press <kbd>Esc</kbd> to go back.
 Press <kbd>?</kbd> on any screen to see its keys.
 Press <kbd>q</kbd> on the main menu to quit.
 The mouse works too.
 See [Keyboard and mouse](/docs/keyboard-and-mouse) for every key.
 
-## Your first clean-up
+## Your first run
 
-1. On the main menu press <kbd>1</kbd>.
+Pick the section for the job you have. Two common first steps:
+
+### Use another account in a folder
+
+1. Open a terminal in the folder, for example `cd C:\Work`, and type `devpit`.
+2. Press <kbd>1</kbd> for **Accounts**. You see each tool, the account it uses here, and why.
+3. Open a tool, choose **Use another account here…**, pick the account and read the preview.
+
+The full steps are in [Accounts](/docs/features/accounts).
+
+### Free up disk space
+
+1. On the main menu press <kbd>2</kbd>.
 2. Choose **Project Junk**.
 3. Pick the folder where your projects live.
 4. Wait for the scan. Devpit lists what it found, with sizes.
@@ -235,9 +251,34 @@ To update:
 You can turn the check off in Settings.
 See [What's new](/docs/whats-new) for what each release changed.
 
+### After an update
+
+The first time you open Devpit after an update to a new version, a **What's new** card comes before the main menu, once.
+It says what is new in a line or two, lists **Where things moved** (for example, Git & SSH is now under Accounts › Git), and links to the full notes.
+If Claude Code is on your PC and Devpit's AI agent skill is missing or older, the card also offers it: press <kbd>a</kbd> to open the **AI agent skill** screen. Nothing is installed until you say yes there.
+Press <kbd>Enter</kbd> to go on to the main menu.
+
+<Shot name="whats-new" />
+
+The card is never shown on a fresh install (the first-run wizard covers it) or when you run a `devpit` command.
+To see it again, open **Settings**, then **What's new**.
+
 ## Uninstall Devpit
 
-- **Installed with the one-liner:** run the install line again and type `R`. It removes Devpit, the icon font and its PATH entry. Your settings are left alone.
+If you used **Accounts**, run this first, while Devpit is still installed:
+
+```powershell
+devpit accounts cleanup
+```
+
+It lists what Devpit added for accounts (folder rules, shims and their PATH entry, its Git files and the block at the end of your `.gitconfig`, the `github.com` sign-in helper, Wrangler bindings, the agent skill) and removes only that after you say yes.
+Without it, Git keeps reading Devpit's rules file, and pushes to GitHub would still ask Devpit's helper, which is gone.
+Account folders and sign-ins are never deleted.
+Add `--copy-links` to turn shared Claude Code skills and folders into each account's own copies.
+
+Then:
+
+- **Installed with the one-liner:** run the install line again and type `R`. It removes Devpit, the icon font, Devpit's AI agent skill and its PATH entry. Your settings are left alone.
 - **Installed with Scoop:** run `scoop uninstall devpit`.
 - **Zip file:** delete `devpit.exe`.
 
@@ -245,6 +286,7 @@ Settings stay in `%APPDATA%\devpit`. Delete that folder if you want them gone to
 
 ## Next steps
 
-- [Free up disk space](/docs/features/free-up-disk-space): the feature most people come for.
-- [Safety and privacy](/docs/safety-and-privacy): how deleting is protected.
+- [Accounts](/docs/features/accounts): the right account in every folder.
+- [Free up disk space](/docs/features/free-up-disk-space): get space back from `node_modules`, caches and build folders.
+- [Safety and privacy](/docs/safety-and-privacy): how deleting and switching accounts are protected.
 - [All features](/docs/features): one short guide for each section.

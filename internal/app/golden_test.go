@@ -19,6 +19,9 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/apps"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/portsnet"
 )
 
 // updating reports whether -update was passed:
@@ -156,26 +159,32 @@ func frame(m tea.Model, width, height int) []byte {
 	return []byte(ansi.Strip(next.View().Content))
 }
 
-// sections is the golden coverage for the main menu: every section, the
-// sentinel that proves its first frame is the one that was captured, and the
-// name the golden files are keyed by.
+// sections is the golden coverage for the main menu: every section and every
+// screen inside a parent section, the sentinel that proves its first frame is
+// the one that was captured, and the name the golden files are keyed by.
+//
+// Each is reached by id, never by position, so reordering the menu moves the
+// cursor further or less far but can never open the wrong screen silently.
 //
 // The frames are the submenu (or first list) state of each screen. Nothing on
-// them runs an engine: the cleaner's submenu does no I/O, ports, network and
-// Git & SSH start idle, and install and update reach their lists through the
-// fakes in fakeScreens.
+// them runs an engine: the cleaner's submenu does no I/O, ports and network
+// start idle, and install and update reach their lists through the fakes in
+// fakeScreens.
 var sections = []struct {
 	name     string
-	index    int
+	section  string
+	child    string
 	sentinel string
 }{
-	{"clean", 0, "Pick what to look through"},
-	{"ports", 1, "Free a busy port or stop a stuck process"},
-	{"install", 2, "Manager: scoop"},
-	{"update", 3, "updates available"},
-	{"network", 4, "IP, connectivity and DNS helpers"},
-	{"gitssh", 5, "Get a fresh machine ready to push code"},
-	{"share", 7, "Move big folders between two PCs on the same Wi-Fi"},
+	{"accounts", home.SectionAccounts, "", "set by this project's .env.local"},
+	{"clean", home.SectionClean, "", "Pick what to look through"},
+	{"portsnet", home.SectionPortsNet, "", "Free a busy port, check your connection."},
+	{"ports", home.SectionPortsNet, portsnet.ItemPorts, "Free a busy port or stop a stuck process"},
+	{"network", home.SectionPortsNet, portsnet.ItemNetwork, "IP, connectivity and DNS helpers"},
+	{"apps", home.SectionApps, "", "Install dev apps, update everything."},
+	{"install", home.SectionApps, apps.ItemInstall, "Manager: scoop"},
+	{"update", home.SectionApps, apps.ItemUpdate, "updates available"},
+	{"share", home.SectionShare, "", "Move big folders between two PCs on the same Wi-Fi"},
 }
 
 // TestScreenGoldens captures the first frame of every screen the main menu
@@ -211,7 +220,7 @@ func TestScreenGoldens(t *testing.T) {
 					cfg := settledConfig()
 					cfg.Icons = tier.tier
 
-					m := openSection(t, cfg, sec.index, size.w, size.h)
+					m := openSection(t, cfg, sec.section, sec.child, size.w, size.h)
 					got := []byte(ansi.Strip(m.View().Content))
 					if !bytes.Contains(got, []byte(sec.sentinel)) {
 						t.Fatalf("the %s screen never appeared:\n%s", sec.name, got)
@@ -223,37 +232,16 @@ func TestScreenGoldens(t *testing.T) {
 	}
 }
 
-// TestSettingsBottomGolden is the regression frame for the scrolling bug: the
-// settings list is longer than a 24-row terminal can hold, so walking to the
-// last row has to scroll the list rather than draw it off the bottom of the
-// screen. The frame proves the cursor, the last row and both "n more" markers
-// are all on it.
-func TestSettingsBottomGolden(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-
-	m := openSection(t, settledConfig(), 6, 80, 24)
-	for range 12 {
-		m = drive(m, press("down"))
-	}
-
-	got := []byte(ansi.Strip(m.View().Content))
-	if !bytes.Contains(got, []byte("Rescan my tools")) {
-		t.Fatalf("the last settings row never scrolled into view:\n%s", got)
-	}
-	requireGolden(t, "settings_bottom_80x24_unicode_nocolor", got)
-}
-
-// openSection sizes an app, walks the main menu to index and opens it,
-// running every command the model returns along the way.
-func openSection(t *testing.T, cfg config.Config, index, width, height int) tea.Model {
+// openSection sizes an app, walks the main menu to the section with the given
+// id and opens it, then, when child is set, walks the parent's menu to that
+// entry and opens it too, running every command the model returns along the
+// way.
+func openSection(t *testing.T, cfg config.Config, section, child string, width, height int) tea.Model {
 	t.Helper()
 
 	m := tea.Model(app.New(goldenOptions(cfg)))
 	m = drive(m, tea.WindowSizeMsg{Width: width, Height: height}, tea.BackgroundColorMsg{Color: nil})
-	for range index {
-		m = drive(m, press("down"))
-	}
-	return drive(m, press("enter"))
+	return walkTo(t, m, section, child)
 }
 
 // goldenOptions builds an app that cannot touch the machine: no config is

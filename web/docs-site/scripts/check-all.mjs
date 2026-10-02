@@ -12,8 +12,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDist = path.resolve(here, '..', '..', 'dist', 'index.html');
 
 const checks = ['check-meta', 'check-jsonld', 'check-assets', 'check-shots'];
-if (fs.existsSync(webDist)) checks.push('check-site');
-else console.log('check-site: skipped (run `node web/scripts/build.mjs` to assemble web/dist first)');
+if (fs.existsSync(webDist)) checks.push('check-site', 'check-markdown');
+else console.log('check-site, check-markdown: skipped (run `node web/scripts/build.mjs` to assemble web/dist first)');
 
 let failed = 0;
 for (const c of checks) {

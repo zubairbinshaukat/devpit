@@ -58,7 +58,7 @@ export default defineConfig({
     starlight({
       title: 'Devpit Docs',
       description:
-        'Guides for Devpit, the free Windows terminal app that frees disk space, fixes stuck ports and updates your developer tools.',
+        'Guides for Devpit, the free toolkit for developers on Windows: the right account in every folder, disk space back, stuck ports freed and tools updated.',
       logo: { src: '../logo-mark.png', alt: 'Devpit' },
       // Rewritten to the site-root file by src/routeData.ts (Starlight would prefix /docs).
       favicon: '/favicon.ico',

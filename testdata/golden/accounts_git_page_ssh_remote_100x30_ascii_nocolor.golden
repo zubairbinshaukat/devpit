@@ -1,0 +1,26 @@
+  Right now --------------------------------------------------------- in C:\Projects\quiz-slayer
+    Commits as  You <you@personal.example>
+                from your usual Git settings (.gitconfig in your user folder)
+                ! This folder is not a Git repo yet. The rule applies once it is one (git init or
+                git clone); until then Git would use you@personal.example.
+    Pushes as   the GitHub account of the SSH key C:\Users\you\.ssh\id_ed25519_devpit_work
+                This repository pushes over SSH, so the key decides which GitHub account is used.
+
+  Commits --------------------------------  |  Commit as someone else here
+| > Commit as someone else here          >  |
+    Commit as someone else everywhere    >  |  Use a different name and email for commits in this
+    Add a name and email                 >  |  folder and every folder inside it.
+                                            |
+  Pushes ---------------------------------  |  You pick one, then see a preview. Nothing changes
+    Push as another GitHub account here  >  |  until you say yes.
+    Push with an SSH key                 >  |
+                                            |  [enter] open
+  Manage ---------------------------------  |
+    Rename or remove a name and email    >  |
+                                            |
+                                            |
+                                            |
+                                            |
+                                            |
+                                            |
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

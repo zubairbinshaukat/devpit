@@ -1,0 +1,10 @@
+    TOOL            ACCOUNT                            WHY
+▌ ▸ Claude Code   ✓ work (you@work.com)                folder rule: C:\Projects\quiz-slayer         
+▌                                                      C:\Projects → C:\Projects\quiz-slayer (won)  
+    Git           ✓ You <you.personal@gmail.com>       everywhere
+    GitHub        ⠋ default (you-on-github)            everywhere
+    Vercel        ! default (you@gmail.com)  expired   everywhere · sign in again
+    Cloudflare    ✓ default (you@gmail.com)            everywhere · beta
+    Convex        ✓ project: quiz-slayer               set by this project's .env.local
+    Firebase      · not signed in
+    Supabase      ─ not installed

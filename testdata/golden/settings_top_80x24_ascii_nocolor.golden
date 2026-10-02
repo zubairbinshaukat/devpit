@@ -1,0 +1,24 @@
+ DEVPIT  dev  -  Settings                                    node ...   git ...
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+------------------------------------------------------==========----------------
+
+  Look ------------------------------------------
+| > Theme                 < auto >
+    Icons                 < ascii >
+    Emoji                 [ ] off
+    Icon font             not installed         >
+    Icon check            needs the icon font   >
+  Cleaning --------------------------------------
+    Projects folder       D:\work\projects      >
+    Never-touch folders   2 folders             >
+    Recent projects       last 7 days           >
+    Age filter            older than 30 days    >
+  v 8 more
+
+  Theme ------------------------------ Changes save as soon as you make them.
+  The colours Devpit uses. auto follows your terminal, light or dark; dark and
+  light pick one. aqua, blue and rose change the accent colour, and mono uses
+  no colour at all, only shapes and words.
+--------------------------------------------------------------------------------
+esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

@@ -1,0 +1,18 @@
+Verify in <root>\Work\api
+
+✔ Claude Code work (z@work.com) — signed in as z@work.com
+· Git         default (not checked yet) — not installed
+· GitHub      default (not checked yet) — not installed
+· Vercel      default (not checked yet) — not installed
+· Firebase    default (not checked yet) — not installed
+· Supabase    default (not checked yet) — not installed
+· Cloudflare  default (not checked yet) — not installed
+· Convex      no project here — not installed
+
+! GH_TOKEN is set in this terminal by something other than Devpit. gh uses this token instead of any signed-in account, wherever Devpit's rules do not pick one.
+  Fix: If you did not mean to set it, remove it here with `Remove-Item Env:GH_TOKEN` (PowerShell) or `set GH_TOKEN=` (cmd), and from wherever sets it (a PowerShell profile, the system environment), then open a new terminal.
+  Docs: https://devpit.zubyr.dev/docs/troubleshooting/accounts-wrong-account-used
+
+· Claude Code accounts not checked: default, oss. Checking asks Claude Code itself. On some versions this can sign an idle account out (Claude Code issue #95822), so Devpit only checks when you ask. To check them anyway: devpit accounts verify --all (it asks first), or add --yes once the user agrees.
+
+Everything checked is as it should be.

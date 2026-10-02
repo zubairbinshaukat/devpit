@@ -1,0 +1,130 @@
+---
+title: Vercel, Firebase, Supabase, Cloudflare and Convex accounts
+description: What Devpit can switch for Vercel, Firebase, Supabase, Cloudflare and Convex, how it applies each account, and what it cannot do, in plain words.
+sidebar:
+  label: Other tools
+  order: 4
+related:
+  - features/accounts
+  - blog/multiple-accounts-vercel-firebase-supabase-cloudflare-convex
+  - troubleshooting/accounts-folder-rule-not-applying
+faq:
+  - question: "Why does Devpit not switch Convex?"
+    answer: "Convex picks the account per project, in the project's .env.local file. Only an undocumented token variable could switch the signed-in person, and Devpit handles no tokens. Convex is also usually run through npx, which a shim cannot catch. So Devpit shows the project a folder uses and verifies it, but does not switch it."
+  - question: "Why is Cloudflare marked beta?"
+    answer: "Devpit uses Wrangler's own named profiles, which Wrangler itself marks as experimental. Folder rules work; the account used everywhere stays Wrangler's own default login."
+  - question: "Do folder rules work with npx vercel?"
+    answer: "Not for Vercel, Firebase or Supabase. Devpit's shim catches the program name, so run the tool directly. Cloudflare is different: its rules live in Wrangler's own folder bindings, so they also work for npx wrangler."
+  - question: "Where are the logins kept?"
+    answer: "In each tool's own storage. Vercel and Supabase accounts you add get their own folder under .devpit\\accounts in your user folder, and the tool writes its login there itself. Firebase and Wrangler keep every account in their own store. Devpit never opens a login file."
+---
+
+Besides Claude Code, Git and GitHub, Accounts covers five more tools.
+Each one supports multiple accounts in its own way, so each gets a different level of support.
+Devpit says on each row what the tool supports, and why when it does not.
+
+| Tool | Folder rules | Everywhere | Just this once | Add an account | Level |
+| --- | --- | --- | --- | --- | --- |
+| Vercel | Yes | Yes | Yes | Yes | Full |
+| Firebase | Yes | Yes | Yes | Yes | Full |
+| Supabase | Yes | Yes | Yes | Yes | Full on a recent CLI, else show only |
+| Cloudflare (Wrangler) | Yes | No | Yes | Yes | Beta |
+| Convex | No | No | No | No | Show and verify only |
+
+The steps are the same as for any tool: open **Accounts**, pick the row, **Use another account here**, pick the scope, confirm the preview.
+See [Accounts](/docs/features/accounts).
+
+Run the tool by its own name (`vercel`, `firebase`, `supabase`) for folder rules to apply.
+Devpit's shim catches that name; it cannot catch `npx vercel`.
+
+"Just this once" runs one command with an account and saves nothing:
+
+```powershell
+devpit vercel run work -- vercel deploy
+```
+
+Vercel, Firebase and Cloudflare take the account as a command-line option, so for them the command must start with the tool (or `npx` and the tool).
+
+:::note[What has been checked with real logins]
+Each tool's behaviour below was checked against the tool's own code and help, and with empty test folders on a Windows PC.
+Signed-in runs with real accounts have not all been checked yet for this release: a signed-in Vercel `whoami`, Firebase and Supabase end to end, and Wrangler profile bindings with mixed letter case are still on the list.
+:::
+
+## Vercel
+
+| | |
+| --- | --- |
+| **How Devpit applies an account** | Each account you add gets its own Vercel config folder, `%USERPROFILE%\.devpit\accounts\vercel\<name>`. The `vercel.exe` shim adds `--global-config <folder>` in front of your own arguments. |
+| **Adding an account** | `vercel --global-config <folder> login` into a fresh folder. The folder is kept only if the sign-in finished. Vercel writes `config.json`, `auth.json` and telemetry files there itself. |
+| **Who is signed in** | `vercel whoami --json` with that folder. |
+| **default** | Vercel's own config folder, untouched. |
+| **What it cannot do** | If `VERCEL_TOKEN` is set, "Vercel uses this token instead of any signed-in account." `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` pick the team and project whatever account is signed in. Devpit never clears them; verify reports them. |
+| **Needs** | A Vercel CLI with `--global-config`. Devpit checks this when it runs, not from the version number. |
+
+A folder linked to a Vercel project (`.vercel\project.json`) names the team or person that owns it.
+Verify uses that to warn when the account in use there may not see the project.
+It never asks Vercel's API about it.
+
+## Firebase
+
+| | |
+| --- | --- |
+| **How Devpit applies an account** | Firebase holds several accounts itself. A Devpit account is a name for one of them. The `firebase.exe` shim adds `--account <email>`, an option every Firebase command honours. |
+| **Adding an account** | `firebase login:add`. Firebase only allows it when you already have a default login. |
+| **Who is signed in** | `firebase login:list`, in its text form. Devpit never runs `firebase login:list --json`, because that prints every account's tokens. |
+| **default** | Firebase's own choice, untouched: its default login, or the account a project picked with `firebase login:use`. A Devpit rule overrides that per-project choice. |
+| **What it cannot do** | `FIREBASE_TOKEN` makes "Firebase use this token instead of any signed-in account", and `GOOGLE_APPLICATION_CREDENTIALS` may make it use a service account. Devpit never clears them; verify reports them. |
+| **Needs** | A Firebase CLI with the `--account` option and `firebase login:add`. |
+
+## Supabase
+
+| | |
+| --- | --- |
+| **How Devpit applies an account** | Each account gets its own folder, `%USERPROFILE%\.devpit\accounts\supabase\<name>`. The `supabase.exe` shim sets `SUPABASE_HOME` to that folder and `SUPABASE_NO_KEYRING=1` for that one process, so the CLI keeps that account's login in the folder instead of Windows Credential Manager. |
+| **Adding an account** | `supabase login` with that folder set. |
+| **Who is signed in** | `supabase whoami --output-format json`. |
+| **default** | Supabase's own login in Windows Credential Manager, untouched. |
+| **What it cannot do** | `SUPABASE_ACCESS_TOKEN` "Supabase uses this token before any signed-in account, including the one Devpit picks." Devpit never clears it; verify reports it. |
+| **Needs** | A Supabase CLI that honours `SUPABASE_NO_KEYRING`, and 2.118.0 or later for `whoami`. Devpit tests the installed CLI once, in an empty temporary folder. If it fails, the row is show-only and says why, for example: "does not keep a separate sign-in per folder (it ignores SUPABASE_NO_KEYRING and uses Windows Credential Manager), so Devpit shows it but cannot switch it." |
+
+The login file in an account folder, `access-token`, is a plain-text token written by the Supabase CLI.
+Devpit never opens it; it only checks that it is there.
+Free Up Disk Space can never select the folder.
+
+## Cloudflare (beta)
+
+| | |
+| --- | --- |
+| **How Devpit applies an account** | A Devpit Cloudflare account is a Wrangler profile of the same name. A folder rule is mirrored into Wrangler's own folder bindings with `wrangler auth activate <name> <folder>`, and removed with `wrangler auth deactivate`. Wrangler then picks the profile itself, so there is no shim, and the rule also works for `npx wrangler`. |
+| **Adding an account** | `wrangler auth create <name>`. Wrangler does not allow the names `default` and `staging`. |
+| **Just this once** | `--profile <name>`, a Wrangler option. |
+| **Who is signed in** | `wrangler whoami --json`. |
+| **What it cannot do** | "Wrangler profiles are beta. Everywhere else, Wrangler uses its own default login (`wrangler login`); Devpit cannot change that in this version." `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_API_KEY` and `CLOUDFLARE_EMAIL` make Wrangler use those instead of a profile; verify reports them. |
+| **Needs** | Wrangler with named profiles. 4.143.0 is the oldest version Devpit has checked. |
+
+Wrangler matches folders by exact letter case.
+Devpit writes the folder the way it is spelled on disk, not the way you typed it, and the preview says so.
+If Wrangler already has a binding for the same folder spelled differently, the preview warns you.
+Verify compares Devpit's rules with Wrangler's bindings and reports any difference, for example a binding made by hand.
+
+## Convex (show and verify only)
+
+> Convex picks the account per project. Devpit shows it but does not switch it.
+
+That is the sentence every Convex screen shows.
+
+| | |
+| --- | --- |
+| **What Devpit shows** | The deployment a folder uses, from the `CONVEX_DEPLOYMENT` line in the project's `.env.local`, with the team and project when Convex wrote them. |
+| **How it reads the file** | Line by line. Only the `CONVEX_DEPLOYMENT` line is kept. `CONVEX_DEPLOY_KEY` is only reported as there or not, never its value. Nothing else from the file is shown or logged. |
+| **Who is signed in** | Not checked. `npx convex login status` may download Convex, and the login it reads holds a token. |
+| **What it cannot do** | Switch accounts. `devpit convex use`, `run` and `add` stop with that reason. `CONVEX_DEPLOY_KEY`, `CONVEX_DEPLOYMENT` and `CONVEX_OVERRIDE_ACCESS_TOKEN` set in a terminal override the project; verify reports them. |
+
+To use another Convex account in a project, sign in with Convex's own commands in that project.
+
+## Safety
+
+- Devpit never runs a command that prints a token, such as `firebase login:list --json`.
+- Supabase's `access-token` file is only checked to exist, never read. Who is signed in is asked of the tool itself (Convex is not asked at all).
+- Token variables are never cleared, only reported, so Devpit never silently changes which credential a tool uses.
+- Wrangler's bindings are changed only through `wrangler auth activate` and `deactivate`, and undo puts the exact binding back.

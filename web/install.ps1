@@ -4,8 +4,10 @@
 #
 # Downloads the latest release from GitHub, verifies its SHA256 checksum
 # against the checksums.txt published with the release, unpacks devpit.exe
-# into %LOCALAPPDATA%\Programs\devpit, installs the icon font for your user
-# and adds that folder to the user PATH. Nothing needs admin. Read it all: it
+# and devpit-shim.exe into %LOCALAPPDATA%\Programs\devpit, installs the icon
+# font for your user and adds that folder to the user PATH. The shim is only
+# a file here: Devpit itself copies it as claude.exe, gh.exe... and puts its
+# shims folder on PATH, later, and only for a tool that gets a folder rule. Nothing needs admin. Read it all: it
 # is short on purpose.
 #
 # Flags go through a script block, since `iex` cannot pass any:
@@ -13,9 +15,17 @@
 #   & ([scriptblock]::Create((irm https://devpit.zubyr.dev/install))) -NoFont
 #
 #   -NoFont   skip the icon font (Settings > Icon font can install it later)
+#   -NoAgent  never ask about the AI agent skill, and leave it as it is
+#
+# If Claude Code is on this PC, a fresh install asks once whether AI agents
+# may use Devpit (default No). Yes runs `devpit agent install --yes`, which
+# writes a skill into Claude Code's skills folder. An update only refreshes
+# that skill when Devpit wrote it before, and never adds one; a run with
+# nobody at the keyboard never asks and never adds it.
 
 param(
-  [switch]$NoFont
+  [switch]$NoFont,
+  [switch]$NoAgent
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,7 +35,11 @@ $ProgressPreference = 'SilentlyContinue'
 $Repo = 'zubairbinshaukat/devpit'
 $Dir = Join-Path $env:LOCALAPPDATA 'Programs\devpit'
 $Exe = Join-Path $Dir 'devpit.exe'
-$Steps = 5
+$ShimExe = Join-Path $Dir 'devpit-shim.exe'
+# Where Devpit puts the shims it makes for Accounts (internal/accounts/shims).
+$ShimDir = Join-Path $Dir 'shims'
+$Steps = 6
+$IsUpdate = $false
 
 # Output helpers. Every step is announced with ">" and confirmed with "+", so
 # a failed run shows exactly which step it died on. A step that is allowed to
@@ -50,6 +64,63 @@ function Write-Skip([int]$N, [string]$Text) {
 function Write-Row([string]$Label, [string]$Value, [ConsoleColor]$Color = 'White') {
   Write-Host ('  - {0,-9}' -f $Label) -ForegroundColor DarkGray -NoNewline
   Write-Host $Value -ForegroundColor $Color
+}
+
+# Is a person at the keyboard? Not when input is redirected, the session is
+# not interactive, or PowerShell was started with -NonInteractive.
+function Test-Interactive {
+  if (-not [Environment]::UserInteractive) { return $false }
+  try { if ([Console]::IsInputRedirected) { return $false } } catch { return $false }
+  foreach ($a in [Environment]::GetCommandLineArgs()) { if ($a -match '^-noni') { return $false } }
+  return $true
+}
+
+# What to do about the AI agent skill, from `devpit agent status --json`:
+# 'ask' (a fresh install with a person at the keyboard), 'refresh' (Devpit's
+# own older skill is there, so the person said yes before), or 'skip:<why>'.
+# Nothing here ever adds the skill without a yes.
+function Get-AgentAction($Status, [bool]$IsUpdate, [bool]$NoAgent, [bool]$Interactive) {
+  if ($NoAgent) { return 'skip:flag' }
+  if (-not $Status -or -not $Status.claude_code) { return 'skip:no-claude' }
+  $ours = @($Status.targets | Where-Object { @('update', 'up to date', 'newer') -contains $_.state }).Count -gt 0
+  if ($ours) {
+    if ($Status.can_install) { return 'refresh' }
+    return 'skip:current'
+  }
+  if ($IsUpdate) { return 'skip:update' }
+  if (-not $Interactive) { return 'skip:non-interactive' }
+  if ($Status.state -eq 'a different devpit skill is in the way') { return 'skip:foreign' }
+  if (-not $Status.can_install) { return 'skip:nothing' }
+  return 'ask'
+}
+
+# Only "y" or "yes" is a yes; Enter, anything else and no answer are No.
+function Test-Yes([string]$Answer) {
+  if ($null -eq $Answer) { return $false }
+  return ($Answer.Trim() -match '^(y|yes)$')
+}
+
+# Runs devpit.exe and returns its output lines and exit code, without letting
+# Windows PowerShell 5.1 turn a line on stderr into a terminating error, and
+# reading its UTF-8 output as UTF-8.
+function Invoke-Devpit([string[]]$Arguments, [switch]$StdoutOnly) {
+  $prevEap = $ErrorActionPreference
+  $prevEnc = [Console]::OutputEncoding
+  try {
+    try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false } catch { }
+    $ErrorActionPreference = 'Continue'
+    if ($StdoutOnly) {
+      $out = @(& $Exe @Arguments 2>$null | ForEach-Object { "$_" })
+    } else {
+      $out = @(& $Exe @Arguments 2>&1 | ForEach-Object { "$_" })
+    }
+    return @{ Out = $out; Code = $LASTEXITCODE }
+  } catch {
+    return @{ Out = @($_.Exception.Message); Code = 1 }
+  } finally {
+    $ErrorActionPreference = $prevEap
+    try { [Console]::OutputEncoding = $prevEnc } catch { }
+  }
 }
 
 # The same wordmark the app draws on its home screen (assets/logo.txt). Every
@@ -84,14 +155,33 @@ if (Test-Path $Exe) {
       # devpit.exe is still here to do it. An older build without the font
       # command just says so, and the removal carries on regardless.
       try { & $Exe font remove 2>$null | Out-Null } catch { }
-      Remove-Item -Recurse -Force $Dir
+      # The same for the AI agent skill: `agent remove` takes out only the
+      # SKILL.md files carrying Devpit's marker, never anyone else's skill.
+      # An older build without the command just fails quietly here.
+      $agentOut = Invoke-Devpit @('agent', 'remove', '--yes')
+      if ($agentOut.Code -eq 0 -and ($agentOut.Out -match 'Removed').Count -gt 0) {
+        Write-Host "  + Devpit's AI agent skill removed from Claude Code." -ForegroundColor Green
+      }
+      # This takes the Accounts shims with it (they live in $Dir\shims). A
+      # shim that is running right now (a claude session, say) cannot be
+      # deleted, so say what to close rather than leave half a folder.
+      try {
+        Remove-Item -Recurse -Force $Dir
+      } catch {
+        throw "Could not remove $Dir. Close anything started through Devpit's shims (claude, gh, vercel...), then run this again. $($_.Exception.Message)"
+      }
+      # Devpit's folder, and the shims folder Devpit itself put in front of
+      # PATH; every other PATH entry stays as it is.
       $path = [Environment]::GetEnvironmentVariable('Path', 'User')
-      $clean = ($path -split ';' | Where-Object { $_ -and $_ -ne $Dir }) -join ';'
+      $clean = ($path -split ';' | Where-Object { $_ -and $_.TrimEnd('\') -ne $Dir -and $_.TrimEnd('\') -ne $ShimDir }) -join ';'
       [Environment]::SetEnvironmentVariable('Path', $clean, 'User')
       Write-Host '  + Devpit and its icon font removed. Your settings in %APPDATA%\devpit were left alone.' -ForegroundColor Green
+      # Account folders hold sign-ins: uninstall never removes them.
+      Write-Host '  + Your account folders in %USERPROFILE%\.devpit were left alone: they hold your sign-ins.' -ForegroundColor Green
+      Write-Host '    Without Devpit, every tool uses its own default sign-in in every folder again.' -ForegroundColor DarkGray
       return
     }
-    'U' { }
+    'U' { $IsUpdate = $true }
     default { Write-Host '  Cancelled.'; return }
   }
 }
@@ -131,12 +221,18 @@ try {
   if ($expected -ne $actual) { throw "Checksum mismatch for $zipName. Expected $expected, got $actual. Nothing was installed." }
   Write-Ok 3 'Checksum verified against the release manifest'
 
-  Write-Step 4 "Installing devpit.exe to $Dir..."
+  Write-Step 4 "Installing devpit.exe and devpit-shim.exe to $Dir..."
   New-Item -ItemType Directory -Force -Path $Dir | Out-Null
   Expand-Archive -Path $zip -DestinationPath $tmp -Force
   $built = Get-ChildItem -Path $tmp -Recurse -Filter 'devpit.exe' | Select-Object -First 1
   if (-not $built) { throw 'devpit.exe was not inside the archive.' }
   Copy-Item -Path $built.FullName -Destination $Exe -Force
+  # The Accounts shim goes next to devpit.exe and nowhere else: no shims
+  # are made and PATH is not touched for them here. Shims Devpit made
+  # earlier are refreshed by Devpit itself, which knows which tools have
+  # rules. A release from before Accounts has no shim; that is fine.
+  $shimBuilt = Get-ChildItem -Path $tmp -Recurse -Filter 'devpit-shim.exe' | Select-Object -First 1
+  if ($shimBuilt) { Copy-Item -Path $shimBuilt.FullName -Destination $ShimExe -Force }
   Write-Ok 4 "Installed $Exe"
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
@@ -199,6 +295,47 @@ if ($NoFont) {
   }
 }
 
+# The AI agent skill. Asked only on a fresh install, only when Claude Code is
+# here and the skill is missing, only with a person at the keyboard; the
+# default is No. An update refreshes Devpit's own skill when it is already
+# there and never adds one. Like the font, it never fails the install.
+$agentOk = $false
+$agentStatus = $null
+$statusRun = Invoke-Devpit @('agent', 'status', '--json') -StdoutOnly
+if ($statusRun.Code -eq 0) {
+  try { $agentStatus = ($statusRun.Out -join "`n") | ConvertFrom-Json } catch { $agentStatus = $null }
+}
+$agentAction = Get-AgentAction $agentStatus $IsUpdate $NoAgent.IsPresent (Test-Interactive)
+if ($agentAction -eq 'ask') {
+  Write-Step 6 'AI agents...'
+  Write-Host '    The skill tells Claude Code how to check which account a tool uses here, where' -ForegroundColor DarkGray
+  Write-Host '    the docs are, and to ask you before changing anything. It never reads your logins.' -ForegroundColor DarkGray
+  $answer = Read-Host '  Let AI agents (Claude Code) use Devpit? [y/N]'
+  if (-not (Test-Yes $answer)) { $agentAction = 'skip:no' }
+}
+switch -Wildcard ($agentAction) {
+  'ask' { $agentRun = Invoke-Devpit @('agent', 'install', '--yes') }
+  'refresh' { $agentRun = Invoke-Devpit @('agent', 'install', '--yes') }
+  default { $agentRun = $null }
+}
+if ($agentRun) {
+  if ($agentRun.Code -eq 0) {
+    $agentOk = $true
+    if ($agentAction -eq 'refresh') { Write-Ok 6 "Updated Devpit's AI agent skill for Claude Code" } else { Write-Ok 6 'AI agent skill added to Claude Code' }
+  } else {
+    $why = ($agentRun.Out | Where-Object { $_.Trim() } | Select-Object -Last 1)
+    Write-Warn 6 "AI agent skill not written: $why. Run devpit agent install to try again."
+  }
+} else {
+  switch ($agentAction) {
+    'skip:flag' { Write-Skip 6 'Skipped the AI agent skill (-NoAgent)' }
+    'skip:no-claude' { Write-Skip 6 'Claude Code not found; no AI agent skill' }
+    'skip:current' { Write-Ok 6 "Devpit's AI agent skill is up to date" }
+    'skip:foreign' { Write-Skip 6 'A devpit skill Devpit did not write is in Claude Code; left alone' }
+    default { Write-Skip 6 'No AI agent skill. Settings or devpit agent install can add it later.' }
+  }
+}
+
 $pathNote = 'already on your user PATH'
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($userPath -split ';') -notcontains $Dir) {
@@ -224,5 +361,8 @@ if ($fontOk) {
   Write-Host "  [i] Reopen Windows Terminal to see Devpit's icons." -ForegroundColor Cyan
 } else {
   Write-Host '  [i] Settings > Icon font installs the icons later.' -ForegroundColor Cyan
+}
+if ($agentOk) {
+  Write-Host '  [i] New Claude Code sessions pick up the Devpit skill; devpit agent remove takes it out.' -ForegroundColor Cyan
 }
 Write-Host ''

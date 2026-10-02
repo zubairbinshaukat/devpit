@@ -9,11 +9,139 @@
   },
   {
     "name": "home-menu",
-    "alt": "Devpit main menu with the block-letter DEVPIT logo and eight sections: Free Up Disk Space, Fix Stuck Ports and Apps, Install Developer Apps, Update Everything, Network Tools, Git and SSH Setup, Devpit Settings and Share Files",
+    "alt": "Devpit main menu with the block-letter DEVPIT logo and six sections: Accounts, Free Up Disk Space, Ports & Network, Install & Update, Share Files and Devpit Settings",
     "screen": "home",
     "state": "menu",
     "cols": 100,
     "rows": 32
+  },
+  {
+    "name": "accounts-page",
+    "alt": "Devpit Accounts page for a project folder: each tool with the account it uses there and why, such as a folder rule on C:\\Projects, everywhere, or set by the project's .env.local for Convex",
+    "screen": "accounts",
+    "state": "page",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-tool-claude",
+    "alt": "Claude Code page in Devpit Accounts: a Right now block with who is signed in here, why that account and which one other folders use, then choices grouped under Change the account, Sign in, Claude Code setup and Manage, with the highlighted choice explained beside them",
+    "screen": "accounts",
+    "state": "tool-claude",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-picker",
+    "alt": "Account picker asking which Claude Code account to use, with default and work listed, a type-to-filter box and Sign in with another account at the end",
+    "screen": "accounts",
+    "state": "picker",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-scope",
+    "alt": "Where should work be used question with four choices: This folder, Everywhere, Just this once and Another folder",
+    "screen": "accounts",
+    "state": "scope",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-preview",
+    "alt": "Plain-words preview of a Claude Code folder rule, listing the line Devpit will write to accounts.toml, with a Make this change question that starts on No",
+    "screen": "accounts",
+    "state": "preview",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-done",
+    "alt": "Done card after an account change with a tick for each step and keys to verify, undo or go back to Accounts",
+    "screen": "accounts",
+    "state": "done",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-verify",
+    "alt": "Verify screen comparing the expected account with what each tool says is signed in, with a note that idle Claude Code accounts are only checked when asked",
+    "screen": "accounts",
+    "state": "verify",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-browse",
+    "alt": "Browse folders tree showing Everywhere and the C:\\Projects folder with the account each tool uses there",
+    "screen": "accounts",
+    "state": "browse",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-git",
+    "alt": "Git page in Devpit Accounts: a Right now block saying who commits are made as and which GitHub account pushes use, and where each comes from, then choices grouped under Commits, Pushes and Manage, with the highlighted choice explained beside them",
+    "screen": "accounts",
+    "state": "git",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-git-preview",
+    "alt": "Preview of a Git folder rule saying Git will commit with the work name and email in this folder and every folder inside it",
+    "screen": "accounts",
+    "state": "git-preview",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-ssh-key",
+    "alt": "Push with an SSH key screen after making a new key: the key path, the public key in a box, and keys to copy it or use it for this folder",
+    "screen": "accounts",
+    "state": "ssh-key",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-just-once",
+    "alt": "Just this once screen showing the devpit claude run command to run one command with the work account, with nothing saved",
+    "screen": "accounts",
+    "state": "just-once",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-claude-ask",
+    "alt": "Bring your Claude Code setup question with the answers Keep them in sync, Copy them once, Start empty, Choose and Not now",
+    "screen": "accounts",
+    "state": "claude-ask",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-claude-items",
+    "alt": "Claude Code item list with a row per item, such as skills, agents, commands, CLAUDE.md, plugins, settings, hooks, MCP servers and chat history, each with a Safe, Review, Careful or Locked label and Share, Copy or Skip",
+    "screen": "accounts",
+    "state": "claude-items",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-claude-conflict",
+    "alt": "Question about items the other Claude Code account already has, with the choices Keep, Replace and Keep both, and a note that nothing is deleted or overwritten",
+    "screen": "accounts",
+    "state": "claude-conflict",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "accounts-import",
+    "alt": "Found accounts already on this PC card listing one Claude Code account and six folder links from claude-acc, with Use them in Devpit and Ignore",
+    "screen": "accounts",
+    "state": "import",
+    "cols": 100,
+    "rows": 30
   },
   {
     "name": "clean-menu",
@@ -58,6 +186,14 @@
     "rows": 26
   },
   {
+    "name": "portsnet-menu",
+    "alt": "Ports & Network menu with two entries: Fix stuck ports & apps, and Network tools, each with a one-line description",
+    "screen": "portsnet",
+    "state": "menu",
+    "cols": 100,
+    "rows": 24
+  },
+  {
     "name": "ports-menu",
     "alt": "Fix Stuck Ports and Apps submenu with three tools: Kill a port, Busy dev ports and Node processes",
     "screen": "ports",
@@ -81,6 +217,14 @@
     "state": "busy-list",
     "cols": 100,
     "rows": 26
+  },
+  {
+    "name": "apps-menu",
+    "alt": "Install & Update menu with two entries: Install developer apps, and Update everything, each with a one-line description",
+    "screen": "apps",
+    "state": "menu",
+    "cols": 100,
+    "rows": 24
   },
   {
     "name": "install-list",
@@ -156,29 +300,28 @@
     "rows": 24
   },
   {
-    "name": "gitssh-menu",
-    "alt": "Git and SSH Setup submenu with three rows: Show git identity, Set git identity and Generate SSH key",
-    "screen": "gitssh",
-    "state": "menu",
-    "cols": 100,
-    "rows": 24
-  },
-  {
-    "name": "gitssh-key",
-    "alt": "SSH key generated card showing the key file path and the public key text, with a hint that pressing c copies it",
-    "screen": "gitssh",
-    "state": "key-done",
-    "cols": 100,
-    "rows": 24,
-    "note": "Use a throwaway key; never show a real key."
-  },
-  {
     "name": "settings-list",
-    "alt": "Devpit Settings list with rows for Icons, Theme, Emoji, Usage stats, Projects folder, Preferred package manager, Never-touch list, Dev ports and more, each with its current value",
+    "alt": "Devpit Settings in six groups, Look, Cleaning, Tools, AI agents, Privacy and updates, and About, each row a label with its current value in a column of its own, and a pane on the right explaining the highlighted setting in plain words",
     "screen": "settings",
     "state": "menu",
     "cols": 110,
-    "rows": 32
+    "rows": 34
+  },
+  {
+    "name": "settings-agent-skill",
+    "alt": "AI agent skill screen in Settings: what the skill lets Claude Code do, what it never does, where SKILL.md is written, and an Install button",
+    "screen": "settings",
+    "state": "agent-skill",
+    "cols": 100,
+    "rows": 30
+  },
+  {
+    "name": "whats-new",
+    "alt": "What's new card shown once after updating to Devpit 0.4: Accounts is new, where Git & SSH, the ports and network tools and Install and Update moved, an offer to open the AI agent skill screen, and the link to the full notes",
+    "screen": "whatsnew",
+    "state": "card",
+    "cols": 100,
+    "rows": 30
   },
   {
     "name": "share-card",

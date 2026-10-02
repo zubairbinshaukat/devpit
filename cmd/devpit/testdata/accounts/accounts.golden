@@ -1,0 +1,14 @@
+Accounts in <root>\Work\api
+
+Claude Code  work (z@work.com)  folder rule: <root>\Work
+Git          not installed
+GitHub       not installed
+Vercel       not installed
+Firebase     not installed
+Supabase     not installed
+Cloudflare   not installed
+Convex       not installed
+
+! GH_TOKEN is set in this terminal by something other than Devpit. gh uses this token instead of any signed-in account, wherever Devpit's rules do not pick one.
+  Fix: If you did not mean to set it, remove it here with `Remove-Item Env:GH_TOKEN` (PowerShell) or `set GH_TOKEN=` (cmd), and from wherever sets it (a PowerShell profile, the system environment), then open a new terminal.
+  Docs: https://devpit.zubyr.dev/docs/troubleshooting/accounts-wrong-account-used

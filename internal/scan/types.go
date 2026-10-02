@@ -17,6 +17,8 @@ package scan
 import (
 	"strings"
 	"time"
+
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
 // Tier is how much care an item needs before it is deleted. It maps directly
@@ -197,6 +199,11 @@ type Options struct {
 	// settings; this package takes it as a plain slice so it never has to
 	// import internal/config.
 	NeverTouch []string
+	// Protect adds login and account folders that are never descended into
+	// and never reported, on top of protect.Default, which every scan applies
+	// whether this is set or not. A caller can only add to the list, never
+	// take anything off it. Accounts passes every account folder it knows.
+	Protect protect.List
 	// IncludeOneDrive allows walking below the OneDrive folders. It is off by
 	// default because reading a placeholder downloads it.
 	IncludeOneDrive bool

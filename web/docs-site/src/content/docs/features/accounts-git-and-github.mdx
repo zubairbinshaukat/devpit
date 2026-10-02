@@ -1,0 +1,229 @@
+---
+title: A different Git and GitHub account per folder
+description: Commit with your work email in C:\Work and push as the right GitHub account, with gh, HTTPS or an SSH key. Devpit shows the exact Git lines it writes.
+sidebar:
+  label: Git and GitHub
+  order: 3
+related:
+  - features/accounts
+  - troubleshooting/git-push-asks-for-password-or-wrong-account
+  - troubleshooting/permission-denied-publickey
+  - blog/different-git-email-per-folder-windows-includeif
+faq:
+  - question: "Where did Git & SSH Setup go?"
+    answer: "Into Accounts. Your Git name and email are the Git row of Accounts, and the SSH key for GitHub is an option on the GitHub row. The old docs address now leads to this page."
+  - question: "Does Devpit change my repositories?"
+    answer: "No. It writes its own files in .devpit\\git in your user folder and adds one marked include block at the end of your global .gitconfig. Nothing is written inside a repository, so nothing shows up in git status."
+  - question: "Why does my folder rule not change the email outside a repository?"
+    answer: "Git's includeIf gitdir rule only applies inside a Git repository. In a folder that is not a repository yet, Git reads only your global identity. Once you run git init or git clone there, the rule applies."
+  - question: "Does Devpit see my GitHub token?"
+    answer: "Only in memory, for a moment. When a gh or git process needs a named account, Devpit asks gh for that account's token and hands it to that one process. It is never saved, shown or logged."
+  - question: "Will Devpit overwrite my SSH key?"
+    answer: "No. A new key gets its own file name, and Devpit refuses to create a key where a file already exists."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Git and GitHub are two different questions, so Devpit shows them as two rows:
+
+- **Commits as**: the name and email written into each commit. This is Git's own setting.
+- **Pushes as**: the GitHub account that `git push` and `gh` sign in with.
+
+They often go together, but they do not have to.
+You can commit with your work email and push to a personal fork, for example.
+
+Read [Accounts](/docs/features/accounts) first for the page, the preview, undo and verify.
+
+:::note[Git & SSH Setup moved here]
+Earlier versions had a **Git & SSH Setup** section on the main menu.
+Seeing and setting the name and email your commits use is now the **Git** row of Accounts, and making an SSH key is on the Git page too (also reachable from the **GitHub** row with **Pushes and SSH keys**).
+:::
+
+## Commits as: a name and email per folder
+
+1. Open a terminal in the folder, type `devpit`, press <kbd>1</kbd> for **Accounts**, and open **Git**.
+2. The **Right now** block at the top says what is true in this folder: **Commits as** (the name and email Git will commit with here, and which setting decided it) and **Pushes as** (the GitHub account a push uses, and what picks it). Below it are the choices, in three groups: **Commits**, **Pushes** and **Manage**. The highlighted choice is explained beside the list (under it on a small terminal), including what happens when you press <kbd>Enter</kbd>. Press <kbd>v</kbd> to check who each tool is really signed in as.
+
+   <Shot name="accounts-git" priority />
+
+3. Choose **Commit as someone else here** (or **Commit as someone else everywhere**), then pick a saved name and email. To save one, choose **Add a name and email**: type a short name for it in Devpit, the name on commits (leave it empty to keep the one in your usual Git settings) and the email. Git has no sign-in: a name and an email is all it needs. If Devpit knows your GitHub accounts, it suggests their email addresses: press <kbd>Tab</kbd> to reach the list and <kbd>Enter</kbd> to pick one. GitHub's private `noreply` address links commits to your account without showing your email.
+4. Read the preview. It shows the exact lines Devpit will write. The default answer is **No**.
+
+   <Shot name="accounts-git-preview" />
+
+**Rename or remove a name and email** renames or removes one, with a preview like every other change.
+
+From a terminal:
+
+```powershell
+devpit git add --name work --email you@work.com --display-name "Your Name"
+devpit git use work --folder C:\Work
+```
+
+Git has no "just this once": it takes its identity from config files, not from a sign-in.
+For one commit, run `git -c user.email=you@example.com commit`.
+
+### The files Devpit writes
+
+Everything lives in `%USERPROFILE%\.devpit\git`:
+
+| File | What is in it |
+| --- | --- |
+| `rules.gitconfig` | One `[includeIf "gitdir/i:C:/Work/"]` block per folder rule, listed from the outside in, because Git lets the last match win. Also the GitHub push helper, when Devpit manages pushes. |
+| `<name>.gitconfig` | One per identity: `[user] name` and `email`. |
+| `default.gitconfig` | Your own global identity, used only when a folder inside a ruled folder is set back to `default`. |
+| `ssh-<id>.gitconfig` | One per folder that pushes with its own SSH key: `core.sshCommand`. |
+| `devpit.json` | Settings that have no place in Devpit's rules file: per-folder SSH keys and the helper you had before Devpit took over pushes. |
+
+Each `.gitconfig` file Devpit writes starts with `# Written by Devpit.` and ends with a checksum line.
+If you change one by hand, Devpit notices and stops instead of overwriting your edit.
+
+Your global `~/.gitconfig` gets one block, added at the very end:
+
+```ini
+# Added by Devpit: its folder rules for Git and GitHub. Keep this block last; Devpit removes it with the last rule.
+[include]
+    path = "C:/Users/you/.devpit/git/rules.gitconfig"
+```
+
+It must stay last.
+Lines you add after it win over Devpit's rules, and verify tells you which file wins.
+Devpit appends the block itself rather than with `git config --add`, because Git would put the line inside an `[include]` section you may already have, wherever it is.
+Before writing, Devpit has Git read the result back to make sure it parses and the include is last.
+
+When the last Git and GitHub rule is gone, Devpit removes the block again.
+`devpit accounts cleanup` removes it too, with Devpit's Git files.
+
+### When a rule applies
+
+- **Once the folder is a Git repo.** `includeIf "gitdir/…"` only works inside a repository. In a folder that is not a repo yet, Git uses your global identity. The rule applies from `git init` or `git clone` on, and it is already in effect while the clone runs.
+- **The nearest folder wins.** Rules are written from the outside in, so a rule on `C:\Work\client` beats `C:\Work` inside `client`.
+- **Letter case does not matter.** Devpit writes `gitdir/i:`, the case-insensitive form, with forward slashes and a trailing slash.
+- **The repo's own setting wins.** A `user.email` set inside one repository (`git config user.email …` without `--global`) beats every rule. Devpit shows it as "set by this repo's own config".
+- **Worktrees.** A linked worktree follows the rule for the folder of its main repository, not the folder the worktree sits in. Newer Git versions have a `worktree/i:` condition for this. Devpit uses it only when it has checked that your Git understands it; Git 2.55 ignores it silently.
+- **Network drives.** Rules are allowed. Git rules need the path as Git sees it.
+
+## Pushes as: the GitHub account
+
+Devpit uses the GitHub CLI, `gh`, for GitHub accounts.
+`gh` 2.40 and later can hold several accounts side by side.
+Add one with **+ Sign in with another account** in the account list (on the GitHub row, or **Push as another GitHub account here** on the Git page), or `devpit github add`.
+Both run `gh auth login`, which adds an account and does not sign out the others.
+
+Devpit never runs `gh auth switch`, because that would change the account for every terminal at once.
+
+### gh follows the folder
+
+When you run `gh` in a folder with a GitHub rule, Devpit's `gh.exe` shim asks `gh` for that account's token (`gh auth token --user <login>`) and starts the real `gh` with it, for that one process.
+The token goes from `gh` to the child process in memory.
+It is never written to a file, shown, or logged.
+
+### git push follows the folder
+
+For HTTPS remotes on `github.com`, Devpit adds its own sign-in helper to `rules.gitconfig`:
+
+```ini
+[credential "https://github.com"]
+    helper =
+    helper = !"C:/Users/you/AppData/Local/Programs/devpit/devpit.exe" git-credential
+```
+
+The empty `helper =` line clears the helpers Git had for `github.com`, so Devpit's helper is the only one that answers.
+That matters: otherwise Git Credential Manager could save a work token as your default GitHub login.
+
+- In a folder that uses a named account, the helper gives Git that account's token from `gh`, in memory, and does nothing when Git asks it to store or erase one.
+- In a folder that uses `default`, the helper hands the request to the helpers you had before, usually Git Credential Manager. Devpit recorded them when it took over, and undo puts them back.
+- During `git clone`, the helper works out the target folder from the new repository, not from the folder you ran the command in.
+
+The path in the example is where the installer puts Devpit; yours is wherever `devpit.exe` is.
+
+:::caution[Not checked with real logins yet]
+The helper is covered by tests with fake accounts.
+A push through it on a PC with Git Credential Manager installed, with two real GitHub accounts, has not been checked end to end for this release yet.
+If a push asks for a password or uses the wrong account, see [git push asks for a password](/docs/troubleshooting/git-push-asks-for-password-or-wrong-account).
+:::
+
+The **Pushes as** row says what decides the account in this folder:
+
+| Row says | Meaning |
+| --- | --- |
+| Devpit's sign-in helper | Devpit's helper answers for `github.com` here. |
+| Git's own sign-in helper | Devpit does not manage pushes yet. Git's own helper, usually Git Credential Manager, answers. |
+| this repo's own sign-in helper | The repository's own config puts another helper first. |
+| the SSH key | The remote is an SSH address, so the SSH key decides. See below. |
+| not GitHub / no remote | Nothing for Devpit to decide here. |
+
+For one push with another account, run:
+
+```powershell
+devpit github run work -- git push
+```
+
+## SSH remotes
+
+A remote such as `git@github.com:you/repo.git` uses SSH, not HTTPS.
+GitHub then sees whichever account the SSH key belongs to, and Devpit's sign-in helper is not used.
+
+To push as a different account over SSH, give the folder its own key.
+Devpit writes `core.sshCommand` for that folder, in its own `ssh-<id>.gitconfig`:
+
+```ini
+[core]
+    sshCommand = "ssh -i 'C:/Users/you/.ssh/id_ed25519_devpit_work' -o IdentitiesOnly=yes"
+```
+
+`IdentitiesOnly=yes` makes SSH offer that key and no other, so the right account is used.
+Pushes over HTTPS are not affected.
+
+## Generate an SSH key
+
+On the Git page in Accounts, choose **Push with an SSH key**.
+
+1. Choose **Make a new key**. Devpit suggests a file named after the GitHub account, for example `%USERPROFILE%\.ssh\id_ed25519_devpit_work`. To use a key you already have, choose **Use a key I already have** and type the path of its private key.
+2. Devpit creates an **ed25519** key with `ssh-keygen`, which comes with the OpenSSH client that is part of Windows. The comment in the key is usually the account's email.
+3. If a key is already at that path, Devpit says so and creates nothing: "Devpit never replaces a key: one that is in use somewhere would stop working." You can use that key, or go back and pick another path.
+4. You see the **public key**. Press <kbd>c</kbd> to copy it.
+
+   <Shot name="accounts-ssh-key" />
+
+5. Press <kbd>Enter</kbd> to use the key for pushes from this folder. You see a preview first, as for any change.
+
+:::caution[No passphrase]
+Devpit creates the key without a passphrase.
+That is easy to use, but anyone who can read the private key file can use the key.
+Only the `.pub` file is safe to share.
+To add a passphrase later, run `ssh-keygen -p -f` with the key's path.
+:::
+
+### Add the key to GitHub
+
+Sign in to github.com as the account the key is for, then:
+
+1. Open [github.com/settings/keys](https://github.com/settings/keys).
+2. Click **New SSH key**.
+3. Give it a title, for example the name of your PC.
+4. Paste the public key and save.
+5. Test it in a terminal, with your key's path:
+
+   ```powershell
+   ssh -i $env:USERPROFILE\.ssh\id_ed25519_devpit_work -T git@github.com
+   ```
+
+   The first time, SSH asks if you trust the host. Check that it is GitHub, then type `yes`. GitHub answers with a "successfully authenticated" message and the account's user name.
+
+Devpit never uploads your key. It only shows the public half for you to copy.
+
+## Good to know
+
+- **Variables win.** `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_EMAIL` and friends override every config file, and `GH_TOKEN` or `GITHUB_TOKEN` make `gh` use that token. Devpit never clears them; verify reports them with the fix.
+- **WSL is not covered.** Git inside WSL reads its own config.
+- **Undo touches only Devpit's lines.** If you edited one of Devpit's files or its block by hand, undo stops and tells you which file.
+- **No tokens anywhere.** A Git email rule is plain text config, and GitHub tokens stay in `gh`'s own storage.
+
+## Safety
+
+- Nothing you type can add lines to Git's config: a name, email or path with a line break or control character is refused, and everything else is quoted.
+- The only token Devpit handles is a `gh` account's, fetched when a process starts, given only to that `gh` or `git` process, and never written anywhere.
+- Devpit never runs `gh auth switch` or anything that prints a token.
+- An existing SSH key is never overwritten.
+- `devpit accounts cleanup` removes Devpit's Git files, its include block and its `github.com` helper, and nothing else.

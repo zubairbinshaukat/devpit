@@ -1,0 +1,20 @@
+  Right now ──────────────────────────────────────── in C:\Projects\quiz-slayer
+    Commits as  You <you@personal.example>
+                from your usual Git settings (.gitconfig in your user folder)
+    Pushes as   GitHub: work (you-at-work)
+                chosen for C:\Projects and the folders inside it · Devpit gives
+                Git the sign-in chosen for this folder
+  Commits ────────────────────────────────
+▌ ▸ Commit as someone else here          ›
+    Commit as someone else everywhere    ›
+    Add a name and email                 ›
+  Pushes ─────────────────────────────────
+    Push as another GitHub account here  ›
+    Push with an SSH key                 ›
+  Manage ─────────────────────────────────
+    Rename or remove a name and email    ›
+  Commit as someone else here ────────────────────────────────────────────────
+  Use a different name and email for commits in this folder and every folder
+  inside it. You pick one, then see a preview. Nothing changes until you say
+  yes.
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

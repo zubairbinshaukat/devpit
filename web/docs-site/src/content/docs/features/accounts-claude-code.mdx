@@ -1,0 +1,189 @@
+---
+title: Two Claude Code accounts on one Windows PC
+description: Add a second Claude Code account with Devpit, pick which folders use it, and bring your skills, agents, commands and settings over without copying a login.
+sidebar:
+  label: Claude Code
+  order: 2
+related:
+  - features/accounts
+  - troubleshooting/claude-config-dir-set-by-something-else
+  - troubleshooting/moving-from-claude-acc
+  - blog/share-claude-code-skills-between-accounts-windows
+faq:
+  - question: "Where does each Claude Code account keep its login?"
+    answer: "In its own config folder, where Claude Code itself puts it. Your main account is your normal .claude folder. Each account you add in Devpit gets a folder under .devpit\\accounts\\claude in your user folder. Devpit never opens, copies or links the login files."
+  - question: "Can both accounts use the same skills?"
+    answer: "Yes. Devpit can link each skill from your main account into the other one, so a skill you change is changed for both. Agents and commands are linked as whole folders, and CLAUDE.md gets one import line."
+  - question: "Why are plugins not shared?"
+    answer: "A plugins folder shared between accounts hits an open Claude Code bug (issue 82272) whose suggested fix deletes plugins. So Devpit copies the list of enabled plugins and marketplaces, and each account installs its own copy."
+  - question: "Can I sign in to the same account twice?"
+    answer: "Devpit warns you if a new account has the same email as one you already have. Two folders signed in to the same account can sign each other out when the login refreshes."
+  - question: "Does it switch the Claude desktop app or the VS Code extension?"
+    answer: "No. Devpit's rules apply to claude started in a terminal, including the VS Code terminal, and to scripts and agents started there. The desktop app and editor extensions keep their own login."
+---
+
+import Shot from '@/components/Shot.astro';
+
+Claude Code keeps everything for one account in one config folder: the login, settings, skills and history.
+The variable `CLAUDE_CONFIG_DIR` points Claude Code at another folder, and that is the way Claude Code documents for using several accounts.
+Devpit sets it for you, folder by folder, and only for the `claude` process it starts.
+
+Your main account stays where it is: your normal `%USERPROFILE%\.claude`.
+In Devpit it is called `default`.
+
+Read [Accounts](/docs/features/accounts) first for the page, the preview, undo and verify.
+This page covers what is special about Claude Code.
+
+## Add a second account
+
+1. Open Devpit, press <kbd>1</kbd> for **Accounts**, then open **Claude Code**.
+2. Choose **Use another account here**, then **+ Sign in with another account**.
+3. Devpit makes a new, empty folder, `%USERPROFILE%\.devpit\accounts\claude\<name>`, and runs Claude Code's own `claude auth login` with that folder set. Each step is shown as it happens.
+4. Finish the sign-in in your browser.
+5. Devpit shows who signed in and asks for a short name, suggested from the email, for example `work`.
+6. Devpit asks the one question about your setup. See [Bring your setup over](#bring-your-setup-over).
+7. Answer **Where should this apply?** and confirm the preview, as for any [account change](/docs/features/accounts#switch-an-account-step-by-step).
+
+If you cancel the sign-in or close the browser, nothing is saved and no half-made folder is left behind.
+
+If the new account has the same email as one you already have, Devpit warns you.
+Two folders signed in to the same account can sign each other out when the login refreshes.
+
+From a terminal, `devpit claude add` does steps 3 to 5.
+`--console` signs in with an Anthropic Console account (API billing) instead.
+
+:::note[Not checked with real logins yet]
+Adding an account and the setup sharing below are covered by tests with fake tools and real folders on Windows.
+The full sign-in with two real Claude Code subscriptions has not been checked end to end for this release yet.
+:::
+
+## Bring your setup over
+
+A new account starts empty: no skills, no settings, no `CLAUDE.md`.
+Devpit asks one question, **Bring your Claude Code setup to work?** (with your account's name), and offers these answers:
+
+| Answer | What it does |
+| --- | --- |
+| **Keep them in sync** | Share what is safe to share; copy settings and hooks. Shared items stay in step with your main account. |
+| **Copy them once** | A separate copy of everything safe, now. |
+| **Start empty** | Bring nothing over. |
+| **Choose** | Pick item by item, starting from the defaults below. |
+| **Not now** | Shown right after you add an account: do this later from the Claude Code page, with **Bring your Claude Code setup over**. |
+
+<Shot name="accounts-claude-ask" />
+
+Before anything changes you see a preview, **Make this change?**, starting on No. One undo takes all of it back.
+
+Careful rows are never ticked by any of the four answers.
+You tick them yourself.
+
+### The item list
+
+Each row is one kind of thing, with a safety label and a choice of **Share**, **Copy** or **Skip**.
+Move with <kbd>↑</kbd> <kbd>↓</kbd>, pick with <kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd>, and press <kbd>Enter</kbd> to continue.
+
+<Shot name="accounts-claude-items" />
+
+| Item | Label | Default | How it is done |
+| --- | --- | --- | --- |
+| Skills | Safe | Share | One link per skill folder. The `skills\synced` folder stays per account. |
+| Agents | Safe | Share | One link for the whole `agents\` folder. |
+| Commands | Safe | Share | One link for the whole `commands\` folder. |
+| CLAUDE.md | Safe | Share | One import line at the top of the account's own `CLAUDE.md`, pointing at your main one. Its own text stays below. |
+| Plugins | Safe | Same list | The list of enabled plugins and marketplaces is copied. Each account installs its own copy. |
+| Settings | Review | Copy | `settings.json`, key by key. Keys that may hold secrets (such as `env` or `apiKeyHelper`) are only copied on the Careful path. |
+| Hooks | Review | Copy | The hooks part of `settings.json`. Hooks run commands on your PC, so look at them first. |
+| MCP servers | Careful | Copy, unticked | Only the MCP server entries of `.claude.json`, never the rest of that file. They may hold API keys, so Devpit asks twice. |
+| Chat history | Review | Skip | Big and private. If you pick it, it is copied once, never shared. |
+| Login | Locked | Never | Each account keeps its own sign-in. Devpit never copies, links or opens it. |
+| Account info | Locked | Never | The account's own identity in `.claude.json`. |
+
+**Safe** items rebuild or change nothing on their own.
+**Review** items are fine to bring over, but look first.
+**Careful** items may hold secrets.
+**Locked** rows are always shown so you can see they are left alone, and you cannot pick them.
+
+### What "Share" means
+
+Share uses **NTFS junctions**: a junction is a folder entry that points at another folder, so both accounts read the same files.
+Junctions need no administrator rights and no Developer Mode.
+They point at your main `.claude` folder, which never moves, so they keep working if you uninstall Devpit.
+
+Skills are linked one folder per skill, never the whole `skills` folder.
+A skill you add later inside the other account stays in that account until you share it.
+A skill you add later to your main account is linked into the other account the next time `claude` starts there through Devpit.
+Devpit only adds links at that moment; anything that moves or renames files happens in the menu, behind a preview.
+
+### When the other account already has things
+
+If the account already has a skill, agent or setting with the same name, Devpit asks what to do.
+Nothing is deleted or overwritten under any choice.
+
+<Shot name="accounts-claude-conflict" />
+
+| Choice | What happens to the account's own item |
+| --- | --- |
+| **Keep** (default) | It stays. With Share, items whose names are new are moved into your main account and linked back, so both accounts get them. Same-named ones stay beside it as `name.from-<account>`. With Copy, the account's own item keeps its name and your main one is put beside it as `name.from-default`. |
+| **Replace** | It moves to a dated backup folder inside the account, and the shared or copied item takes the name. |
+| **Keep both** | It is renamed `name-<account>`, and with Share it is shared too. |
+
+### When a link cannot be made
+
+Share falls back to **Copy**, and the row says why. Devpit's reasons:
+
+- one of the folders is on a network drive,
+- one of the folders is inside OneDrive, which does not keep links,
+- the two accounts are on different drives,
+- one of the folders reaches another drive through a `subst` drive or a link,
+- the drive uses FAT or exFAT, which cannot hold links.
+
+A copied item does not follow your main account. Copy it again later to bring changes over.
+
+### Change it later
+
+Open **Claude Code** in Accounts and choose **Bring your Claude Code setup over** to see what is shared, copied or kept apart, item by item.
+
+- **Stop sharing** (<kbd>s</kbd>) turns a shared item into the account's own copy: Devpit copies it first, removes only the link, and puts the copy in its place. <kbd>h</kbd> shares a copied item instead.
+- A link whose target is gone is shown as **broken link**, with a repair (<kbd>r</kbd>). See [A shared skill link is broken](/docs/troubleshooting/claude-shared-skill-link-broken).
+- A link made by another tool is left alone, and the row says so.
+
+`devpit accounts cleanup --copy-links` turns every shared link of every account into the account's own copies, for when you want to stop using Devpit.
+
+## Pick which folders use it
+
+Use **Use another account here** on the Claude Code page, or from a terminal:
+
+```powershell
+devpit claude use work                       # this folder and every folder inside it
+devpit claude use work --folder C:\Work      # another folder
+devpit claude run work -- claude -p "hello"  # one command, nothing saved
+```
+
+Then plain `claude` picks the account by folder: in a terminal, in the VS Code terminal, in a VS Code task, in `cmd`, in Git Bash, and for AI agents that run `claude`.
+Open a new terminal after your first rule, so it sees Devpit's shim folder on PATH.
+
+## Limits
+
+- **Editor extensions and the desktop app keep their own login.** Rules apply to `claude` started in a terminal. The Claude Code extension for VS Code or JetBrains and the Claude desktop app only partly honour `CLAUDE_CONFIG_DIR`, so Devpit does not switch them.
+- **A system-wide install can win.** If `claude` is also on the system PATH, Windows finds it before Devpit's shim. Verify reports it. See [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
+- **`CLAUDE_CONFIG_DIR` set elsewhere.** If a profile or another tool sets it, `claude` started through Devpit still uses Devpit's rule, but anything started another way uses that folder. Verify reports it. See [CLAUDE_CONFIG_DIR is set by something else](/docs/troubleshooting/claude-config-dir-set-by-something-else).
+- **Verify asks first.** Asking Claude Code who is signed in can sign an idle account out on some versions (issue [#95822](https://github.com/anthropics/claude-code/issues/95822)). Devpit never runs that check for the Accounts page, and verify checks only the account used in the folder unless you agree to more.
+- **Token variables win.** `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` make Claude Code use that key instead of the account's sign-in. Devpit never clears them; verify reports them.
+
+## Coming from claude-acc
+
+Devpit can import claude-acc's accounts and folder links in place, so nobody signs in again:
+
+```powershell
+devpit claude import --from claude-acc
+```
+
+See [Moving from claude-acc](/docs/troubleshooting/moving-from-claude-acc) for the safe order of steps.
+
+## Safety
+
+- Login files (`.credentials.json`, `.claude.json`) are never copied, linked or read. Only whether they exist is checked.
+- Nothing in the other account is overwritten: same-named items are kept beside, renamed or moved to a backup folder.
+- Links are never followed when removing: stopping a share removes only the link.
+- MCP servers, which may hold API keys, are never ticked for you, and settings that may hold secrets are only copied on that Careful path. Asking twice for them is the rule for the item list screen; its test is still to come (see the [safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md)).
+- Uninstalling Devpit never breaks an account: links point at your own `.claude` folder, and cleanup can turn them into copies.

@@ -1,0 +1,20 @@
+  Right now ---------------------------------------- in C:\Projects\quiz-slayer
+    Signed in as   your usual Cloudflare sign-in (not checked yet)
+                   Not checked yet: Devpit has not asked Cloudflare who is
+                   signed in. Press v to check.
+    Why this one   the one used in every folder without a choice of its own
+    Other folders  your usual Cloudflare sign-in (not checked yet)
+    Good to know   Beta: Wrangler profiles are beta. Everywhere else, Wrangler
+                   uses its own default login (`wrangler login`); Devpit cannot
+                   change that in this version.
+
+  Change the account --------------------------------
+    Use another account here                        >
+| > Use another account everywhere   not available
+  v 3 more
+
+  Use another account everywhere ---------------------------------------------
+  Pick which account Cloudflare uses in every folder that has no choice of its
+  own. You pick one, then see a preview. Nothing changes until you say yes.
+  Not available now: Wrangler profiles are beta. Everywhere else, Wrangler ...
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

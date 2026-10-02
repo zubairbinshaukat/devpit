@@ -1,0 +1,26 @@
+ Here is what will change                                                in C:\Projects\quiz-slayer
+
+ In C:\Projects\quiz-slayer and every folder inside it, Git will commit as You <you@work.example>.
+ Everywhere else stays You <you@personal.example>.
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (adds)
+     [[rule]]
+     folder = 'C:\Projects\quiz-slayer'
+     git = "work"
+
+╭───────────────────────────────────────────────────╮
+│ Make this change?                                 │
+│ You can undo it afterwards: u on the next screen. │
+│                                                   │
+│ [ No ]   [ Yes ]                                  │
+╰───────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

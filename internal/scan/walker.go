@@ -329,6 +329,15 @@ func (w *walk) visitDir(root, path string, d fs.DirEntry, info fs.FileInfo) erro
 		return nil
 	}
 
+	// Rule 30. A junk-looking folder that holds a login or account folder
+	// somewhere below it is never reported, because deleting it would take
+	// the login with it. The walk carries on into it instead of pruning, so
+	// junk beside the protected folder can still be found, and the
+	// protected folder itself is skipped by skipDir when the walk reaches it.
+	if w.filters.wouldRemoveProtected(path) {
+		return nil
+	}
+
 	// Rule 17. A placeholder directory holds nothing locally. Record it as a
 	// zero-byte cloud item rather than reading it, which would download it.
 	if isCloudInfo(info) {
@@ -426,7 +435,7 @@ func (w *walk) probeLocations(ctx context.Context) {
 				w.skipped.Add(1)
 				continue
 			}
-			if w.filters.skipPath(loc) {
+			if w.filters.skipPath(loc) || w.filters.wouldRemoveProtected(loc) {
 				w.skipped.Add(1)
 				continue
 			}

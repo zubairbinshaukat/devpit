@@ -5,13 +5,13 @@ sidebar:
   label: "Permission denied (publickey)"
 published: 2026-09-29
 related:
-  - features/git-and-ssh
+  - features/accounts-git-and-github
   - troubleshooting/git-please-tell-me-who-you-are
 faq:
   - question: "Which username do I use for SSH to GitHub?"
     answer: "Always git. All connections, including the ones for remote URLs, must be made as the git user. If you connect with your GitHub username, the connection fails with Permission denied (publickey)."
   - question: "Does Devpit add my key to GitHub or to the ssh-agent?"
-    answer: "No. Devpit creates the key pair and copies the public key for you. You paste the public key into your GitHub account settings yourself, and you load the private key into the ssh-agent if you use one."
+    answer: "No. Devpit creates the key pair and shows the public key for you to copy. You paste the public key into your GitHub account settings yourself, and you load the private key into the ssh-agent if you use one."
   - question: "Does the key Devpit creates have a passphrase?"
     answer: "No. Devpit runs ssh-keygen with an empty passphrase. Anyone who can read the private key file can use the key, so keep the .ssh folder private."
 ---
@@ -31,10 +31,11 @@ Your computer tried to log in with a key pair. The server looked at the public k
 
 ## How Devpit fixes or avoids it
 
-[Git & SSH Setup](/docs/features/git-and-ssh) covers the first steps:
+In Devpit, SSH keys for GitHub live under **Accounts**, on the **GitHub** row. See [Git and GitHub accounts](/docs/features/accounts-git-and-github#generate-an-ssh-key).
 
-- **Generate SSH key** creates an ed25519 key with `ssh-keygen` in your `.ssh` folder and copies the public half so you can paste it into GitHub.
-- It never overwrites an existing key by accident. If a key is already there, you must type `OVERWRITE` before it replaces it, and it warns that the old key stops working everywhere it was added.
+- **Push with an SSH key** creates an ed25519 key with `ssh-keygen` in your `.ssh` folder, with its own file name per account, and shows the public half so you can paste it into GitHub.
+- It never overwrites an existing key. If a file is already there, it stops.
+- It can use that key for one folder only (`core.sshCommand` with `IdentitiesOnly=yes`), so the right GitHub account is used there.
 - The key has an empty passphrase (Devpit runs `ssh-keygen` with an empty `-N`).
 
 Devpit does not upload the key to GitHub and does not load it into the ssh-agent. Do those two steps below.
@@ -48,7 +49,7 @@ ssh -vT git@github.com
 ```
 
 2. Read the output. "identity file ... type -1" and "Trying private key" mean SSH found no key file. Lines that say "Offering public key" mean it found one.
-3. If there is no key, run **Generate SSH key** in Devpit, or run ssh-keygen yourself:
+3. If there is no key, use **Push with an SSH key** in Devpit, or run ssh-keygen yourself:
 
 ```powershell
 ssh-keygen -t ed25519 -C "your_email@example.com"

@@ -1,20 +1,20 @@
- DEVPIT  vdev  -  Free Up Disk Space                         node ...   git ...
+ DEVPIT  dev  -  Free Up Disk Space                          node ...   git ...
 
-  Clean    Ports    Apps    Update    Network    Git    Settings    Share
--=======------------------------------------------------------------------------
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+-------------=======------------------------------------------------------------
 Pick what to look through. Nothing is deleted without a preview.
 
 | > Project Junk
-|   node_modules, dist, target, build output in your projects folder
+|   Scan your projects folder for node_modules, dist, build and target
 
     Full Scan
     Project junk plus package caches, Windows temp and editor caches
 
-    Choose folder…
-    Scan a folder other than your default one
+    Choose folder
+    Pick another folder to scan, then see what it holds
 
     Resume interrupted deletes
-    Finish anything a stopped clean left behind
+    Finish deleting what a stopped clean-up left half done
 
 
 

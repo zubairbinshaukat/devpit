@@ -1,0 +1,47 @@
+---
+title: "My AI agent changed an account without asking"
+description: "An AI agent switched which account a tool uses through Devpit? Why that needs --yes, how to see what changed, how to undo it, and how to stop it next time."
+sidebar:
+  label: "AI agent changed an account"
+related:
+  - ai-agents
+  - features/accounts
+  - troubleshooting/accounts-undo-file-changed-by-hand
+  - troubleshooting/accounts-wrong-account-used
+faq:
+  - question: "Can an AI agent change my accounts through Devpit without --yes?"
+    answer: "No. An agent runs devpit with no terminal to answer in. Then every command that would change something changes nothing and exits with code 3 unless --yes is on the command line."
+  - question: "Can I undo a change an agent made?"
+    answer: "Yes, the same way as any account change: run devpit undo, or press u on the Accounts page. Both show what will be put back and ask first, with No as the default."
+---
+
+Devpit changes an account only after a yes.
+An AI agent runs `devpit` with no terminal to answer in, so a command that would change something changes nothing and exits with code `3`, unless the command line has `--yes`.
+So if an agent changed an account, it ran the command with `--yes`.
+
+The Devpit skill tells agents to ask you first and to pass `--yes` only after you agree.
+Devpit cannot tell who typed `--yes`, so it cannot stop an agent that skips that step.
+
+## See what changed
+
+1. In the folder where it happened, run `devpit accounts`. It shows the account each tool uses here, and why.
+2. Run `devpit undo` in a terminal. It shows the last account change and what undoing it would put back, then asks `[y/N]`.
+   Press <kbd>n</kbd> (or <kbd>Enter</kbd>) if you only wanted to look. Nothing changes.
+
+## Undo it
+
+- From a terminal: run `devpit undo` and answer <kbd>y</kbd>.
+- In the app: open **Accounts** and press <kbd>u</kbd>.
+
+Undo puts every file of that change back exactly as it was.
+A change made in one go, such as `devpit use work` for several tools, is undone in one go.
+Run `devpit undo` again to take back the change before that.
+
+If a file Devpit wrote was changed by hand since, undo stops and changes nothing.
+See [Undo says a file was changed by hand](/docs/troubleshooting/accounts-undo-file-changed-by-hand).
+
+## Stop it next time
+
+- Tell the agent to ask you before any account change. The Devpit skill already says so; see [Using Devpit with AI agents](/docs/ai-agents) for what it contains.
+- If your agent can run commands without asking you first, do not let it run `devpit` commands that end in `--yes` on its own.
+- To take Devpit's skill out of Claude Code, run `devpit agent remove`, or open **Settings**, then **AI agent skill**, and choose **Remove**. Both list what will be removed and ask first. Only skill files Devpit wrote are removed.

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
 // CacheVersion is the on-disk format version of scan.gob. A file written by
@@ -106,7 +108,23 @@ func LoadCache(dir, root string) (*Cache, error) {
 	if !ok || entry.Version != CacheVersion {
 		return nil, ErrNoCache
 	}
+	entry.Items = dropProtected(entry.Items, protect.Default(os.LookupEnv))
 	return &entry, nil
+}
+
+// dropProtected removes the cached items that are, sit inside, or hold a
+// login or account folder (rule 30). A cache written by a Devpit that did not
+// know about one of them must not bring it back onto the screen; the delete
+// pre-flight would refuse it anyway, but it should never be offered.
+func dropProtected(items []Item, l protect.List) []Item {
+	kept := items[:0:0]
+	for _, it := range items {
+		if hit, _ := l.Covers(it.Path); hit {
+			continue
+		}
+		kept = append(kept, it)
+	}
+	return kept
 }
 
 // SaveCache writes c into <dir>/scan.gob, replacing that root's entry and

@@ -1,0 +1,20 @@
+ Accounts                                            in C:\Projects\quiz-slayer
+ ! Finished a change that was interrupted: Claude Code uses work in C:\Projects
+   (finished).
+ ✓ Added Devpit's shim for Claude Code (it was missing or out of date).
+ ! Your accounts file could not be read, so it was moved to
+   accounts.toml.broken-1759400000 and Devpit started with no rules.
+
+    TOOL           ACCOUNT                      WHY                     1–7 of 8
+▌ ▸ Claude Code  ✓ work (you@work.example)      folder rule: C:\Projects
+    Git          ✓ You <you@personal.example>   everywhere
+    GitHub       ✓ work (you-at-work)           folder rule: C:\Projects
+    Vercel       ✓ default                      everywhere
+    Firebase     ─ not installed
+    Supabase     ─ not installed
+    Cloudflare   ✓ default (not checked yet)    everywhere · beta
+
+ Folder rule: an account you chose for a folder and every folder inside it.
+ Not checked yet: Devpit has not asked the tool who is signed in. Press v to
+   check.
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

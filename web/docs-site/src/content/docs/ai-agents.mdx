@@ -1,0 +1,105 @@
+---
+title: Using Devpit with AI agents
+description: "What Devpit's Claude Code skill writes and where, what it tells an agent to do and never do, and how agents read Devpit's JSON, exit codes and Markdown docs."
+sidebar:
+  label: AI agents
+related:
+  - command-line
+  - features/accounts
+  - troubleshooting/ai-agent-changed-account-without-asking
+  - safety-and-privacy
+faq:
+  - question: "Can an AI agent change my accounts through Devpit on its own?"
+    answer: "Not without --yes. An agent runs devpit with no terminal to answer in, so a command that would change something changes nothing and exits with code 3 unless --yes is on the command line. The skill tells the agent to ask you first and pass --yes only after you agree."
+  - question: "Does the skill let an agent read my logins?"
+    answer: "No. Devpit's commands never print a token, and the skill tells the agent never to read account folders, login files or tokens."
+  - question: "Is the skill installed by default?"
+    answer: "No. The installer asks only when Claude Code is on the PC, and the default answer is No. You can also add it later in Settings or with devpit agent install."
+---
+
+import Shot from '@/components/Shot.astro';
+
+AI agents such as Claude Code can run `devpit` in a terminal, like you do.
+That lets an agent check which account a tool uses in a folder, and explain why, before it pushes, deploys or commits.
+Devpit has a small **skill** for Claude Code that teaches it how to do this safely.
+
+## Add the skill
+
+There are three ways. Each one asks first, and the default answer is **No**.
+After an update, the [What's new card](/docs/getting-started#after-an-update) also offers the skill when it is missing or older; it opens the Settings screen and installs nothing by itself.
+
+- **The installer.** On a fresh install, when Claude Code is on the PC, it asks `Let AI agents (Claude Code) use Devpit? [y/N]`. Only `y` or `yes` adds the skill. Pass `-NoAgent` and it never asks. An update never adds the skill; it only refreshes a skill Devpit wrote before.
+- **Settings.** Open **Settings**, then **AI agent skill** in the **AI agents** group. The screen shows what the skill lets Claude Code do, what it never does and where it goes, with **Install**, **Update** or **Remove**.
+- **The command line:**
+
+  ```powershell
+  devpit agent install
+  ```
+
+  It lists each place it will write and asks `Write the skill?` first.
+
+<Shot name="settings-agent-skill" caption="Settings, AI agent skill" />
+
+If Claude Code is not on the PC, nothing is written.
+Devpit looks for `claude` on PATH, a `.claude` folder in your user folder, or a Claude Code account in Devpit. It never runs `claude` to find out.
+
+## What it writes, and where
+
+One file, `SKILL.md`, in a `devpit` folder:
+
+- `%USERPROFILE%\.claude\skills\devpit\SKILL.md`, for Claude Code's default account, and
+- `skills\devpit\SKILL.md` in each Claude Code account Devpit manages, unless that account already gets the skill through a shared skills link.
+
+The file carries a marker line that says Devpit wrote it, and a skill version.
+`devpit agent install` updates Devpit's own older skill.
+It never overwrites a `devpit` skill that someone else wrote, or one from a newer Devpit.
+Running it again changes nothing.
+
+It also prints a short section to paste into `AGENTS.md`, for other agents that read that file.
+Devpit never writes into your repositories.
+
+To see where the skill is and whether it is current:
+
+```powershell
+devpit agent status
+devpit agent status --json
+```
+
+## What the skill tells an agent
+
+- **Read first.** `devpit accounts --json`, `devpit <tool> --json`, `devpit <tool> list --json` and `devpit accounts verify --json` change nothing.
+- **When you ask why something happened,** run `devpit accounts verify --json` and `devpit <tool> --json` first. Each problem comes with a fix and, when a page explains it, a `docs` link. Then open the one matching page from [llms.txt](https://devpit.zubyr.dev/llms.txt). Offline, use `devpit <command> --help`.
+- **Ask before any change.** Tell you exactly what would change, and only after you agree run the command with `--yes`. Never switch on its own.
+- **Undo** with `devpit undo --yes`, again only when you ask.
+- **Never** read account folders or login files (such as `.credentials.json`, `.claude.json`, `hosts.yml` or anything under `.devpit\accounts`), never print, copy or pass on a token, and never pass `--yes` before you agreed to that exact change.
+
+## What it cannot do
+
+Devpit itself never changes anything for an agent without `--yes`.
+With no terminal to answer in, a command that would change something changes nothing and exits with code `3`.
+The skill is instructions, not a lock: Devpit cannot tell who typed `--yes`.
+If an agent changed an account anyway, see [My AI agent changed an account without asking](/docs/troubleshooting/ai-agent-changed-account-without-asking).
+
+## For agents and scripts
+
+| What | Where |
+| --- | --- |
+| Machine-readable output | `--json` on every read command. The shape is in each command's `--help` and on the [command line reference](/docs/command-line). |
+| Docs link per problem | `docs` in the `--json` output, and a `Docs:` line under the fix in the normal output |
+| Exit codes | `0` done, `1` failed, `2` wrong usage, `3` needs `--yes` (nothing changed), `4` verify found a mismatch |
+| Every docs page, listed | [https://devpit.zubyr.dev/llms.txt](https://devpit.zubyr.dev/llms.txt) |
+| One page as Markdown | Add `.md` to its URL, for example `https://devpit.zubyr.dev/docs/troubleshooting/accounts-wrong-account-used.md`. The docs home is `https://devpit.zubyr.dev/docs/index.md`. |
+| The whole docs in one file | [https://devpit.zubyr.dev/llms-full.txt](https://devpit.zubyr.dev/llms-full.txt) (large; one page is usually enough) |
+
+## Remove it
+
+```powershell
+devpit agent remove
+```
+
+It lists the files it will remove and asks first.
+It removes only `SKILL.md` files that carry Devpit's marker and were written in place, never one reached through a shared link, and the `devpit` folder when it is then empty.
+Skills from anyone else stay.
+
+You can also remove it in **Settings**, **AI agent skill**, **Remove**.
+`devpit accounts cleanup` removes it together with everything else Devpit added for accounts, and uninstalling with the installer removes it too.

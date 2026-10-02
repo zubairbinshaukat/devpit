@@ -15,7 +15,7 @@ faq:
   - question: "How do I quit Devpit?"
     answer: "Press q on the main menu, or press Ctrl+C anywhere. If a delete or install is running, Ctrl+C asks it to stop first and Devpit leaves when the item in flight is finished. A second Ctrl+C leaves at once."
   - question: "Does Devpit work with a mouse?"
-    answer: "Yes. Click a tab or a menu row, click a tick box, scroll a list with the wheel, and hover a row on the main menu to read its description. The keyboard still does everything."
+    answer: "Yes. Click a tab or a menu row, click a tick box, scroll a list with the wheel, and hover a row to read its description. In Settings and on the Accounts tool pages, the pointer highlights a row and a click on the highlighted row (or on its value) acts. The keyboard still does everything."
   - question: "Why does Devpit say it needs a bigger window?"
     answer: "Devpit draws its screens in at least 80 columns by 24 rows. Make the terminal window bigger and it redraws by itself."
 ---
@@ -36,23 +36,32 @@ The footer at the bottom of the window always shows the keys that work right now
 | <kbd>Ctrl</kbd>+<kbd>C</kbd> | Quit from anywhere. If work is running, Devpit asks it to stop first |
 | <kbd>q</kbd> | Quit, from the main menu only |
 
-On a screen with a form, such as Git identity, <kbd>Tab</kbd> moves between fields and does not change section.
+On a screen with a form, such as the Share Files sign-in, <kbd>Tab</kbd> moves between fields and does not change section.
 While work is running, <kbd>Tab</kbd> does nothing.
 
 ## Main menu
 
 | Key | What it does |
 | --- | --- |
-| <kbd>1</kbd> | Free Up Disk Space |
-| <kbd>2</kbd> | Fix Stuck Ports & Apps |
-| <kbd>3</kbd> | Install Developer Apps |
-| <kbd>4</kbd> | Update Everything |
-| <kbd>5</kbd> | Network Tools |
-| <kbd>6</kbd> | Git & SSH Setup |
-| <kbd>7</kbd> | Devpit Settings |
-| <kbd>8</kbd> | Share Files |
+| <kbd>1</kbd> | Accounts |
+| <kbd>2</kbd> | Free Up Disk Space |
+| <kbd>3</kbd> | Ports & Network |
+| <kbd>4</kbd> | Install & Update |
+| <kbd>5</kbd> | Share Files |
+| <kbd>6</kbd> | Devpit Settings |
 
 The digits work on the main menu only, so a number you type in a form stays a number.
+
+The tabs in the header are, in the same order: **Accounts**, **Clean**, **Ports & Net**, **Apps**, **Share** and **Settings**.
+
+**Ports & Network** and **Install & Update** each open a small menu with two entries:
+
+| Section | <kbd>1</kbd> | <kbd>2</kbd> |
+| --- | --- | --- |
+| Ports & Network | Fix stuck ports & apps | Network tools |
+| Install & Update | Install developer apps | Update everything |
+
+Press the digit, or move and press <kbd>Enter</kbd>. <kbd>Esc</kbd> goes back to that small menu.
 
 ## Menus and lists
 
@@ -64,6 +73,9 @@ These keys work in every menu and pick list.
 | <kbd>↓</kbd> or <kbd>j</kbd> | Move down |
 | <kbd>Enter</kbd> | Choose the highlighted row |
 | <kbd>Space</kbd> | Tick or untick a row, in lists that have tick boxes |
+| <kbd>Home</kbd> <kbd>End</kbd> | First or last row, in Settings and on the Accounts tool pages |
+
+Settings and the Accounts tool pages (and the Git page) share one layout: what is true now at the top, then the choices in short groups under headings. The cursor skips the headings. A row ending in `›` opens a screen; a value in `‹ ›` changes in place with <kbd>Enter</kbd>, <kbd>Space</kbd> or <kbd>←</kbd> <kbd>→</kbd>; `●`/`○` is on or off. The highlighted row is explained beside the list (under it on a small window), including what happens when you press <kbd>Enter</kbd>. A row that cannot be used right now stays in the list, greyed, with the reason.
 
 ## Questions (the confirm box)
 
@@ -76,9 +88,31 @@ Every question starts on **No**.
 | <kbd>←</kbd> <kbd>→</kbd> or <kbd>h</kbd> <kbd>l</kbd> | Move between No and Yes |
 | <kbd>Enter</kbd> | Choose what is highlighted (No, unless you moved) |
 
-For **Careful** items, and for replacing an SSH key, you must type a word first: `DELETE` or `OVERWRITE`.
+For **Careful** items in Free Up Disk Space you must type a word first: `DELETE`.
 Type it exactly, in capital letters, then press <kbd>Enter</kbd>.
 <kbd>y</kbd> alone does not work there. <kbd>Esc</kbd> cancels.
+
+## Accounts
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move between tools |
+| <kbd>Enter</kbd> | Open the tool on this row |
+| <kbd>v</kbd> | Verify: check every tool, expected against actual. Also works on a tool page and the Git page |
+| <kbd>u</kbd> | Undo the last account change |
+| <kbd>b</kbd> | Browse the folders that have rules |
+| <kbd>f</kbd> | Look at another folder |
+| <kbd>i</kbd> | Accounts already on this PC (import), when Devpit found some |
+| <kbd>a</kbd> | On the verify screen: also check the accounts not used here (asks first for Claude Code) |
+| <kbd>x</kbd> | In Browse folders: fix old rules (<kbd>d</kbd> remove, <kbd>p</kbd> point elsewhere) |
+| <kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd> | In the Claude Code item list: Share, Copy or Skip |
+| <kbd>c</kbd> | Copy: the "just this once" command, or a new SSH public key |
+| Type | In the account picker: filter the list |
+| <kbd>y</kbd> / <kbd>n</kbd> | Answer the preview (No is the default) |
+| <kbd>l</kbd> | While a change is applied: show the raw log |
+| <kbd>v</kbd> / <kbd>u</kbd> / <kbd>Enter</kbd> | On the done card: verify, undo, or go back |
+
+More in [Accounts](/docs/features/accounts).
 
 ## Free Up Disk Space
 
@@ -100,7 +134,7 @@ Type it exactly, in capital letters, then press <kbd>Enter</kbd>.
 
 More in [Free up disk space](/docs/features/free-up-disk-space).
 
-## Fix Stuck Ports & Apps
+## Fix stuck ports & apps
 
 | Key | What it does |
 | --- | --- |
@@ -114,7 +148,7 @@ More in [Free up disk space](/docs/features/free-up-disk-space).
 
 More in [Fix stuck ports and apps](/docs/features/fix-stuck-ports).
 
-## Install Developer Apps and Update Everything
+## Install developer apps and Update everything
 
 | Key | What it does |
 | --- | --- |
@@ -144,7 +178,7 @@ More in [Install developer apps](/docs/features/install-developer-apps) and [Upd
 
 More in [Share files](/docs/features/share-files).
 
-## Network Tools
+## Network tools
 
 | Key | What it does |
 | --- | --- |
@@ -153,24 +187,19 @@ More in [Share files](/docs/features/share-files).
 
 More in [Network tools](/docs/features/network-tools).
 
-## Git & SSH Setup
 
-| Key | What it does |
-| --- | --- |
-| <kbd>Tab</kbd> | Switch between the name and email fields |
-| <kbd>Enter</kbd> | Review your change, or go back when it is done |
-| <kbd>c</kbd> | Copy the new public key |
-
-More in [Git and SSH setup](/docs/features/git-and-ssh).
 
 ## Settings
 
 | Key | What it does |
 | --- | --- |
-| <kbd>Enter</kbd> or <kbd>Space</kbd> | Change the highlighted setting |
+| <kbd>↑</kbd> <kbd>↓</kbd>, <kbd>Home</kbd> <kbd>End</kbd>, <kbd>PgUp</kbd> <kbd>PgDn</kbd> | Move; group headings are skipped |
+| <kbd>Enter</kbd> or <kbd>Space</kbd> | Change the highlighted setting, or open its screen |
+| <kbd>←</kbd> <kbd>→</kbd> | The choice before or after; flip an on/off setting |
 | <kbd>Enter</kbd> | Save, in an edit screen |
-| <kbd>a</kbd> | Add a path to the never-touch list |
-| <kbd>x</kbd> | Remove a path or a recent folder |
+| <kbd>a</kbd> | Add a path to the never-touch folders |
+| <kbd>x</kbd> | Remove a path or a recent folder; remove the skill on the AI agent skill screen |
+| <kbd>i</kbd> | Install or update the skill, on the AI agent skill screen |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reset the dev ports to the default list |
 | <kbd>Esc</kbd> | Go back |
 
@@ -193,7 +222,8 @@ The mouse is an extra. The keyboard does everything.
 | --- | --- |
 | Click a tab in the header | Jump to that section |
 | Click a menu row | Open it, like pressing <kbd>Enter</kbd> |
-| Hover a row on the main menu | Highlights it and shows its description |
+| Hover a row on a menu | Highlights it and shows its description |
+| Click a row in Settings or on an Accounts tool page | The first click highlights it; a click on the highlighted row, or on a value, changes or opens it |
 | Click a tick box | Ticks or unticks that row, or everything under a project heading |
 | Click a fold arrow | Folds or unfolds a group |
 | Click a row | Moves the cursor there |

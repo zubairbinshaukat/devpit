@@ -1,0 +1,30 @@
+ DEVPIT  dev  ·  AI agent skill                                                      node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
+ AI agent skill for Claude Code
+ ○ Not installed.
+
+ What it lets Claude Code do
+   Check which account each tool uses in a folder and explain why, by running Devpit's read-only
+   commands and reading its help pages. It can suggest a change and make it once you agree.
+
+ What it never does
+   ✓ Never changes anything without your yes: it asks first, every time.
+   ✓ Never reads account folders, login files or tokens.
+
+ Where it goes
+   default  C:\Users\you\.claude\skills\devpit\SKILL.md                       ○ not installed
+   work     C:\Users\you\.devpit\accounts\claude\work\skills\devpit\SKILL.md  ○ not installed
+
+ [ Install ]
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  enter choose  ·  ? help

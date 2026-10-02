@@ -3,7 +3,7 @@ title: Free up disk space and delete node_modules on Windows
 description: Find and delete node_modules, build folders, caches and other developer junk safely, with a preview, risk labels and a confirmation before anything goes.
 sidebar:
   label: Free up disk space
-  order: 1
+  order: 5
 published: 2026-09-29
 related:
   - safety-and-privacy
@@ -29,7 +29,7 @@ import Shot from '@/components/Shot.astro';
 Developer machines fill up with folders that can be rebuilt: `node_modules`, `dist`, `target`, caches.
 Devpit finds them, shows their size, and deletes only what you tick.
 
-Open it from the main menu with <kbd>1</kbd>, or choose **Free Up Disk Space**.
+Open it from the main menu with <kbd>2</kbd>, or choose **Free Up Disk Space**.
 
 ## What you can scan
 
@@ -39,7 +39,7 @@ The section opens a small menu with four rows.
 | --- | --- |
 | **Project Junk** | Looks through your projects folder for build output and dependency folders such as `node_modules`, `dist`, `.next`, `target`, `bin`, `obj`, `__pycache__` and virtual environments. |
 | **Full Scan** | Everything in Project Junk, plus package manager caches (npm, yarn, pnpm, pip, NuGet, Gradle, Maven, Cargo, Go and more), Windows temporary files, editor caches, old Scoop versions, Docker leftovers and large files. |
-| **Choose folder…** | Scans a folder you pick instead of your default one. |
+| **Choose folder** | Scans a folder you pick instead of your default one. |
 | **Resume interrupted deletes** | Finishes anything a stopped clean left behind. |
 
 <Shot name="clean-menu" />
@@ -50,7 +50,7 @@ Devpit checks the marker again right before it deletes.
 
 ## Clean up in six steps
 
-1. Press <kbd>1</kbd> on the main menu.
+1. Press <kbd>2</kbd> on the main menu.
 2. Choose **Project Junk** (or **Full Scan**).
 3. If you have not set a projects folder, Devpit asks. Pick a recent folder, type a path, or browse. Network paths are not allowed.
 4. Wait for the scan. You see the folders checked, the items found and the total size. The list fills in as it goes.

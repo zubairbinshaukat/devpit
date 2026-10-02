@@ -1,0 +1,39 @@
+---
+title: "A shared Claude Code skill link is broken"
+description: "A Claude Code skill, agents or commands folder shared by Devpit shows as broken. Why the link stopped working and how to repair it without losing files."
+sidebar:
+  label: "Shared skill link broken"
+related:
+  - features/accounts-claude-code
+  - blog/share-claude-code-skills-between-accounts-windows
+  - troubleshooting/claude-config-dir-set-by-something-else
+faq:
+  - question: "Did I lose the skill?"
+    answer: "Not because of the link. A shared skill lives in your main .claude folder and the other account only points at it. If the skill folder in your main account was deleted or renamed, the link has nothing to point at. Removing a broken link never deletes files."
+  - question: "Why does a new skill in my main account not show in the other account?"
+    answer: "Devpit adds links for new skills the next time claude starts in that account through Devpit's shim. Start claude once in a folder that uses the account, or share the skill from Accounts."
+---
+
+Devpit shares skills, agents and commands between Claude Code accounts with **junctions**: entries in the other account that point at folders in your main `%USERPROFILE%\.claude`.
+A junction is **broken** when the folder it points at is gone.
+
+## Why it happens
+
+- **The skill was deleted or renamed in your main account.** The link in the other account still has the old name.
+- **The main `.claude` folder moved**, for example into OneDrive. Links to it no longer resolve. OneDrive does not keep links, so Devpit does not make them there.
+- **Another tool replaced the folder** with something else.
+
+## How to fix it
+
+1. Open **Accounts**, then **Claude Code**, and open the account that shows the broken item.
+2. Choose **Bring your Claude Code setup over**. The item list marks the link as **broken link**. Press <kbd>r</kbd> to repair it. Repairing only changes the link, never your files.
+3. If the skill was renamed on purpose, share it again under its new name. If it was deleted, remove the broken link.
+
+A link made by another tool is left alone and the row says so; fix that one with the tool that made it.
+
+Do not delete a shared folder through the link in the other account with Explorer or `Remove-Item -Recurse`: that can delete the files in your main account too.
+To stop sharing, use **Stop sharing** in Devpit: it copies the item first and removes only the link.
+
+:::note[Check against the app]
+The item list and its repair are new in this release. If the screen differs from this page, the app is right; please [report it](https://github.com/zubairbinshaukat/devpit/issues).
+:::

@@ -1,31 +1,38 @@
 package devpit
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
+// notAvailableError is what a reserved command returns.
+type notAvailableError struct {
+	// name is the command path after "devpit", such as "ports kill".
+	name string
+}
+
+// Error implements error.
+func (e notAvailableError) Error() string {
+	return "devpit " + e.name + " is not available from the command line yet — open `devpit` and use the menu."
+}
+
 // notImplemented builds the RunE of a subcommand that is reserved but not
-// built yet. It fails rather than printing to stdout and exiting zero, so a
-// script that pipes Devpit's output cannot mistake "nothing happened" for
-// success.
-func notImplemented(name string, milestone int) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, _ []string) error {
-		fmt.Fprintf(cmd.ErrOrStderr(),
-			"devpit %s: not implemented yet, it arrives in milestone %d.\nRun `devpit` with no arguments for what does work today.\n",
-			name, milestone)
-		return nil
+// built yet. It fails with ExitFailed rather than printing and exiting zero:
+// scripts and agents trust exit codes, and "nothing happened" must never
+// read as success.
+func notImplemented(name string) func(*cobra.Command, []string) error {
+	return func(*cobra.Command, []string) error {
+		return withCode(ExitFailed, notAvailableError{name: name})
 	}
 }
 
-// newCleanCmd is the headless cleaner. Milestone 1 fills it in.
+// newCleanCmd is the headless way to free up disk space. Reserved.
 func newCleanCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "clean [path]",
-		Short: "Scan and clean dev junk without opening the app (not implemented yet)",
-		Args:  cobra.MaximumNArgs(1),
-		RunE:  notImplemented("clean", 1),
+		Use:     "clean [path]",
+		Short:   "Free up disk space without opening the app (not implemented yet)",
+		Example: "devpit clean D:\\work --dry-run\ndevpit clean --resume",
+		Args:    cobra.MaximumNArgs(1),
+		RunE:    notImplemented("clean"),
 	}
 	cmd.Flags().Bool("dry-run", false, "report what would be deleted, delete nothing")
 	cmd.Flags().Bool("yes", false, "skip the confirmation prompt")
@@ -34,40 +41,44 @@ func newCleanCmd() *cobra.Command {
 	return cmd
 }
 
-// newPortsCmd is the headless port tool. Milestone 3 fills it in.
+// newPortsCmd is the headless port tool. Reserved.
 func newPortsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ports",
-		Short: "List or free busy dev ports (not implemented yet)",
-		Args:  cobra.NoArgs,
-		RunE:  notImplemented("ports", 3),
+		Use:     "ports",
+		Short:   "List or free busy dev ports (not implemented yet)",
+		Example: "devpit ports",
+		Args:    cobra.NoArgs,
+		RunE:    notImplemented("ports"),
 	}
 	kill := &cobra.Command{
-		Use:   "kill <port>",
-		Short: "Stop whatever is listening on a port (not implemented yet)",
-		Args:  cobra.ExactArgs(1),
-		RunE:  notImplemented("ports kill", 3),
+		Use:     "kill <port>",
+		Short:   "Stop whatever is listening on a port (not implemented yet)",
+		Example: "devpit ports kill 3000",
+		Args:    cobra.ExactArgs(1),
+		RunE:    notImplemented("ports kill"),
 	}
 	cmd.AddCommand(kill)
 	return cmd
 }
 
-// newUpdateCmd is the headless updater. Milestone 5 fills it in.
+// newUpdateCmd is the headless updater. Reserved.
 func newUpdateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "update",
-		Short: "Update tools through every detected package manager (not implemented yet)",
-		Args:  cobra.NoArgs,
-		RunE:  notImplemented("update", 5),
+		Use:     "update",
+		Short:   "Update tools through every detected package manager (not implemented yet)",
+		Example: "devpit update",
+		Args:    cobra.NoArgs,
+		RunE:    notImplemented("update"),
 	}
 }
 
-// newSettingsCmd edits settings from a script. Milestone 6 fills it in.
+// newSettingsCmd edits settings from a script. Reserved.
 func newSettingsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "settings [key] [value]",
-		Short: "Read or change a setting without opening the app (not implemented yet)",
-		Args:  cobra.MaximumNArgs(2),
-		RunE:  notImplemented("settings", 6),
+		Use:     "settings [key] [value]",
+		Short:   "Read or change a setting without opening the app (not implemented yet)",
+		Example: "devpit settings\ndevpit settings theme",
+		Args:    cobra.MaximumNArgs(2),
+		RunE:    notImplemented("settings"),
 	}
 }

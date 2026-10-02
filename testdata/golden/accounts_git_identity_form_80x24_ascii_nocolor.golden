@@ -1,0 +1,20 @@
+ A new name and email to commit with
+
+ Short name  how Devpit lists it, like work
+ > oss
+
+ Name on commits  leave empty to keep the name in your usual Git settings
+ > You
+
+ Email on commits  the address your commits show
+ > you@example.com
+
+ Suggested by your GitHub accounts (Tab to here, Enter to pick):
+| > 1234567+you-at-work@users.noreply.github.com
+|   GitHub's private address for you-at-work: commits link to the account wit...
+    you@work.example
+
+
+
+
+[keys] tab next field  ·  enter save

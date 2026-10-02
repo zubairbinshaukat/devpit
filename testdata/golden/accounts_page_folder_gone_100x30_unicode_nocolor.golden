@@ -1,0 +1,26 @@
+ Accounts                                                                in C:\Projects\quiz-slayer
+ ✗ This folder is gone. Rules still show what would apply here. Press f to pick another.
+
+    TOOL            ACCOUNT                          WHY
+▌ ▸ Claude Code   ✓ work (you@work.example)          folder rule: C:\Projects
+    Git           ✓ You <you@personal.example>       everywhere
+    GitHub        ✓ work (you-at-work)               folder rule: C:\Projects
+    Vercel        ✓ default (you@personal.example)   everywhere
+    Firebase      ─ not installed
+    Supabase      ─ not installed
+    Cloudflare    ✓ default (not checked yet)        everywhere · beta
+    Convex        ✓ project: quiz-slayer             set by this project's .env.local
+
+ Folder rule: an account you chose for a folder and every folder inside it.
+ Not checked yet: Devpit has not asked the tool who is signed in. Press v to check.
+
+
+
+
+
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

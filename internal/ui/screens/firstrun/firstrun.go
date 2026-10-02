@@ -31,6 +31,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/zubairbinshaukat/devpit/internal/about"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/checklist"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
@@ -377,7 +378,7 @@ func (m Model) layout(ctx uictx.Context) (lines []string, optTop int) {
 			title = e + " " + title
 		}
 		add(" "+th.Title.Render(title), "")
-		para(th.Base, "A pit stop for your dev machine: free disk space, fix stuck ports, and keep your tools up to date, from one menu.")
+		para(th.Base, about.Tagline+". A toolkit for Windows developers: the right account in every folder, disk space back, stuck ports freed, tools updated and big folders moved between PCs, from one menu.")
 		add("")
 		for _, s := range SafetyBullets {
 			add("  " + th.Success.Render(ctx.Icons.Tick) + " " + th.Base.Render(ansi.Truncate(s, max(10, ctx.Width-5), "…")))
@@ -418,10 +419,33 @@ func (m Model) layout(ctx uictx.Context) (lines []string, optTop int) {
 	add("")
 	if m.step == stepPrivacy {
 		add(" " + button(ctx, "Start using Devpit", true))
+		// The AI agent skill is mentioned here, never installed: what it
+		// writes and where is shown in Settings, behind a yes.
+		sep := "›"
+		if ctx.Icons.Tier == icons.TierASCII {
+			sep = ">"
+		}
+		add("")
+		para(th.Muted, AgentSkillLine(sep))
 	} else {
 		add(" " + button(ctx, "Next", true))
 	}
 	return lines, optTop
+}
+
+// AgentSkillLine is the first-run note about the AI agent skill, with sep
+// between "Settings" and the row's name.
+func AgentSkillLine(sep string) string {
+	return "Using Claude Code? Devpit has a skill that lets it check your accounts and ask before any change. Add it any time from Settings " + sep + " AI agent skill."
+}
+
+// buttonLine is the line the step's button is on, counted like layout's.
+func (m Model) buttonLine(ctx uictx.Context) int {
+	lines, top := m.layout(ctx)
+	if top < 0 {
+		return len(lines) - 1
+	}
+	return top + len(m.options(ctx)) + 1
 }
 
 // optionLine draws one choice as a radio row on the selection band.
@@ -511,7 +535,7 @@ func probe(ctx uictx.Context) string {
 	n := icons.Nerd()
 	shapes := th.Base.Render(strings.Join([]string{u.Tick, u.Safe, u.Folder}, "   "))
 	nerd := th.SectionIcon(theme.SectionClean).Render(n.Section(theme.SectionClean)) + "   " +
-		th.SectionIcon(theme.SectionGitSSH).Render(n.Git) + "   " +
+		th.SectionIcon(theme.SectionAccounts).Render(n.Git) + "   " +
 		th.SectionIcon(theme.SectionUpdate).Render(n.Node)
 	return shapes + "   " + nerd
 }
@@ -593,8 +617,7 @@ func (m Model) onClick(ctx uictx.Context, row int) (uictx.Screen, tea.Cmd) {
 		m = m.pick(ctx)
 		return m, m.preview(ctx)
 	}
-	lines, _ := m.layout(inner(ctx))
-	if row-m.topPad(ctx) == len(lines)-1 {
+	if row-m.topPad(ctx) == m.buttonLine(inner(ctx)) {
 		return m.next(ctx)
 	}
 	return m, nil

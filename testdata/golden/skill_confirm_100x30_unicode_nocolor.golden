@@ -1,0 +1,30 @@
+ DEVPIT  dev  ·  AI agent skill                                                      node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
+ AI agent skill for Claude Code
+ ○ Not installed.
+
+ Where it goes
+   default  C:\Users\you\.claude\skills\devpit\SKILL.md                       ○ not installed
+   work     C:\Users\you\.devpit\accounts\claude\work\skills\devpit\SKILL.md  ○ not installed
+
+ ╭────────────────────────────────────────────────────────────────────────────────────────╮
+ │ Install the Devpit skill for Claude Code?                                              │
+ │ Writes SKILL.md in 2 places listed above. Nothing else changes, and you can remove it  │
+ │ here any time.                                                                         │
+ │                                                                                        │
+ │ [ No ]   [ Yes ]                                                                       │
+ ╰────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  y/n yes/no  ·  enter confirm  ·  ? help

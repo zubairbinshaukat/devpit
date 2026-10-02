@@ -1,0 +1,48 @@
+---
+title: "Login expired or signed out in Devpit Accounts"
+description: "Devpit shows an account as expired or not signed in. Why Claude Code logins expire on idle accounts, and how to sign in again without losing the account."
+sidebar:
+  label: "Login expired or signed out"
+related:
+  - features/accounts-claude-code
+  - features/accounts
+  - troubleshooting/accounts-wrong-account-used
+faq:
+  - question: "Do I lose my settings when I sign in again?"
+    answer: "No. Signing in again writes a new login into the same account folder. Skills, settings and history in that folder stay as they are."
+  - question: "Why does Devpit not check my Claude Code accounts all the time?"
+    answer: "Asking Claude Code who is signed in can sign an idle account out on some versions, Claude Code issue 95822. So the Accounts page shows what Devpit has on record, and verify checks only the account used in the folder unless you agree to more."
+---
+
+The Accounts page or `devpit accounts verify` shows an account as **expired — sign in again** or **not signed in**.
+The account folder and everything in it are still there.
+Only the login needs to be renewed.
+
+## Why it happens
+
+- **The tool's login ran out**, or you signed out with the tool itself.
+- **Claude Code issue [#95822](https://github.com/anthropics/claude-code/issues/95822).** On some Claude Code versions, a short command such as `claude auth status` starts a token refresh and exits before the new login is saved. On an idle account this leaves a spent login, and Claude Code then says "Login expired". This is why Devpit never runs that check for the Accounts page, and why verify asks before it checks idle Claude Code accounts.
+- **Two folders signed in to the same account** can sign each other out when the login refreshes. Devpit warns about this when you add an account with an email you already have.
+
+## How to fix it
+
+On the tool's page in **Accounts**, choose **Sign in again**.
+It runs the tool's own sign-in for that account.
+
+From a terminal, run the tool's own sign-in with the account applied:
+
+```powershell
+devpit claude run work -- claude auth login
+devpit vercel run work -- vercel login
+devpit supabase run work -- supabase login
+```
+
+For other tools:
+
+- **GitHub:** `gh auth login` for that account. `gh` keeps several accounts side by side.
+- **Cloudflare:** `wrangler auth create <name>` signs a profile in again.
+- **The default account** of any tool: use the tool's own sign-in as usual.
+
+Then run `devpit accounts verify` to check.
+
+Do not delete the account folder to "start fresh": it holds the account's settings and history too.

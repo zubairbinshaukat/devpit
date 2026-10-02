@@ -1,0 +1,55 @@
+---
+title: "Devpit's shim is not first on PATH"
+description: "Verify says a tool is found before Devpit's shim, or that a new terminal is needed. What PATH order means on Windows and how to make folder rules apply."
+sidebar:
+  label: "Shim not first on PATH"
+related:
+  - features/accounts
+  - troubleshooting/accounts-folder-rule-not-applying
+  - troubleshooting/accounts-wrong-account-used
+faq:
+  - question: "What is a shim?"
+    answer: "A small program with the tool's name, such as claude.exe or gh.exe, in Devpit's shim folder. When you run claude, Windows finds the shim first, the shim picks the account for the folder you are in, and starts the real claude with it."
+  - question: "Do I need administrator rights to fix this?"
+    answer: "Only if the tool was installed for all users into the system PATH. Then the fix is to move or remove it there, which needs admin, or to install the tool for your user only. Devpit itself never needs admin for Accounts."
+---
+
+`devpit accounts verify` can show one of these:
+
+```text
+This terminal was opened before Devpit added its shim folder to PATH.
+```
+
+```text
+Claude Code is found at C:\Program Files\… before Devpit's shim, so folder rules do not apply to it.
+```
+
+```text
+Devpit's shim folder is not on your PATH, so folder rules are not applied.
+```
+
+Folder rules for Claude Code, `gh`, Vercel, Firebase and Supabase work through small programs called shims, in `%LOCALAPPDATA%\Programs\devpit\shims`.
+They only work when Windows finds the shim before the real tool.
+
+## Why it happens
+
+- **The terminal is older than the shim folder.** Devpit adds the folder to your user PATH the first time a tool gets a second account or a rule. Windows gives the new PATH only to programs started after that. This includes VS Code: its terminals get VS Code's own PATH from when it started.
+- **The tool is on the system PATH.** Windows puts the system PATH before the user PATH. A tool installed for all users (for example by an installer that asks for admin) is found before Devpit's shim, wherever it sits in your user PATH.
+- **The shim folder was taken off PATH**, by hand or by another tool.
+
+## How to fix it
+
+1. **"This terminal was opened before…":** open a new terminal. For VS Code, close it completely and open it again.
+2. **"…is found at … before Devpit's shim":** Devpit's fix names the folders, for example: "Windows puts the system PATH before the user PATH. Move C:\Program Files\… after …\devpit\shims in PATH, or remove it from the system PATH and install Claude Code for your user only." Changing the system PATH needs admin. You can check the order with:
+
+   ```powershell
+   where.exe claude
+   ```
+
+   The first line is the one that runs. It should be in `…\devpit\shims`.
+3. **"…shim folder is not on your PATH":** open **Accounts** in Devpit, or make any account change. Devpit puts the shim folder first on your user PATH again. Then open a new terminal.
+4. Run `devpit accounts verify` again.
+
+`where.exe` only lists programs. A PowerShell function or alias with the tool's name runs before any of them; `Get-Command claude` shows that case.
+
+If you set `DEVPIT_SHIM_DIR`, Devpit leaves your PATH alone and you put that folder on PATH yourself. See the [environment variables](/docs/command-line#environment-variables).

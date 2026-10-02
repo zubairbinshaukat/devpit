@@ -1,0 +1,137 @@
+---
+title: "Making a CLI that AI agents can use safely"
+description: "Design rules for a command-line tool that AI agents call: --json output, a --yes gate for changes, clear exit codes, an agent skill and an llms.txt file."
+date: 2026-10-02
+authors: [zubair]
+tags: [cli, ai agents, design, devpit]
+excerpt: "An AI agent reads your output, trusts your exit codes and never sees your prompts. Five rules that make a CLI safe for it, and how Devpit applies them."
+related:
+  - blog/shims-vs-shell-hooks-windows
+  - blog/check-account-before-push-or-deploy
+  - command-line
+  - safety-and-privacy
+faq:
+  - question: "Should a CLI detect AI agents and behave differently?"
+    answer: "It can make output plainer, for example no colour or spinners, but it should never loosen safety because of it. Decide on prompts by whether stdin and stdout are terminals, and require an explicit flag such as --yes for changes when they are not."
+  - question: "Which exit codes should I use?"
+    answer: "Zero for success and non-zero for failure is the one rule everyone agrees on. Beyond that, pick a small documented set for the failures a caller can act on, such as wrong usage or needs confirmation, and keep it stable."
+  - question: "What is the difference between AGENTS.md, a skill and llms.txt?"
+    answer: "AGENTS.md is a file in a repository that tells coding agents how to work there. A skill is a SKILL.md folder an agent loads when a task matches its description. llms.txt is a Markdown file on a website that points language models at the right pages."
+---
+
+More and more, the "user" of a command-line tool is an AI coding agent. It runs your command, reads stdout, checks the exit code, and decides what to do next. It does not see a spinner, cannot answer a hidden prompt, and will happily believe an exit code of 0.
+
+That changes what a good CLI looks like. This post collects five rules from the Command Line Interface Guidelines and current agent conventions, and shows how Devpit applies them in its Accounts commands, where a wrong guess means pushing or deploying as the wrong person.
+
+## The short answer
+
+1. **Machine output on request:** `--json` on every command that reads state.
+2. **No silent changes:** anything that changes state asks a human, or needs `--yes`.
+3. **Exit codes that mean something,** documented, and never 0 for "did nothing".
+4. **Tell agents how to use you:** a skill, an `AGENTS.md` snippet, an `llms.txt`.
+5. **Never put secrets in output,** not even in JSON.
+
+## Rule 1: --json for everything that reads
+
+The Command Line Interface Guidelines (clig.dev) say: "Display output as formatted JSON if `--json` is passed." Text output is for people. It changes wording between versions, wraps at the terminal width and mixes in colour. JSON with stable field names is something an agent can parse today and next year.
+
+Two tools agents already use show the details that matter:
+
+```powershell
+claude auth status            # JSON by default; --text for people
+gh auth status --json hosts   # JSON only when asked
+```
+
+`claude auth status` "exits with code 0 if logged in, 1 if not", so the exit code alone answers the question. `gh auth status` takes a different line, and documents it: "when using the `--json` option, the command will always exit with zero regardless of any authentication issues". Both are fine because both are written down. An agent reading either can do the right thing.
+
+Also from clig.dev: "Send output to `stdout`." and "Send messaging to `stderr`." Keep progress and warnings out of the stream an agent parses.
+
+## Rule 2: no silent changes
+
+clig.dev again: "Only use prompts or interactive elements if `stdin` is an interactive terminal (a TTY)", and "If `stdin` is not an interactive terminal, skip prompting and just require those flags/args." For dangerous actions it suggests a prompt when interactive, and "requiring them to pass `-f` or `--force` otherwise".
+
+For an agent, that turns into a simple contract:
+
+- In a terminal with a person, show a preview and ask, with **No** as the default.
+- Without a terminal, refuse, explain, and name the flag. The agent then asks its user, and runs again with `--yes` only after the user agrees.
+
+The important part is what triggers the refusal. Detect "no terminal", not "an agent". Environment variables such as `CI` or an agent's marker may make output plainer, but they should never loosen confirmation. Otherwise any process that sets the right variable skips the question.
+
+## Rule 3: exit codes that mean something
+
+The baseline from clig.dev: "Return zero exit code on success, non-zero on failure", and "Map the non-zero exit codes to the most important failure modes."
+
+There is no universal table. Bash returns 2 from its builtins "to indicate incorrect usage", 126 for "not executable" and 127 for "not found". BSD's `sysexits` codes (64 for usage and so on) exist, but OpenBSD's own manual says "A few programs exit with the following non-portable error codes. Do not use them." So: choose a small set, document it in `--help`, and keep it stable.
+
+The rule people break most is the quiet one: **a command that did nothing must not exit 0.** A placeholder command that prints "coming soon" and exits 0 tells an agent the job is done.
+
+In PowerShell, an agent or a script reads the code from `$LASTEXITCODE`:
+
+```powershell
+claude auth status | Out-Null
+if ($LASTEXITCODE -ne 0) { 'not signed in' }
+```
+
+## Rule 4: tell agents how to use you
+
+Agents look for instructions in a few standard places. A CLI can meet them in each.
+
+**A skill.** Claude Code skills "follow the Agent Skills open standard". The spec at agentskills.io: "The `SKILL.md` file must contain YAML frontmatter followed by Markdown content". `name` is required ("Lowercase letters, numbers, and hyphens only", and it "must match the parent directory name"), and so is `description`, which says "what the skill does and when to use it". Personal skills live in `~/.claude/skills/<skill-name>/SKILL.md`. A minimal one for your own tool:
+
+```text
+---
+name: mytool
+description: Use mytool to check and change which account a folder uses. Use it before pushing or deploying.
+---
+
+- Read state with `mytool status --json` first.
+- Never change anything without asking the user. Changes need `--yes`.
+- Exit code 3 means the user must agree first. Ask them, then rerun with --yes.
+```
+
+**An `AGENTS.md` snippet.** agents.md describes `AGENTS.md` as "a simple, open format for guiding coding agents", a "README for agents" that lives in a repository. A CLI can print a short snippet users paste into their own `AGENTS.md`, for agents that do not read skills.
+
+**An `llms.txt`.** The llmstxt.org proposal: "We propose adding a `/llms.txt` markdown file to websites to provide LLM-friendly content." It starts with an H1, a short summary in a blockquote, and lists of links to the pages that matter. Put your command summary there, so an agent that only fetches your website still finds the right commands.
+
+## Rule 5: never put a secret in output
+
+Agents copy output into their context, logs and sometimes their answers. Anything you print may end up somewhere you did not plan.
+
+Real examples of the trap: `gh auth status` has a `--show-token` option, and `firebase login:list --json` includes each account's tokens next to the emails (we read this in the firebase-tools 15.32.1 source). A CLI meant for agents should answer "who am I" with names and emails only, and make the token path impossible to reach by accident.
+
+## How Devpit applies these rules
+
+Devpit's account commands (`devpit <tool>`, `devpit <tool> use`, `run`, `list`, `add`, `devpit undo`, `devpit accounts verify`) follow all five. The full list is in the [command line reference](/docs/command-line).
+
+- **`--json`** on every read command (`devpit <tool>`, `list`, `accounts verify`), with stable field names. Each command's JSON is pinned by a test.
+- **Interactive means a person.** A command counts as interactive only when stdin and stdout are terminals. Agent variables such as `CLAUDECODE` or `CI` may make output plainer, never less careful.
+- **No silent changes.** Not interactive and no `--yes`? Devpit exits with code 3 and says: "This would change which account is used. Re-run with --yes after the user agrees."
+- **Documented exit codes,** in `--help`: 0 ok, 1 failed, 2 wrong usage, 3 needs `--yes`, 4 verify found a mismatch.
+- **Placeholder commands exit non-zero.** Devpit found its own older stub commands exited 0 while doing nothing, and changed them, because agents trust exit codes.
+- **Help ends with real examples.** A test fails if a command has none.
+- **`devpit agent install`** writes a `devpit` skill (`SKILL.md` with standard frontmatter) into every Claude Code account and prints an `AGENTS.md` snippet for other agents. It says: when to use Devpit, check before switching, ask the user first, never read account folders. `devpit agent remove` takes it out again.
+- **`llms.txt`** on the website includes the command summary: [devpit.zubyr.dev/llms.txt](https://devpit.zubyr.dev/llms.txt).
+- **No tokens in any output.** Devpit stores none and prints none. A test plants a fake token in fake tools and checks that it never appears in events, logs or `--json` output. More in [Safety and privacy](/docs/safety-and-privacy).
+
+## Checklist for your own CLI
+
+1. Add `--json` to every command that reads state, and keep the field names stable.
+2. Send data to stdout and messages to stderr.
+3. Prompt only when stdin is a terminal; otherwise require `--yes` and say so.
+4. Never loosen safety because you detected an agent.
+5. Document a small set of exit codes. Never exit 0 for "nothing happened".
+6. Ship a skill, an `AGENTS.md` snippet and an `llms.txt`.
+7. Keep tokens out of every output mode.
+
+## Sources
+
+- [Command Line Interface Guidelines](https://clig.dev/)
+- [Claude Code: CLI reference (`claude auth status` exit codes)](https://code.claude.com/docs/en/cli-reference)
+- [GitHub CLI manual: gh auth status](https://cli.github.com/manual/gh_auth_status)
+- [Claude Code: Skills](https://code.claude.com/docs/en/skills)
+- [Agent Skills specification](https://agentskills.io/specification)
+- [AGENTS.md](https://agents.md/)
+- [llms.txt proposal](https://llmstxt.org/)
+- [GNU Bash manual: Exit Status](https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html)
+- [OpenBSD: sysexits(3)](https://man.openbsd.org/sysexits)
+- [firebase-tools source](https://github.com/firebase/firebase-tools)

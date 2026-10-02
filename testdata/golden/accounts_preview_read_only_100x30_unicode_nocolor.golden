@@ -1,0 +1,26 @@
+ Here is what will change                                                in C:\Projects\quiz-slayer
+
+ In C:\Projects\quiz-slayer and every folder inside it, Claude Code will use default
+ (you@personal.example).
+ The rest of C:\Projects stays work (you@work.example).
+ Everywhere else stays default (you@personal.example).
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (adds)
+     [[rule]]
+     folder = 'C:\Projects\quiz-slayer'
+     claude = "default"
+
+ ! Another Devpit window is changing accounts, so this one can look but not change anything. Close
+   Accounts there, then press r here.
+
+
+
+
+
+
+
+
+
+
+[keys] enter back

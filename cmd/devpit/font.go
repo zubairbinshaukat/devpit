@@ -66,7 +66,11 @@ func newFontCmdWith(env fontEnv) *cobra.Command {
 		Long: "Installs Symbols Nerd Font Mono for the current user (no admin needed) and adds it " +
 			"to Windows Terminal as a fallback font, so your own font is kept. " +
 			"The same as Settings › Icon font.",
-		Args: cobra.NoArgs,
+		Example: "devpit font status\ndevpit font install --quiet",
+		Args:    cobra.NoArgs,
+		// Runnable, so a stray argument is a usage error (exit code 2)
+		// rather than the help page with exit code 0.
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 
 	var quiet bool

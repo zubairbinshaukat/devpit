@@ -1,0 +1,24 @@
+ DEVPIT  dev  -  AI agent skill                              node ...   git ...
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+------------------------------------------------------==========----------------
+ AI agent skill for Claude Code
+ X A different skill called devpit is already there, so Devpit will not install
+   its own.
+   Remove or rename that devpit folder yourself if you want Devpit's skill
+   instead.
+
+ Lets Claude Code check which account each tool uses in a folder and explain
+ why, using Devpit's read-only commands and its help pages.
+   + Never changes anything without your yes: it asks first, every time.
+   + Never reads account folders, login files or tokens.
+
+ Where it goes
+   default  C:\Users\you\.claude\skills\devpit\SKILL.md          X not Devpit's
+            A devpit skill Devpit did not write.
+   work     C:\Users\you\.devpit\accounts\claude\wo...\SKILL.md  X not Devpit's
+            A devpit folder without Devpit's SKILL.md, holding other files.
+
+
+--------------------------------------------------------------------------------
+esc back  -  ? help

@@ -1,0 +1,26 @@
+ Undo the last change?
+
+ Undo this change:
+   Claude Code uses default in C:\Projects\quiz-slayer (2026-10-02 10:00)
+     puts back: ~/AppData/Roaming/devpit/accounts.toml
+ accounts.toml goes back to how it was before.
+
+╭─────────────────────────────────────────────────────────────────────────────╮
+│ Undo it?                                                                    │
+│ Devpit puts back only what it wrote. A file changed by hand since stops it. │
+│                                                                             │
+│ [ No ]   [ Yes ]                                                            │
+╰─────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

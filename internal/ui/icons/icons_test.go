@@ -288,7 +288,7 @@ func lower(s string) string {
 // both do, so the home menu has icons on a stock terminal, and ascii draws
 // none rather than a letter that would read as a hotkey.
 func TestSectionGlyphs(t *testing.T) {
-	ids := []string{"clean", "ports", "install", "update", "network", "gitssh", "settings", "share"}
+	ids := []string{"accounts", "clean", "portsnet", "apps", "share", "settings"}
 	for _, tier := range []icons.Tier{icons.TierNerd, icons.TierUnicode} {
 		set := icons.For(tier)
 		seen := map[string]bool{}
@@ -307,6 +307,10 @@ func TestSectionGlyphs(t *testing.T) {
 		if g := icons.ASCII().Section(id); g != "" {
 			t.Errorf("ascii tier draws %q for section %q, want nothing", g, id)
 		}
+	}
+	// The retired Git & SSH section no longer has a glyph of its own.
+	if g := icons.Unicode().Section("gitssh"); g != "" {
+		t.Errorf("unicode tier still draws %q for the retired gitssh section", g)
 	}
 }
 

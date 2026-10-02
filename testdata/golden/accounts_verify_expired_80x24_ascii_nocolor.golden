@@ -1,0 +1,20 @@
+ Who each tool says is signed in                     in C:\Projects\quiz-slayer
+
+     TOOL        EXPECTED                        TOOL SAYS
+ > X Claude Code work (you@work.example)         mismatch - expired
+   + Git         You <you@personal.example>      commits as You <you@personal...
+   + GitHub      work (you-at-work)              signed in as you-at-work
+   + Vercel      default (you@personal.example)  signed in as you@personal.ex...
+   - Firebase    default (not checked yet)       not installed
+   - Supabase    default (not checked yet)       not installed
+   + Cloudflare  default (not checked yet)       signed in
+   . Convex      default (not checked yet)       project: quiz-slayer
+
+ X Something is not as it should be. Pick a row marked X and press f.
+
+ The sign-in has expired. Sign in again.
+ [f] fix this on the tool's page
+
+ [a] also check the accounts not used here
+
+[keys] ↑↓ move  ·  f fix  ·  a check idle accounts  ·  r check again  ·  enter back

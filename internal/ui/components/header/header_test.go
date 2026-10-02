@@ -157,6 +157,41 @@ func TestHomeHeaderHasNoTabRow(t *testing.T) {
 	}
 }
 
+// The digit range in the hint at the right of the tab row follows the
+// number of tabs, so it can never go stale when a section is added.
+func TestTabHintCountsTheTabs(t *testing.T) {
+	h := header.New()
+	h.Tabs = tabs()
+	h.ShowTabs = true
+	row := ansi.Strip(strings.Split(h.View(ctx(80)), "\n")[header.TabRow])
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "1–3") {
+		t.Errorf("tab row = %q, want the hint to end in 1–3", row)
+	}
+	c := ctx(80)
+	c.Icons = icons.ASCII()
+	row = strings.Split(ansi.Strip(h.View(c)), "\n")[header.TabRow]
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "1-3") {
+		t.Errorf("ascii tab row = %q, want the hint to end in 1-3", row)
+	}
+}
+
+// A tab row wider than the terminal is cut to the terminal's width rather
+// than wrapping onto the rule under it.
+func TestTabRowNeverOverflows(t *testing.T) {
+	h := header.New()
+	h.Tabs = append(tabs(), header.Tab{ID: "a", Label: "Accounts"}, header.Tab{ID: "b", Label: "Ports & Net"})
+	h.ShowTabs = true
+	for _, w := range []int{30, 45, 80} {
+		lines := strings.Split(ansi.Strip(h.View(ctx(w))), "\n")
+		if len(lines) != header.Rows {
+			t.Fatalf("width %d: %d rows, want %d", w, len(lines), header.Rows)
+		}
+		if got := ansi.StringWidth(lines[header.TabRow]); got > w {
+			t.Errorf("width %d: tab row is %d wide: %q", w, got, lines[header.TabRow])
+		}
+	}
+}
+
 // The rule under the tab bar turns into an accent underline exactly as wide
 // as the open tab, and starts where that tab does.
 func TestRuleUnderlinesTheOpenTab(t *testing.T) {
@@ -175,5 +210,15 @@ func TestRuleUnderlinesTheOpenTab(t *testing.T) {
 	}
 	if rule[start-1] == '━' || rule[start+len([]rune(want))] == '━' {
 		t.Errorf("underline is wider than the tab: %q", lines[header.Rows-1])
+	}
+}
+
+// A development build reads "dev", never a lone "v"; a release reads "v0.4.0"
+// whether or not it was given with its "v".
+func TestVersionLabel(t *testing.T) {
+	for in, want := range map[string]string{"": "dev", " ": "dev", "dev": "dev", "0.4.0": "v0.4.0", "v0.4.0": "v0.4.0"} {
+		if got := header.VersionLabel(in); got != want {
+			t.Errorf("VersionLabel(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

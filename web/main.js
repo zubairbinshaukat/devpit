@@ -2,8 +2,9 @@
    Devpit — landing page script
    1. Space: WebGL light rays from above (default) or black hole
       — switch with <html data-effect="rays" | "blackhole">
-   2. Terminal demo (auto-typing scenes, junk gets pulled into the hole)
-   3. Stats (tries /api/stats, falls back to dummy)
+   2. Terminal demo (auto-typing scenes: Accounts first, then the rest of
+      the menu; cleaned items get pulled into the light)
+   3. Stats (shown only when /api/stats returns real totals)
    4. Copy buttons
    No dependencies.
    ========================================================= */
@@ -514,8 +515,13 @@ self.onmessage = (e) => {
     done: "<b>Enter</b> back to menu · <b>Esc</b> exit",
     input: "<b>Enter</b> confirm · <b>Esc</b> back",
     list: "<b>Space</b> tick · <b>a</b> all · <b>Enter</b> update",
+    accounts: "<b>Enter</b> open · <b>v</b> verify · <b>b</b> browse folders · <b>f</b> change folder · <b>u</b> undo last · <b>?</b> help",
+    pick: "<b>↑↓</b> move · <b>Enter</b> select · <b>Esc</b> back",
+    applying: "<b>l</b> show the raw log",
+    acdone: "<b>v</b> verify · <b>u</b> undo · <b>Enter</b> back",
   };
-  const keys = (k) => { keysEl.innerHTML = KEYS[k] ?? k; };
+  // each "key label" pair is one unbreakable item, so narrow screens wrap between hints, never inside one
+  const keys = (k) => { keysEl.innerHTML = (KEYS[k] ?? k).split(" · ").filter(Boolean).map((s) => `<span>${s}</span>`).join(""); };
 
   function setCaptions(list) {
     captions = list;
@@ -525,9 +531,11 @@ self.onmessage = (e) => {
   function cap(i) {
     $$("i", dotsEl).forEach((d, j) => { d.classList.toggle("is-past", j < i); d.classList.toggle("is-now", j === i); });
     clearTimeout(capTimer);
-    if (REDUCED) { subsText.innerHTML = captions[i]; return; }
+    // one inline wrapper, so the flex caption box keeps the spaces around <b>
+    const html = `<span>${captions[i]}</span>`;
+    if (REDUCED) { subsText.innerHTML = html; return; }
     subsText.classList.add("is-fading");
-    capTimer = setTimeout(() => { subsText.innerHTML = captions[i]; subsText.classList.remove("is-fading"); }, 220);
+    capTimer = setTimeout(() => { subsText.innerHTML = html; subsText.classList.remove("is-fading"); }, 220);
   }
 
   let metricNow = 0, metricFmt = (v) => v;
@@ -542,18 +550,18 @@ self.onmessage = (e) => {
   }
 
   /* ----- Devpit TUI pieces ----- */
+  // The v0.4.0 home menu: six entries, Accounts first, Settings last (keys 1–6).
   const MENU = [
-    ["◧", "Free Up Disk Space", "~12.4 GB can be freed"],
-    ["⊘", "Fix Stuck Ports & Apps", "Port 3000 busy? Kill it"],
-    ["⊕", "Install Developer Apps", "via Scoop · 23 apps installed"],
-    ["↻", "Update Everything", "Scoop, winget, npm · 5 updates"],
-    ["◎", "Network Tools", "IP, ping, DNS flush"],
-    ["⎇", "Git & SSH Setup", "name, email, SSH keys"],
-    ["⚙\uFE0E", "Devpit Settings", "folders, theme, rescan tools"],
+    ["◉", "Accounts", "Use the right account in every folder"],
+    ["◧", "Free Up Disk Space", "Scan and clean dev junk, caches and temp files"],
+    ["⊘", "Ports & Network", "Free a busy port, check your connection"],
+    ["↻", "Install & Update", "Install dev apps, update everything"],
+    ["⇄", "Share Files", "Move big folders between two PCs on your network"],
+    ["⚙\uFE0E", "Devpit Settings", "Preferences, theme, privacy, tool rescan"],
   ];
   function openApp(free = "18.4 GB") {
     const app = el("div", "app",
-      `<div class="app__status"><span class="app__name">◆ devpit 1.0.0</span>` +
+      `<div class="app__status"><span class="app__name">◆ devpit 0.4.0</span>` +
       `<span class="t-m">node <span class="t-c">22.9.0</span></span>` +
       `<span class="t-m">git <span class="t-c">2.46.0</span></span>` +
       `<span class="t-m">C: <span class="t-w" data-free>${free}</span> free</span></div>` +
@@ -566,7 +574,7 @@ self.onmessage = (e) => {
     screen.innerHTML =
       `<div class="t-m">Pit crew ready. Pick a section.</div><div class="tl--gap"></div>` +
       MENU.map((m, i) => `<div class="menu-row${i === sel ? " is-sel" : ""}"><span>${i === sel ? "▸" : " "}</span><span>${m[0]}</span><span class="menu-name">${m[1]}</span><span class="menu-desc">${m[2]}</span></div>`).join("") +
-      `<div class="tl--gap"></div><div><span class="t-o">▲</span> <span class="t-m">12.4 GB can be freed since your last scan.</span></div>`;
+      `<div class="tl--gap"></div><div class="t-m">Press 1–6 to jump to a section.</div>`;
     scroll();
   }
   function renderList(screen, head, items, sel) {
@@ -583,10 +591,155 @@ self.onmessage = (e) => {
   const badge = (r) => `<span class="badge--${r} t-b">${r[0].toUpperCase() + r.slice(1)}</span>`;
   const bar = (frac, w = 28) => { const f = Math.round(frac * w); return `<span class="t-o">${"━".repeat(f)}</span><span class="t-m">${"─".repeat(w - f)}</span>`; };
 
-  /* ----- SCENE 1: Free up space ----- */
+  /* ----- SCENE 1: Accounts ----- */
+  // Every row says which account a tool uses in this folder, and why.
+  // The emails are made up: you@work.com / you@gmail.com.
+  const HERE = "C:\\Work\\client-api";
+  const why = (kind, text) => `<span class="why--${kind}">${text}</span>`;
+  const who = (name, detail) => `<span class="t-w">${name}</span>${detail ? ` <span class="t-m">${detail}</span>` : ""}`;
+  function renderAccounts(screen, rows, sel = -1, frame = 0) {
+    screen.innerHTML =
+      `<div class="acc-head"><span class="app__title">Accounts</span><span class="t-m">in <span class="t-c">${HERE}</span></span></div><div class="tl--gap"></div>` +
+      rows.map((r, i) => {
+        const account = r.loading ? `<span class="t-o">${SPIN[(frame + i) % SPIN.length]}</span> <span class="t-m">checking…</span>` : r.who;
+        return `<div class="acc-row${i === sel ? " is-sel" : ""}${r.fresh ? " is-new" : ""}"><span>${i === sel ? "▸" : " "}</span>` +
+          `<span class="acc-tool">${r.tool}</span><span class="acc-who">${account}</span><span class="acc-why">${r.loading ? "" : r.why}</span></div>`;
+      }).join("");
+    scroll();
+  }
+  async function sceneAccounts() {
+    setCaptions([
+      "Type <b>devpit</b>. <b>Accounts</b> is the first stop on the menu.",
+      "One table: the account each tool uses in this folder, and <b>why</b>.",
+      "Claude Code is on your personal account here. Open it and pick <b>Use another account here…</b>",
+      "Choose <b>work</b>. Devpit says what will change in plain words, and the default answer is No.",
+      "Done. Press <b>v</b> to check every tool before you deploy, or <b>u</b> to undo.",
+      "From now on, <b>claude</b> in this folder starts on your work account by itself.",
+    ]);
+    metric((v) => (v >= 1 ? "✓ verified" : ""));
+    keys("shell"); cap(0);
+    await sleep(500);
+    await cmd("devpit");
+    const A = openApp();
+    keys("menu"); renderMenu(A.screen, 0);
+    await sleep(1500);
+    await press("Enter");
+
+    cap(1); keys("accounts");
+    const rows = [
+      { tool: "Claude Code", who: who("default", "(you@gmail.com)"), why: why("every", "everywhere") },
+      { tool: "Git", who: who("You", "&lt;you@work.com&gt;"), why: why("rule", "folder rule: C:\\Work") },
+      { tool: "GitHub", who: who("work", "(you-at-work)"), why: why("rule", "folder rule: C:\\Work") },
+      { tool: "Vercel", who: who("default", "(you@gmail.com)"), why: why("every", "everywhere") },
+      { tool: "Cloudflare", who: who("default", "(you@gmail.com)"), why: why("every", "everywhere · beta") },
+      { tool: "Convex", who: '<span class="t-w">project:</span> client-api', why: why("proj", "set by this project's .env.local") },
+      { tool: "Firebase", who: '<span class="t-m">not signed in</span>', why: "" },
+      { tool: "Supabase", who: '<span class="t-m">not installed</span>', why: "" },
+    ].map((r) => ({ ...r, loading: true }));
+    let frame = 0;
+    for (const r of rows) {
+      for (let f = 0; f < (REDUCED ? 1 : 3); f++) { renderAccounts(A.screen, rows, -1, frame++); await sleep(80); }
+      r.loading = false;
+    }
+    renderAccounts(A.screen, rows);
+    await sleep(3200);
+
+    cap(2);
+    renderAccounts(A.screen, rows, 0);
+    await sleep(900);
+    await press("Enter");
+    keys("pick");
+    const toolHead =
+      title("Claude Code") +
+      `<div class="tl"><span class="t-m">Signed in as  </span>${who("default", "(you@gmail.com)")}</div>` +
+      `<div class="tl"><span class="t-m">Comes from    </span>${why("every", "everywhere")} <span class="t-m">· no folder rule here</span></div><div class="tl--gap"></div>`;
+    renderList(A.screen, toolHead, [
+      ["Use another account here…", `only in ${HERE}`],
+      ["Use another account everywhere…", ""],
+      ["Just this once…", "one command, nothing saved"],
+      ["Sign in again", ""],
+    ], 0);
+    await sleep(1600);
+    await press("Enter");
+
+    cap(3);
+    const pickHead = title("Which account should Claude Code use here?");
+    const picks = [
+      ["default", '<span class="t-m">you@gmail.com · in use</span>'],
+      ["work", '<span class="t-m">you@work.com</span>'],
+      ["+ Sign in with another account…", ""],
+    ];
+    renderList(A.screen, pickHead, picks, 0);
+    await sleep(900);
+    await press("↓");
+    renderList(A.screen, pickHead, picks, 1);
+    await sleep(700);
+    await press("Enter");
+
+    keys("input");
+    A.screen.innerHTML = title("Preview");
+    const pv = add(el("div", "acc-preview"), A.screen);
+    line(`<span class="t-a">?</span> In <span class="t-c">${HERE}</span> and every folder inside it,`, pv);
+    line(`  Claude Code will use <span class="t-w">work</span> <span class="t-m">(you@work.com)</span>.`, pv);
+    line(`  Everywhere else stays <span class="t-w">default</span> <span class="t-m">(you@gmail.com)</span>.`, pv);
+    const yn = line('<span class="t-w">[y/N]</span> ', pv);
+    yn.classList.add("acc-yn");
+    const yc = el("span", "cursor"); yn.appendChild(yc);
+    await sleep(2200);
+    yc.remove();
+    yn.insertAdjacentHTML("beforeend", '<span class="t-w">y</span>');
+    await press("y");
+
+    keys("applying");
+    A.screen.innerHTML = title("Applying");
+    for (const [doing, done] of [
+      ["Writing the folder rule", "Wrote the folder rule"],
+      ["Pointing claude at work in this folder", "claude follows the rule in this folder"],
+      ["Checking who is signed in", 'Signed in as <span class="t-c">you@work.com</span>'],
+    ]) {
+      const l = line("", A.screen);
+      for (let f = 0; f < (REDUCED ? 1 : 8); f++) { l.innerHTML = `<span class="t-o">${SPIN[f % SPIN.length]}</span> ${doing}…`; await sleep(75); }
+      l.innerHTML = `<span class="t-g">✔</span> ${done}`;
+    }
+    await sleep(500);
+
+    cap(4); keys("acdone");
+    A.screen.innerHTML =
+      title("Done") +
+      `<div class="done-box"><span class="t-g t-b">✔ Claude Code uses work (you@work.com) in ${HERE}</span></div><div class="tl--gap"></div>` +
+      `<div class="tl"><span class="t-m">Everywhere else  </span>default <span class="t-m">(you@gmail.com)</span></div>` +
+      `<div class="tl"><span class="t-m">Undo            </span> press <span class="t-w">u</span> <span class="t-m">or run</span> <span class="t-c">devpit undo</span></div>`;
+    scroll();
+    await sleep(2000);
+    await press("v");
+
+    A.screen.innerHTML = title("Verify", "What each tool reports right now, against what the rules say");
+    const checks = [
+      ["Claude Code", "work · you@work.com"],
+      ["Git", "commits as you@work.com"],
+      ["GitHub", "pushes as you-at-work"],
+    ];
+    for (const [tool, detail] of checks) {
+      const l = add(el("div", "verify-row"), A.screen);
+      for (let f = 0; f < (REDUCED ? 1 : 6); f++) {
+        l.innerHTML = `<span class="t-w">${tool}</span><span class="t-m">asking ${tool === "Git" ? "git" : tool === "GitHub" ? "gh" : "claude"}…</span><span class="t-o">${SPIN[f % SPIN.length]}</span>`;
+        await sleep(80);
+      }
+      l.innerHTML = `<span class="t-w">${tool}</span><span>${detail}</span><span class="t-g">✓ ok</span>`;
+    }
+    metricTo(1, 200).catch(() => {});
+    await sleep(1800);
+    await press("Enter");
+
+    cap(5); keys("accounts");
+    rows[0] = { tool: "Claude Code", who: who("work", "(you@work.com)"), why: why("rule", `folder rule: ${HERE}`), fresh: true };
+    renderAccounts(A.screen, rows, 0);
+  }
+
+  /* ----- SCENE 2: Free up space ----- */
   async function sceneFree() {
     setCaptions([
-      "You type <b>devpit</b>. It opens instantly and already knows about 12 GB can go.",
+      "You type <b>devpit</b> and pick <b>Free Up Disk Space</b>.",
       "One scan checks every project, cache and Docker leftover on your machine.",
       "Everything is sized and flagged Safe, Review or Careful. Projects you're working on stay unticked.",
       "Nothing is deleted until you press <b>y</b>. The default is always No.",
@@ -598,7 +751,9 @@ self.onmessage = (e) => {
     await cmd("devpit");
     const A = openApp();
     keys("menu"); renderMenu(A.screen, 0);
-    await sleep(1500);
+    await sleep(1000);
+    await moveMenu(A.screen, 0, 1);
+    await sleep(350);
     await press("Enter");
 
     renderList(A.screen, title("Free Up Disk Space", "Only showing what's installed on this machine."), [
@@ -717,11 +872,11 @@ self.onmessage = (e) => {
     idlePrompt();
   }
 
-  /* ----- SCENE 2: Port 3000 stuck ----- */
+  /* ----- SCENE 3: Port 3000 stuck (Ports & Network) ----- */
   async function scenePort() {
     setCaptions([
       "Your dev server won't start. Something is already sitting on port 3000.",
-      "Open Devpit, pick <b>Fix Stuck Ports &amp; Apps</b>, type 3000.",
+      "Open Devpit, pick <b>Ports &amp; Network</b>, then <b>Fix stuck ports &amp; apps</b>, type 3000.",
       "It shows exactly which app holds the port, and asks before stopping it.",
       "Port free, server up. No Task Manager, no netstat.",
     ]);
@@ -742,10 +897,16 @@ self.onmessage = (e) => {
     const A = openApp();
     keys("menu"); renderMenu(A.screen, 0);
     await sleep(800);
-    await moveMenu(A.screen, 0, 1);
+    await moveMenu(A.screen, 0, 2);
     await sleep(350);
     await press("Enter");
-    renderList(A.screen, title("Fix Stuck Ports & Apps"), [
+    renderList(A.screen, title("Ports &amp; Network"), [
+      ["Fix stuck ports &amp; apps", "free a busy port, stop stuck Node"],
+      ["Network tools", "IP, ping, DNS flush"],
+    ], 0);
+    await sleep(800);
+    await press("Enter");
+    renderList(A.screen, title("Fix stuck ports &amp; apps", "Ports &amp; Network › Fix stuck ports"), [
       ["Kill a specific port", "type a port number"],
       ["Busy dev ports", '<span class="t-a">2 in use</span> · 3000, 5173'],
       ["Stop stuck Node processes", "3 running"],
@@ -796,7 +957,7 @@ self.onmessage = (e) => {
     idlePrompt();
   }
 
-  /* ----- SCENE 3: Update everything ----- */
+  /* ----- SCENE 4: Update everything (Install & Update) ----- */
   async function sceneUpdate() {
     setCaptions([
       "One action checks every package manager on your machine: Scoop, winget and npm.",
@@ -814,9 +975,16 @@ self.onmessage = (e) => {
     await moveMenu(A.screen, 0, 3);
     await sleep(350);
     await press("Enter");
+    const sub = [["Install developer apps", "Scoop, winget, Chocolatey"], ["Update everything", "every package manager, one pass"]];
+    renderList(A.screen, title("Install &amp; Update"), sub, 0);
+    await sleep(700);
+    await press("↓");
+    renderList(A.screen, title("Install &amp; Update"), sub, 1);
+    await sleep(450);
+    await press("Enter");
 
     keys("scan");
-    A.screen.innerHTML = title("Update Everything");
+    A.screen.innerHTML = title("Update everything", "Install &amp; Update › Update everything");
     for (const [m, n] of [["scoop", 2], ["winget", 2], ["npm -g", 1]]) {
       const l = line("", A.screen);
       for (let f = 0; f < (REDUCED ? 1 : 9); f++) { l.innerHTML = `<span class="t-o">${SPIN[f % SPIN.length]}</span> Checking <span class="t-c">${m}</span>…`; await sleep(70); }
@@ -877,7 +1045,7 @@ self.onmessage = (e) => {
     idlePrompt();
   }
 
-  /* ----- SCENE 4: Install ----- */
+  /* ----- SCENE 5: Get Devpit (the install one-liner) ----- */
   async function sceneInstall() {
     setCaptions([
       "Paste one line into PowerShell. No setup wizard to click through.",
@@ -892,7 +1060,7 @@ self.onmessage = (e) => {
 
     cap(1);
     line('<span class="t-o t-b">◆ Devpit installer</span>');
-    line('<span class="t-m">  Latest release:</span> v1.0.0 <span class="t-m">(windows-x64)</span>');
+    line('<span class="t-m">  Latest release:</span> v0.4.0 <span class="t-m">(windows-x64)</span>');
     const dl = line("");
     for (let f = 0; f <= (REDUCED ? 0 : 24); f++) {
       const frac = REDUCED ? 1 : f / 24;
@@ -915,7 +1083,7 @@ self.onmessage = (e) => {
 
     cap(3);
     await cmd("devpit --version");
-    line('devpit 1.0.0 <span class="t-m">(windows/amd64)</span>');
+    line('devpit 0.4.0 <span class="t-m">(windows/amd64)</span>');
     await sleep(700);
     await cmd("devpit");
     const A = openApp();
@@ -923,13 +1091,20 @@ self.onmessage = (e) => {
     renderMenu(A.screen, 0);
   }
 
-  const SCENES = [sceneFree, scenePort, sceneUpdate, sceneInstall];
+  const SCENES = [sceneAccounts, sceneFree, scenePort, sceneUpdate, sceneInstall];
   let current = 0;
   async function play(i) {
     runId++;
     const id = runId;
     current = i;
-    tabs.forEach((t, j) => { t.classList.toggle("is-active", j === i); t.setAttribute("aria-selected", j === i ? "true" : "false"); });
+    // roving tabindex: only the selected tab is in the Tab order; the panel follows it
+    tabs.forEach((t, j) => {
+      const on = j === i;
+      t.classList.toggle("is-active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+    });
+    if (tabs[i]) term.setAttribute("aria-labelledby", tabs[i].id);
     term.innerHTML = "";
     pressEl.classList.remove("is-on");
     try {
@@ -943,8 +1118,10 @@ self.onmessage = (e) => {
   if (term) {
     tabs.forEach((t, i) => t.addEventListener("click", () => play(i)));
     $(".term__tabs").addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const n = (current + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      const last = tabs.length - 1;
+      const n = { ArrowRight: current === last ? 0 : current + 1, ArrowLeft: current === 0 ? last : current - 1, Home: 0, End: last }[e.key];
+      if (n === undefined) return;
+      e.preventDefault();
       tabs[n].focus(); play(n);
     });
     pauseBtn.addEventListener("click", () => {

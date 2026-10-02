@@ -1,0 +1,300 @@
+---
+title: Use the right account in every folder on Windows
+description: Tell Devpit once which account a folder uses, and Claude Code, Git, GitHub, Vercel and more use it there. Every change is previewed and can be undone.
+sidebar:
+  label: Accounts
+  order: 1
+related:
+  - features/accounts-claude-code
+  - features/accounts-git-and-github
+  - features/accounts-other-tools
+  - safety-and-privacy
+faq:
+  - question: "Does Devpit store my tokens or passwords?"
+    answer: "No. Each tool keeps its own login where it always does. Devpit's rules file holds only account names, emails and folder paths. The only token Devpit ever handles is the one gh already holds, and it passes it in memory to the gh or git process that needs it, never to a file, a log or the screen."
+  - question: "Does it work in VS Code?"
+    answer: "In the VS Code terminal, yes, like in any other terminal. Editor extensions and desktop apps keep their own login, so Devpit does not switch those."
+  - question: "Which account wins when two folder rules apply?"
+    answer: "The nearest one. A rule on C:\\Work\\client-api wins over a rule on C:\\Work inside client-api. This is worked out one tool at a time, so Git can follow one rule and Claude Code another."
+  - question: "Does Devpit change my repositories?"
+    answer: "No. Rules live in Devpit's own files in your user folder, never in a repository, so nothing shows up in git status. For Git, Devpit adds one marked block at the end of your global .gitconfig that points at its own rules file."
+  - question: "How do I take everything back?"
+    answer: "Press u on the done card or run devpit undo to take back the last change. To remove everything Devpit added for accounts, run devpit accounts cleanup. It lists what it will remove first, and it never deletes an account folder or a sign-in."
+  - question: "Why does a new terminal need to be opened?"
+    answer: "The first time a tool gets a second account or a rule, Devpit puts a small folder of shims at the front of your user PATH. Windows gives a new PATH only to programs started after that, so terminals that were already open do not see it."
+---
+
+import Shot from '@/components/Shot.astro';
+
+You use more than one account: a work GitHub and a personal one, two Claude Code subscriptions, a client's Vercel team.
+**Accounts** remembers which account each folder uses.
+After that, `claude`, `git`, `gh`, `vercel`, `firebase`, `supabase` and `wrangler` use the right one in that folder by themselves.
+
+Open it from the main menu with <kbd>1</kbd>, or click the **Accounts** tab.
+
+:::note[Rules apply in terminals]
+Rules apply to the tools you start in a terminal: Windows Terminal, PowerShell, cmd, Git Bash and the VS Code terminal, and to scripts and AI agents started there.
+Editor extensions and desktop apps (for example the Claude desktop app or a VS Code extension) keep their own login.
+Devpit does not switch those.
+:::
+
+## What the Accounts page shows
+
+The page answers one question for the folder you are in: which account does each tool use here, and why?
+"Here" is the folder your terminal was in when you started `devpit`.
+
+<Shot name="accounts-page" priority />
+
+The screenshots on this page use a made-up PC. The last column is the **why**:
+
+| Why | Meaning |
+| --- | --- |
+| `everywhere` | No folder rule applies here, so the tool uses the account you picked for everywhere. Until you pick one, that is `default`: the tool's own normal sign-in. |
+| `folder rule: C:\Work` | You set a rule for that folder. It covers the folder and every folder inside it. |
+| `set by this project's .env.local` | The project picks the account (Convex). Devpit shows it but does not change it. |
+| `not signed in` / `not installed` | The tool has no login yet, or Devpit cannot find it. Rules you made for it are kept. |
+
+An account shown as `default (not checked yet)` is the tool's own sign-in, which Devpit has not asked the tool about yet. Press <kbd>v</kbd> to check it. Under the table, the page explains the words **Folder rule** and **Not checked yet** whenever the table uses them.
+
+When rules are nested, the nearest folder wins, one tool at a time.
+A rule on `C:\Work\client-api` beats a rule on `C:\Work` inside `client-api`, for that tool only.
+The tool page shows the chain of rules and which one won.
+
+If you start Devpit in your home folder or at a drive root, "here" means little, so Devpit asks you to pick a folder first.
+
+Devpit never runs Claude Code's own sign-in check to fill this page.
+On some Claude Code versions that check can sign an idle account out (Claude Code issue [#95822](https://github.com/anthropics/claude-code/issues/95822)).
+The page shows the account Devpit has on record, and [Verify](#verify-before-you-push-or-deploy) asks Claude Code only when you say so.
+
+## Switch an account, step by step
+
+This example makes Claude Code use your `work` account in `C:\Work`.
+
+1. Open a terminal in the folder, for example `cd C:\Work`, and type `devpit`.
+2. Press <kbd>1</kbd> to open **Accounts**.
+3. Move to the **Claude Code** row and press <kbd>Enter</kbd>. The tool page opens with a **Right now** block: who is signed in here, why that account (**Why this one**), and which account other folders use. Below it are the choices, grouped: **Change the account** (**Use another account here**, **Use another account everywhere**, **Use another account just once**, and **Forget this folder's choice** when a folder rule applies), **Sign in** (**Sign in again**, **Sign in with another account**), **Claude Code setup** and **Manage** (**Rename or remove an account**). The highlighted choice is explained beside the list, with what happens when you press <kbd>Enter</kbd>. A choice a tool cannot make stays in the list, greyed, with the reason. Press <kbd>v</kbd> to check who the tool is really signed in as.
+
+   <Shot name="accounts-tool-claude" />
+
+4. Choose **Use another account here**.
+5. Pick the account from the list. Type to filter it. If the account is not there yet, choose **+ Sign in with another account**: Devpit runs the tool's own sign-in, you finish it in the browser, and you give the account a short name such as `work`. See [Add a second Claude Code account](/docs/features/accounts-claude-code#add-a-second-account).
+
+   <Shot name="accounts-picker" />
+
+6. Answer **Where should work be used?** See [Where a rule applies](#where-a-rule-applies).
+7. Read the preview. It says in plain words what will change, and the exact lines Devpit will write. The question **Make this change?** starts on **No**.
+
+   <Shot name="accounts-preview" />
+
+8. Press <kbd>y</kbd>. Devpit makes the change and shows each step as it happens. Press <kbd>l</kbd> to see the raw log.
+9. The done card shows the result. Press <kbd>v</kbd> to verify, <kbd>u</kbd> to undo, or <kbd>Enter</kbd> to go back to Accounts.
+
+   <Shot name="accounts-done" />
+
+From then on, `claude` started in `C:\Work`, or in any folder inside it, uses `work`.
+The first time a tool gets a second account or a rule, Devpit adds its shim folder to your user PATH.
+**Open a new terminal** after that: terminals that were already open do not see the new PATH.
+
+### How it works, in one paragraph
+
+For Claude Code, GitHub's `gh`, Vercel, Firebase and Supabase, Devpit puts a small program with the tool's name (a **shim**, for example `claude.exe`) in `%LOCALAPPDATA%\Programs\devpit\shims`, first on your user PATH.
+When you run `claude`, the shim finds the nearest folder rule and starts the real Claude Code with that account, for that one process.
+Git uses its own `includeIf` rules instead, and Cloudflare uses Wrangler's own folder bindings, so neither needs a shim.
+A shim is only made when a tool gets its second account or its first rule.
+If the shim cannot read Devpit's rules for any reason, it starts the real tool untouched and prints one warning line.
+A broken Devpit never stops a tool from running.
+
+## Where a rule applies
+
+After you pick an account, Devpit asks where it should be used:
+
+<Shot name="accounts-scope" />
+
+
+| Choice | What it does |
+| --- | --- |
+| **This folder** | This folder and every folder inside it. |
+| **Everywhere** | Every folder without a choice (a folder rule) of its own. The preview lists the folder rules that still win. |
+| **Just this once** | One command with that account. Devpit shows the `devpit <tool> run` command to type in any terminal, ready to copy. Nothing is saved, so there is nothing to undo. |
+| **Another folder** | Pick a different folder, or type its path. The rule covers it and every folder inside it. |
+
+<Shot name="accounts-just-once" caption="Just this once: the command to run, with nothing saved" />
+
+Not every tool offers every choice.
+Git has no "just this once", because Git takes its identity from config files, not from a sign-in.
+Cloudflare has no "everywhere" in this version.
+Convex has none, because Devpit does not switch Convex.
+[Other tools](/docs/features/accounts-other-tools) has the full list.
+
+A rule on a whole drive, such as `D:\`, asks a second time before it is saved.
+A rule on your home folder comes with a note that it covers every project inside it.
+
+## The preview
+
+Every change has a preview, and the default answer is **No**.
+The words come from the change itself. A folder rule reads like this:
+
+```text
+In C:\Work and every folder inside it, Claude Code will use work (you@work.com).
+Everywhere else stays default.
+```
+
+Under the sentences, **Devpit will write:** lists each file it changes and the exact lines, starting with its own rules file, `accounts.toml`.
+For Git, the list also has the Git files described on [Git and GitHub](/docs/features/accounts-git-and-github#the-files-devpit-writes).
+
+Changing the account used **everywhere** lists the folders that keep their own rule and will not change.
+What you answered Yes to is exactly what is applied: if the rules or Git files changed between the preview and your answer, Devpit stops and changes nothing.
+
+## Undo
+
+- On the done card, press <kbd>u</kbd>.
+- On the Accounts page, <kbd>u</kbd> undoes the last change.
+- From a terminal, run `devpit undo`.
+
+Undo shows what it will put back and asks first.
+It puts every file back exactly as it was before the change.
+A change made in one go, such as `devpit use work` for several tools, is undone in one go.
+
+If a file Devpit wrote was changed by hand since, undo stops and changes nothing.
+It names the file. See [Undo says a file was changed by hand](/docs/troubleshooting/accounts-undo-file-changed-by-hand).
+
+Undo never deletes an account folder that holds a sign-in.
+
+## Verify before you push or deploy
+
+Press <kbd>v</kbd> on the Accounts page or on a done card, or run:
+
+```powershell
+devpit accounts verify
+```
+
+<Shot name="accounts-verify" />
+
+Verify compares, for each installed tool, the account Devpit expects in this folder with what the tool reports.
+Git, and which GitHub account a push will use, are checked from the config files, without asking any server.
+The other tools are asked who is signed in.
+On a mismatch, verify shows a fix for it.
+From the command line, a mismatch gives exit code `4`.
+
+Claude Code is a special case.
+Asking Claude Code who is signed in can sign an idle account out on some versions (issue [#95822](https://github.com/anthropics/claude-code/issues/95822)).
+So verify only asks the account used in this folder.
+To check the other accounts too, press <kbd>a</kbd> on the verify screen, or run `devpit accounts verify --all`. Both ask you first before they check idle Claude Code accounts. Press <kbd>r</kbd> to check again.
+
+Verify also reports things that get in the way:
+
+- a variable set in this terminal that overrides the account, such as `GH_TOKEN` or `CLAUDE_CONFIG_DIR`,
+- a tool found on PATH before Devpit's shim,
+- a terminal opened before Devpit added its shim folder to PATH,
+- a rule that names an account that no longer exists.
+
+## Browse folders
+
+Press <kbd>b</kbd> on the Accounts page.
+You see every folder that has a rule, and which account each tool uses there.
+Fold a branch with <kbd>←</kbd> <kbd>→</kbd>, filter with <kbd>/</kbd>, and press <kbd>Enter</kbd> on any folder to change it.
+
+<Shot name="accounts-browse" />
+
+Press <kbd>f</kbd> to look at another folder without leaving Devpit.
+
+### Fix old rules
+
+A folder can move or disappear after you made a rule for it.
+Browse folders marks such a rule:
+
+- **folder not found**: the folder was moved, renamed or deleted.
+- **drive not connected**: the USB drive or network share is not there right now. The rule stays and works again when the drive is back.
+
+Devpit never removes a rule by itself.
+Press <kbd>x</kbd> in Browse folders for **Fix old rules**, then <kbd>d</kbd> to remove the rule or <kbd>p</kbd> to point it at the folder's new place.
+
+## The first time you open Accounts
+
+If Devpit finds accounts already on this PC, it says so first: **Found accounts already on this PC**.
+It looks for:
+
+- accounts and folder links made by [claude-acc](/docs/troubleshooting/moving-from-claude-acc),
+- other Claude Code config folders,
+- `gh` accounts that Devpit does not list yet.
+
+<Shot name="accounts-import" />
+
+Choose **Use them in Devpit** or **Ignore**.
+Imported accounts stay where they are, so nobody signs in again.
+Detecting them only reads; nothing changes until you say yes to a preview.
+If you chose Ignore, press <kbd>i</kbd> on the Accounts page to come back to it.
+
+## From the command line
+
+Everything on this page also works from a terminal.
+A command that would change something asks `[y/N]` first.
+With nobody at a terminal (a script or an AI agent), it changes nothing and exits with code `3` unless you add `--yes`, and `--yes` is only for after the user agreed.
+
+| In the app | Command |
+| --- | --- |
+| The Accounts page | `devpit accounts` |
+| One tool's row and its why | `devpit claude` (or `git`, `github`, `vercel`, `firebase`, `supabase`, `cloudflare`, `convex`) |
+| A tool's accounts | `devpit claude list` |
+| Use another account here | `devpit claude use work` |
+| … in another folder | `devpit claude use work --folder C:\Work` |
+| … everywhere | `devpit claude use work --everywhere` |
+| Just this once | `devpit claude run work -- claude -p "summarise this repo"` |
+| The same account name for every tool | `devpit use work` |
+| Sign in with another account | `devpit claude add` |
+| Verify | `devpit accounts verify` (add `--json` for scripts) |
+| Undo | `devpit undo` |
+| Import from claude-acc | `devpit claude import --from claude-acc` |
+| Remove everything Devpit added | `devpit accounts cleanup` |
+
+`gh` and `wrangler` work as tool names too.
+Every read command takes `--json`.
+The full list, with every flag, is in the [command line reference](/docs/command-line#devpit-accounts).
+
+For AI agents, `devpit agent install` writes a Devpit skill into Claude Code with the same rules: read first, ask the user, then pass `--yes`. See [Using Devpit with AI agents](/docs/ai-agents).
+
+## Keys
+
+| Key | Where | What it does |
+| --- | --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Everywhere | Move |
+| <kbd>Enter</kbd> | Accounts page | Open the tool on this row |
+| <kbd>v</kbd> | Accounts page, done card | Verify |
+| <kbd>u</kbd> | Accounts page, done card | Undo the last change |
+| <kbd>b</kbd> | Accounts page | Browse folders that have rules |
+| <kbd>f</kbd> | Accounts page | Look at another folder |
+| <kbd>i</kbd> | Accounts page | Accounts already on this PC (import), when Devpit found some |
+| <kbd>r</kbd> | Accounts page | Reload the page |
+| <kbd>a</kbd> | Verify | Also check the accounts not used here (asks first for Claude Code) |
+| <kbd>x</kbd> | Browse folders | Fix old rules: then <kbd>d</kbd> remove, <kbd>p</kbd> point elsewhere |
+| <kbd>c</kbd> | Just this once | Copy the command |
+| Type | Account picker | Filter the list |
+| <kbd>y</kbd> / <kbd>n</kbd> | Preview | Answer (No is the default) |
+| <kbd>l</kbd> | While applying | Show the raw log |
+| <kbd>Enter</kbd> | Done card | Go back |
+| <kbd>?</kbd> | Everywhere | Show the keys for this screen |
+| <kbd>Esc</kbd> | Everywhere | Go back |
+
+See [Keyboard and mouse](/docs/keyboard-and-mouse#accounts) for every key.
+
+## Good to know
+
+- **Tokens stay where they are.** Each tool keeps its own login. Devpit's rules file, `%APPDATA%\devpit\accounts.toml`, holds names, emails and folder paths only.
+- **Your repositories are not touched.** Rules live in Devpit's files in your user folder, so nothing shows up in `git status`.
+- **Account folders Devpit makes** live in `%USERPROFILE%\.devpit\accounts\<tool>\<name>`. They are outside OneDrive and are never removed when you uninstall Devpit. Free Up Disk Space can never select them.
+- **A tool installed for all users** can sit in the system PATH, and Windows puts the system PATH before your user PATH. Then that copy runs before Devpit's shim and rules do not apply to it. Verify finds this and says what to move. See [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
+- **A PowerShell function or alias** with a tool's name runs before any program on PATH, shims included. `Get-Command claude` shows which one runs.
+- **WSL is not covered.** Rules apply to Windows programs.
+- **Rename or remove an account** with **Rename or remove an account** on the tool page. Removing one lists the folder rules that used it and what those folders use afterwards, suggests the tool's own sign-out first, and asks you to type a word. The account's folder, and the sign-in in it, is kept. Both changes have a preview and can be undone.
+- **Two Devpit windows** can be open at once. Only one can change accounts at a time.
+
+## Safety
+
+- No token is shown, copied, stored, logged or put in `--json` output.
+- Every change has a preview, the default answer is **No**, and it can be undone exactly.
+- Undo stops, and changes nothing, when a file Devpit wrote was changed by hand.
+- A crash in the middle of a change never leaves it half made: the next start finishes it or puts it back.
+- `devpit accounts cleanup` removes only what Devpit added: its folder rules, shims and PATH entry, its Git files and include block, the Wrangler bindings it made and its agent skill. It never deletes an account folder or a sign-in.
+- Accounts has no network traffic of its own. The only connections are each tool's own sign-in and its "who am I" check.
+
+The full list is on [Safety and privacy](/docs/safety-and-privacy#accounts).

@@ -318,6 +318,42 @@ func TestAddRecentFolder(t *testing.T) {
 	}
 }
 
+// A file written before last_seen_version existed loads with it empty and
+// first run still done: that is how "updated from an older version" reads.
+// One that has it round-trips it, and the key needs no schema bump.
+func TestLastSeenVersionNeedsNoSchemaBump(t *testing.T) {
+	dir, _ := withTempDirs(t)
+	path := filepath.Join(dir, config.FileName)
+
+	if err := os.WriteFile(path, []byte("version = 1\nfirst_run_done = true\nolder_days = 45\n"), 0o600); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+	res, err := config.Load()
+	if err != nil || res.Warning != "" {
+		t.Fatalf("an old file must load quietly: err=%v warning=%q", err, res.Warning)
+	}
+	if !res.Config.FirstRunDone || res.Config.LastSeenVersion != "" || res.Config.OlderDays != 45 {
+		t.Fatalf("old file read as %+v", res.Config)
+	}
+
+	c := res.Config
+	c.LastSeenVersion = "0.4.0"
+	if err = config.Save(c); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "last_seen_version = '0.4.0'") || !strings.Contains(string(data), "version = 1") {
+		t.Errorf("saved file:\n%s", data)
+	}
+	res, err = config.Load()
+	if err != nil || res.Config.LastSeenVersion != "0.4.0" {
+		t.Errorf("LastSeenVersion did not round-trip: %q (%v)", res.Config.LastSeenVersion, err)
+	}
+}
+
 // names is a small helper for readable failure messages.
 func names(entries []os.DirEntry) []string {
 	out := make([]string, 0, len(entries))

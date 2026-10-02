@@ -61,6 +61,36 @@ func TestPresetsCarryTheirOwnAccent(t *testing.T) {
 	}
 }
 
+// TestHomeSectionsWearDistinctHues keeps the six home sections apart by
+// colour on both backgrounds: each has a hue of its own, and none of them
+// falls back to the accent except Share, which is the accent on purpose.
+func TestHomeSectionsWearDistinctHues(t *testing.T) {
+	ids := []string{
+		theme.SectionAccounts, theme.SectionClean, theme.SectionPortsNet,
+		theme.SectionApps, theme.SectionShare, theme.SectionSettings,
+	}
+	for _, dark := range []bool{true, false} {
+		th := theme.For(dark)
+		seen := map[[3]uint32]string{}
+		for _, id := range ids {
+			c := th.SectionIcon(id).GetForeground()
+			if c == nil {
+				t.Errorf("dark=%v: %s has no hue", dark, id)
+				continue
+			}
+			r, g, b, _ := c.RGBA()
+			key := [3]uint32{r, g, b}
+			if other, ok := seen[key]; ok {
+				t.Errorf("dark=%v: %s wears the same hue as %s", dark, id, other)
+			}
+			seen[key] = id
+		}
+		if th.SectionIcon(theme.SectionAccounts).GetForeground() != th.Palette.Yellow {
+			t.Errorf("dark=%v: Accounts should wear the yellow Git & SSH left free", dark)
+		}
+	}
+}
+
 // TestDefaultThemeIsUnchanged keeps [theme.For], which every existing caller
 // uses, on the aqua preset.
 func TestDefaultThemeIsUnchanged(t *testing.T) {

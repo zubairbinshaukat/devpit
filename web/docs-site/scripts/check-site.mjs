@@ -46,15 +46,21 @@ const original = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
 if (landing !== original) r.error('index.html', 'dist copy differs from web/index.html');
 if (!/href="\/docs"/.test(original)) r.warn('index.html', 'has no link to /docs');
 
-// llms.txt: committed copy is fresh, and every docs page is listed in the built one.
+// llms.txt: committed copy is fresh, and every docs page is listed in the
+// built one by its Markdown twin (the docs home is /docs/index.md).
 const gen = spawnSync(process.execPath, [path.join(WEB, 'scripts', 'gen-llms.mjs'), '--check'], { encoding: 'utf8' });
 if (gen.status !== 0) r.error('web/llms.txt', 'is stale, run: node web/scripts/gen-llms.mjs --write');
 const llms = read('llms.txt') ?? '';
 for (const u of built) {
   if (u.startsWith(`${SITE}${BASE}/blog/`)) continue; // blog tags, authors and pages are not listed
   if (u === `${SITE}${BASE}/blog`) continue;
-  if (!llms.includes(`](${u})`)) r.error('llms.txt', `does not list ${u}`);
+  const md = u === `${SITE}${BASE}` ? `${u}/index.md` : `${u}.md`;
+  if (!llms.includes(`](${md})`)) r.error('llms.txt', `does not list ${md}`);
 }
+const posts = builtPages().filter((p) => /^\/docs\/blog\/(?!tags\/|authors\/|\d+$)[^/]+$/.test(p.urlPath));
+for (const p of posts) if (!llms.includes(`](${SITE}${p.urlPath}.md)`)) r.error('llms.txt', `does not list ${SITE}${p.urlPath}.md under Optional`);
+if (!/^# .+\n\n> .+/.test(llms)) r.error('llms.txt', 'must start with an H1 and a blockquote summary (llmstxt.org)');
+if (!/^## Optional$/m.test(llms)) r.error('llms.txt', 'has no "## Optional" section');
 if (!read('llms-full.txt')) r.error('llms-full.txt', 'missing');
 
 process.exit(r.finish(`${locs.length} sitemap URLs`));

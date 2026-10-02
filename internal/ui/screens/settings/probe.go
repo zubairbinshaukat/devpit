@@ -78,10 +78,10 @@ func (s probeScreen) View(ctx uictx.Context) string {
 func probeLabel(cfg config.Config) string {
 	switch {
 	case cfg.GlyphsConfirmed:
-		return "passed, Nerd Font icons on"
+		return "passed"
 	case cfg.FontInstalled:
 		return "not run yet"
 	default:
-		return "install the icon font first"
+		return "needs the icon font"
 	}
 }

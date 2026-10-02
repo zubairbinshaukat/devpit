@@ -605,6 +605,7 @@ func (m Model) startScan(ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	full := m.full
 	cfg := ctx.Config
 	scanFn := m.engines.Scan
+	protectFn := m.engines.protected
 
 	items := make(chan scan.Item, 256)
 	done := make(chan scanDoneMsg, 1)
@@ -623,6 +624,9 @@ func (m Model) startScan(ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 			ActiveDays: cfg.ActiveDays,
 			OlderDays:  cfg.OlderDays,
 			Rules:      table,
+			// Every folder Accounts knows holds a sign-in, on top of the
+			// built-in login folders: read here, off the update loop.
+			Protect: protectFn(),
 		}, items, box.set)
 		// The caller owns out and closes it after Run returns.
 		close(items)
@@ -794,11 +798,13 @@ func (m Model) beginDelete(answer confirm.AnsweredMsg, ctx uictx.Context) (uictx
 
 	opts := cleanengine.Options{NeverTouch: ctx.Config.NeverTouch}
 	deleteFn := m.engines.Clean
+	protectFn := m.engines.protected
 
 	progressCh := make(chan cleanengine.Progress, 256)
 	reportCh := make(chan cleanengine.Report, 1)
 
 	go func() {
+		opts.Protect = protectFn()
 		rep := deleteFn(cctx, items, opts, func(p cleanengine.Progress) {
 			// A blocked progress callback blocks the delete, so a full
 			// channel drops the update rather than stalling the disk.
@@ -858,8 +864,10 @@ func (m Model) startRetry(ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	}
 	opts := cleanengine.Options{NeverTouch: ctx.Config.NeverTouch}
 	retry := m.engines.Retry
+	protectFn := m.engines.protected
 
 	return m, func() tea.Msg {
+		opts.Protect = protectFn()
 		out := make([]cleanengine.Result, 0, len(items))
 		for _, it := range items {
 			out = append(out, retry(context.Background(), it, opts, nil))
@@ -925,10 +933,12 @@ func (m Model) startSweep(ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 
 	opts := cleanengine.Options{NeverTouch: ctx.Config.NeverTouch}
 	sweep := m.engines.Sweep
+	protectFn := m.engines.protected
 
 	progressCh := make(chan cleanengine.Progress, 256)
 	reportCh := make(chan cleanengine.Report, 1)
 	go func() {
+		opts.Protect = protectFn()
 		rep := sweep(cctx, roots, opts, func(p cleanengine.Progress) {
 			select {
 			case progressCh <- p:
@@ -1109,7 +1119,7 @@ func submenuRows() []menu.Item {
 		{
 			ID:    rowProject,
 			Title: "Project Junk",
-			Desc:  "node_modules, dist, target, build output in your projects folder",
+			Desc:  "Scan your projects folder for node_modules, dist, build and target",
 		},
 		{
 			ID:    rowFull,
@@ -1118,13 +1128,13 @@ func submenuRows() []menu.Item {
 		},
 		{
 			ID:    rowChoose,
-			Title: "Choose folder…",
-			Desc:  "Scan a folder other than your default one",
+			Title: "Choose folder",
+			Desc:  "Pick another folder to scan, then see what it holds",
 		},
 		{
 			ID:    rowResume,
 			Title: "Resume interrupted deletes",
-			Desc:  "Finish anything a stopped clean left behind",
+			Desc:  "Finish deleting what a stopped clean-up left half done",
 		},
 	}
 }

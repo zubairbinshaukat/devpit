@@ -1,0 +1,185 @@
+---
+title: "Share Claude Code skills between two accounts on Windows"
+description: "Share skills, agents, commands and CLAUDE.md between two Claude Code accounts on Windows with junctions, symlinks or copies, and why plugins are different."
+date: 2026-10-02
+authors: [zubair]
+tags: [claude code, accounts, windows, skills]
+excerpt: "One junction per skill, one import line for CLAUDE.md, and a separate install for plugins. Here is why each piece is shared the way it is."
+related:
+  - blog/two-claude-code-accounts-windows
+  - blog/claude-config-dir-explained
+  - blog/move-from-claude-acc-to-devpit
+faq:
+  - question: "Do I need administrator rights to share skills?"
+    answer: "Not with junctions. A directory junction needs no administrator rights and no Developer Mode. Symbolic links need the Create symbolic links right, which administrators have by default, or Developer Mode."
+  - question: "What happens to a shared skill if I delete the second account?"
+    answer: "Nothing, as long as you remove only the link. The skill's real folder lives in your default account. Remove a junction with rmdir without the /s option, which removes the link and leaves the target alone."
+  - question: "Can I share the whole plugins folder?"
+    answer: "It is not a good idea today. An open Claude Code bug flags marketplaces in a linked plugins folder as corrupted, and the suggested fix removed the reporter's installed plugins. Install the same plugins in each account instead."
+---
+
+You set up a second Claude Code account with its own config folder, and it works. Then you notice it knows none of your skills, agents or slash commands, and none of your personal `CLAUDE.md`. Copying them works for a day, until you change a skill in one account and forget the other.
+
+This post shows how to share each part of your setup between two accounts on Windows, with the method that fits each part. It assumes your default account lives in `%USERPROFILE%\.claude` and the second one in `%USERPROFILE%\.claude-work`, as in [two Claude Code accounts on one PC](/docs/blog/two-claude-code-accounts-windows).
+
+## The short answer
+
+| Part | Share it with | Why |
+| --- | --- | --- |
+| Skills | One junction per skill folder | Documented: a skill entry may be a link to a folder elsewhere |
+| Agents and commands | One junction for the whole folder | Worked in our test; not documented |
+| User `CLAUDE.md` | One `@` import line | Documented, and needs no link at all |
+| Settings and hooks | A copy you review | Hooks run commands |
+| Plugins | Install them again in each account | Linking the folder hits an open bug |
+| MCP servers | Copy the entries by hand, carefully | They may hold API keys |
+| Login, `.claude.json` | Never | They belong to one account |
+
+## Junctions, symlinks or copies
+
+Windows has three ways to make one folder appear in two places.
+
+**Junctions.** Microsoft's docs: a junction "can also link directories located on different local volumes on the same computer". It cannot point at a mapped network drive, and it works for folders only. You make one with `mklink /J` in `cmd`, or `New-Item -ItemType Junction` in PowerShell. No administrator rights and no Developer Mode are needed.
+
+**Symbolic links.** These can point at files too. But "by default, members of the Administrators group have this right", meaning the Create symbolic links right. The unprivileged option needs Developer Mode: "Developer Mode must first be enabled on the machine before this option will function." Claude Code's own docs say the same about Windows: "Creating a symlink there needs Administrator privileges or Developer Mode." On our test PC, with Developer Mode on, PowerShell 7 made a folder symlink, but Windows PowerShell 5.1's `New-Item -ItemType SymbolicLink` still failed with "Administrator privilege required for this operation."
+
+**Copies.** Always work, never break, and go out of date the moment you edit one side.
+
+For folders on the same PC, junctions are the easy choice. Everything below uses them.
+
+## Step 1: share skills, one link per skill
+
+Claude Code's skills docs say a personal skill lives at `~/.claude/skills/<skill-name>/SKILL.md`, and that "a `<skill-name>` entry in the enterprise, personal, or project location can be a symlink to a directory elsewhere on disk." The docs say symlink. In a test on Claude Code 2.1.287, a per-skill **junction** was discovered the same way.
+
+To link every skill of your default account into the work account:
+
+```powershell
+$main = "$HOME\.claude\skills"
+$work = "$HOME\.claude-work\skills"
+New-Item -ItemType Directory -Force $work | Out-Null
+Get-ChildItem $main -Directory | ForEach-Object {
+  $link = Join-Path $work $_.Name
+  if (Test-Path $link) { "skip: $($_.Name) already exists" }
+  else { New-Item -ItemType Junction -Path $link -Target $_.FullName | Out-Null; "linked: $($_.Name)" }
+}
+```
+
+It never touches a skill folder that already exists in the work account, and it is safe to run again after you add a new skill. We ran it in Windows PowerShell 5.1 and PowerShell 7, including a skill name with a space.
+
+To see what is linked:
+
+```powershell
+Get-ChildItem "$HOME\.claude-work\skills" | Select-Object Name, LinkType, Target
+```
+
+**Why one link per skill, not the whole `skills` folder?** A whole-folder link makes the two accounts one skills folder. You can no longer keep a skill in one account only, and anything either account writes there lands in your default folder. Per-skill links share what you choose and leave the rest local.
+
+## Step 2: agents and commands
+
+Agents (`agents\*.md`) and slash commands (`commands\*.md`) are folders of single files, so one junction for each whole folder is simpler:
+
+```powershell
+cmd /c mklink /J "$HOME\.claude-work\agents" "$HOME\.claude\agents"
+cmd /c mklink /J "$HOME\.claude-work\commands" "$HOME\.claude\commands"
+```
+
+`mklink` refuses if the folder already exists in the work account. Move that one aside first and merge by hand.
+
+This is not documented. In a test on Claude Code 2.1.287, an agent and a command reached only through these junctions both showed up in a new session. Recheck after big Claude Code updates.
+
+## Step 3: CLAUDE.md with one import line
+
+You do not need a link for `CLAUDE.md`. Claude Code can import another file with `@path`. Put this line in `%USERPROFILE%\.claude-work\CLAUDE.md`, with your own user name:
+
+```text
+@C:/Users/you/.claude/CLAUDE.md
+```
+
+What the memory docs say about it:
+
+- "Both relative and absolute paths are allowed", and imports can nest "with a maximum depth of four hops".
+- For a path with spaces, "put a backslash before each space". "A path wrapped in quotes isn't imported at all."
+- Imports in a project's files that point outside the project need your approval. But user-scope files "are files you wrote yourself. Except in Cowork sessions on your desktop, Claude Code loads their imports without the dialog."
+
+In our test, the account folder's `CLAUDE.md` counted as user scope, and the import loaded with no prompt. You can still add lines below the import that apply only to the work account.
+
+## Step 4: settings, hooks and MCP servers
+
+Do not link `settings.json`. The two accounts often need different permissions or models, and hooks run commands on your PC. Copy it once, read it, and keep only what you want.
+
+MCP servers you added at user level live in `.claude.json`, together with account state. Never copy that whole file. If you want the same servers, add them again in the work account with `claude mcp add`, or copy only the server entries. Check them for API keys first.
+
+## Why not the plugins folder
+
+Plugins live in `plugins\` inside the config folder, with a list of installed plugins and known marketplaces. Linking that folder between accounts is the obvious move, and it is the one to avoid today.
+
+Open issue [#82272](https://github.com/anthropics/claude-code/issues/82272) reports that a marketplace added from one config folder fails a check in the other with "corrupted installLocation", because the stored path is compared as text, not as the real folder. The reporter adds that the suggested remedy, removing and re-adding the marketplace, removed every installed plugin of that marketplace. A related open issue, [#92645](https://github.com/anthropics/claude-code/issues/92645), asks for machine-wide plugins because they are per config folder.
+
+So keep the same list, not the same folder. In each account, run the same installs:
+
+```powershell
+claude-work plugin marketplace add <source>
+claude-work plugin install <plugin>@<marketplace>
+claude-work plugin list
+```
+
+(`claude-work` is the PowerShell function from the earlier post; plain `claude` with `CLAUDE_CONFIG_DIR` set works the same.) Check with `plugin list` afterwards. Issue [#74393](https://github.com/anthropics/claude-code/issues/74393) reports plugin installs landing in the default folder.
+
+## Removing a link safely
+
+To stop sharing one skill, remove only the link:
+
+```powershell
+cmd /c rmdir "$HOME\.claude-work\skills\review"
+```
+
+`rmdir` without `/s` removes the junction itself. In our test the target folder and its `SKILL.md` were still there afterwards. Do not use a recursive delete on a link: a tool that walks into the link deletes the real files in your default account.
+
+If you delete the default account's skill instead, the link in the work account is left pointing at nothing. Remove it the same way.
+
+## How Devpit does the same thing
+
+When you add a Claude Code account, Devpit asks one question: bring your setup over? Then it shows the item list, with a safety label on each row. See [Claude Code accounts](/docs/features/accounts-claude-code).
+
+| Item | Default | How Devpit shares it |
+| --- | --- | --- |
+| Skills | Share | One junction per skill folder, never the whole folder |
+| Agents, commands | Share | One junction on each folder |
+| CLAUDE.md | Share | One `@` import line pointing at the default one |
+| Plugins | Same list | Copies the enabled-plugin list and marketplaces; each account installs its own copy |
+| Settings | Copy, review | Copies `settings.json` |
+| Hooks | Copy, review | The hooks part of `settings.json` |
+| MCP servers | Copy, unticked | Only the server entries from `.claude.json`, asks twice |
+| Chat history | Skip | Big and private |
+| Login, account info | Locked | Never cloned, always shown |
+
+The shared home is your default account's own `~/.claude`. Nothing in it moves. Because the links point at a normal folder, they keep working if you uninstall Devpit.
+
+When the work account already has items:
+
+- **Keep** (the default): items with new names become shared; same-named items are kept, with the other copy beside them as `name.from-work`.
+- **Replace**: the work account's items move to a dated backup folder inside the account.
+- **Keep both**: the work account's same-named items are renamed and shared.
+
+Nothing is deleted or overwritten in any option. **Stop sharing** copies the target, removes only the link, and puts the copy in its place. A link whose target is gone shows as broken, with a one-key repair. A skill you add inside the work account stays local, and the Accounts page says so: "1 new skill in work is not shared yet."
+
+## Checklist
+
+1. Use junctions, not symlinks, unless you need file links.
+2. Link skills one by one; link `agents` and `commands` as whole folders.
+3. Import `CLAUDE.md` with one `@C:/Users/you/.claude/CLAUDE.md` line.
+4. Copy settings and hooks by hand, after reading them.
+5. Install plugins again in each account.
+6. Remove links with `rmdir` without `/s`.
+
+## Sources
+
+- [Claude Code: Skills (locations and linked skill folders)](https://code.claude.com/docs/en/skills)
+- [Claude Code: Memory (imports, Windows symlinks)](https://code.claude.com/docs/en/memory)
+- [Claude Code: Plugins loading (plugins folder)](https://code.claude.com/docs/en/plugins/loading)
+- [Claude Code issue #82272: corrupted installLocation with a linked plugins folder](https://github.com/anthropics/claude-code/issues/82272)
+- [Claude Code issue #92645: machine-wide plugin scope](https://github.com/anthropics/claude-code/issues/92645)
+- [Claude Code issue #74393: plugin install writes to ~/.claude](https://github.com/anthropics/claude-code/issues/74393)
+- [Microsoft: Hard links and junctions](https://learn.microsoft.com/windows/win32/fileio/hard-links-and-junctions)
+- [Microsoft: mklink](https://learn.microsoft.com/windows-server/administration/windows-commands/mklink)
+- [Microsoft: Create symbolic links (user right)](https://learn.microsoft.com/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links)
+- [Microsoft: CreateSymbolicLinkW (Developer Mode flag)](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createsymboliclinkw)

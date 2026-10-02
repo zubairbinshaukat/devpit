@@ -1,0 +1,76 @@
+---
+title: "A Devpit folder rule is not applying"
+description: "You made a folder rule in Devpit Accounts, but the tool still uses its usual account there. Main causes, from Git repos to old terminals and moved folders."
+sidebar:
+  label: "Folder rule not applying"
+related:
+  - features/accounts
+  - troubleshooting/accounts-wrong-account-used
+  - troubleshooting/accounts-shim-not-first-on-path
+faq:
+  - question: "Why does my Git folder rule do nothing?"
+    answer: "Git's includeIf gitdir rule only applies inside a Git repository. In a folder that is not a repository yet, Git reads only your global identity. Run git init or git clone there and the rule applies."
+  - question: "Does Devpit remove a rule when the folder is gone?"
+    answer: "No. Devpit marks it as folder not found, or drive not connected for a USB drive or network share that is not there right now. Fix old rules in Browse folders offers to remove the rule or point it at the new place."
+---
+
+You set a folder rule, and the tool still uses its usual account in that folder.
+Run this in the folder first:
+
+```powershell
+devpit accounts verify
+```
+
+Then check the causes below.
+
+## Why it happens
+
+- **Git: the folder is not a repository yet.** `includeIf "gitdir/…"` applies only inside a Git repository. The rule takes effect once you `git init` or `git clone` there.
+- **The terminal was opened before the rule.** The first rule for Claude Code, `gh`, Vercel, Firebase or Supabase adds Devpit's shim folder to your PATH. Older terminals do not see it. Verify says: "This terminal was opened before Devpit added its shim folder to PATH."
+- **Another copy of the tool runs first.** See [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
+- **The tool ran through `npx`.** Devpit's shim catches the tool's own name, not `npx vercel`. Cloudflare is the exception: its rules live in Wrangler's own bindings.
+- **A PowerShell function or alias** with the tool's name runs before any program on PATH. `Get-Command claude` shows what runs.
+- **The folder moved or its drive is gone.** Browse folders marks the rule **folder not found** or **drive not connected**.
+- **Cloudflare: letter case.** Wrangler matches folders by exact letter case. Devpit writes the folder as it is spelled on disk; a path typed with other letters may not match.
+- **WSL.** Rules apply to Windows programs, not to tools inside WSL.
+
+## How to fix it
+
+1. Run `devpit accounts` in the folder. If the why column does not name your rule, the rule does not cover this folder: check its path in **Accounts**, then <kbd>b</kbd> Browse folders.
+2. Open a new terminal and try again.
+3. For Git, check you are inside a repository: `git rev-parse --show-toplevel`.
+4. For a moved folder, open **Browse folders**, then **Fix old rules**, and point the rule at the new place, or remove it.
+5. Follow the fix that `devpit accounts verify` prints for anything else.
+
+## When verify says a shim is missing or old
+
+Folder rules for Claude Code, `gh`, Vercel, Firebase and Supabase work through small programs called shims, in `%LOCALAPPDATA%\Programs\devpit\shims`.
+Verify reports these:
+
+| Verify says | What to do |
+| --- | --- |
+| `The shim for Claude Code is missing (…).` | Open **Accounts** in Devpit, or make any account change. Devpit creates it again. |
+| `The shim for Claude Code is from an older Devpit.` | The same: open **Accounts**, or make any account change, and Devpit refreshes it. |
+| `devpit-shim.exe is missing next to devpit.exe (…), so Devpit cannot make or refresh the shims folder rules need.` | Run the installer again, or put `devpit-shim.exe` next to `devpit.exe`. This happens when only `devpit.exe` was replaced by hand: both files ship in the release zip. |
+
+If verify says the shim is not first on PATH, or that a new terminal is needed, see [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
+
+## Cloudflare: Wrangler's binding differs
+
+Devpit mirrors each Cloudflare folder rule into Wrangler's own folder bindings, and verify compares the two.
+It reports a difference like this:
+
+```text
+Devpit's rule says Cloudflare uses work in C:\Work, but Wrangler binds it to the profile personal.
+Devpit's rule says Cloudflare uses work in C:\Work, but Wrangler has no binding there.
+Devpit's rule says Cloudflare uses work in C:\Work, but Wrangler's binding is spelled c:\work (profile work), and Wrangler matches letter case exactly.
+Wrangler binds C:\Other to the profile work, but Devpit has no rule there (it was made with `wrangler auth activate`).
+```
+
+Wrangler follows its own binding, not Devpit's rule. To make them agree, pick one:
+
+- Make Wrangler follow the rule, with Wrangler's own command: `wrangler auth activate work "C:\Work"`, spelled exactly as the folder is on disk.
+- Remove a binding you do not want: `wrangler auth deactivate "C:\Other"`.
+- Keep a binding made outside Devpit and give it a Devpit rule instead: `devpit cloudflare use work --folder "C:\Other"`. It shows a preview and asks first.
+
+Then run `devpit accounts verify` again.

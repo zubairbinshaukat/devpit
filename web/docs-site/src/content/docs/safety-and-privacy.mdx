@@ -1,17 +1,20 @@
 ---
 title: Is Devpit safe? What it protects and what it sends
-description: How Devpit protects your files with previews, confirmations and a default of No, and exactly what anonymous usage stats send and how to turn them off.
+description: How Devpit protects your files and accounts with previews, a default of No and undo, why it stores no tokens, and exactly what opt-in usage stats send.
 sidebar:
   label: Safety and privacy
   order: 11
 published: 2026-09-29
 related:
   - features/free-up-disk-space
+  - features/accounts
   - features/settings
   - getting-started
 faq:
   - question: "Can Devpit delete something by accident?"
     answer: "It is built so it cannot. Nothing is deleted without a preview and an explicit yes, the default answer is always No, and Careful items also need a typed word. Safe items are renamed before they are removed, and the other items go to the Recycle Bin."
+  - question: "Does Devpit store my tokens or passwords for Accounts?"
+    answer: "No. Each tool keeps its own login where it always does. Devpit's rules file holds only account names, emails and folder paths. The only token Devpit ever handles is a GitHub account's, passed in memory from gh to the one gh or git process that needs it."
   - question: "Does Devpit collect my data?"
     answer: "Not unless you turn usage stats on. They are off by default. If you turn them on, one small report of totals is sent after a clean-up that removed something. It never contains file names, paths, your user name or your machine name."
   - question: "How do I make sure nothing is ever sent?"
@@ -22,9 +25,10 @@ faq:
     answer: "Not yet. Windows SmartScreen may warn about an unknown publisher. Releases have SHA256 checksums and a build attestation so you can check that a file is the one GitHub built."
 ---
 
-Devpit deletes files, so the rules about deleting are strict.
+Devpit deletes files and switches the accounts your tools use, so the rules are strict.
 They are not settings and not advice.
 The code enforces them, and a test pins each one.
+Where a rule is decided but its test is still to come, this page says so.
 
 ## How deleting is protected
 
@@ -70,20 +74,61 @@ For example: "Couldn't delete api\node_modules — it's open in Code.exe. Close 
 ## Other protections
 
 - **Processes.** Devpit never stops PID 0 or 4, Windows services, or other programs in `C:\Windows\System32`. The shells `cmd`, PowerShell and `conhost` are the one exception, because dev tools start them all the time. See [Fix stuck ports and apps](/docs/features/fix-stuck-ports).
-- **SSH keys.** An existing key is never replaced unless you type `OVERWRITE`. See [Git and SSH setup](/docs/features/git-and-ssh).
+- **SSH keys.** An existing key is never overwritten. A key Devpit makes for a GitHub account gets its own file name, and Devpit stops if a file is already there. See [Git and GitHub accounts](/docs/features/accounts-git-and-github#generate-an-ssh-key).
 - **Admin rights.** The app you type into never runs as administrator. Jobs that need it, such as Chocolatey updates, run in a separate small helper that asks Windows for permission once. The helper only accepts a short list of jobs, and only deletes inside a short list of Windows temp folders.
 - **Settings file.** A damaged file is renamed and kept, never silently thrown away. A file from a newer Devpit is refused, not half applied. Saving is done in a way that never leaves a half-written file.
+
+## Accounts
+
+[Accounts](/docs/features/accounts) changes which account Claude Code, Git, GitHub and other tools use in a folder.
+These rules apply to it.
+
+### No tokens
+
+- **Devpit stores no token.** Each tool keeps its own login where it always does. Devpit's rules file, `%APPDATA%\devpit\accounts.toml`, holds account names, emails and folder paths only.
+- **No token is shown, copied, logged or put in `--json` output.** Who is signed in is read without the token, and everything Devpit shows or logs is checked for anything that looks like a secret. A test plants a fake token in fake tools and checks it never comes out.
+- **The one token Devpit handles** is a GitHub account's, which it asks `gh` for when a `gh` or `git` process starts. It goes only to that process, in memory, and is never written anywhere. If anything goes wrong, `gh` starts untouched with one warning.
+- **No command that prints or moves a token** is ever run: never `firebase login:list --json`, never `gh … --show-token`, never `gh auth switch`.
+- **Login files are never read, copied or linked:** Claude Code's `.credentials.json` and Supabase's `access-token`. Only whether they exist is checked. Claude Code's `.claude.json` is never copied or linked either; only its MCP server entries are read, when you choose to bring MCP servers over.
+
+### Every change can be checked and undone
+
+- **Every change has a preview, and the default answer is No.** What is applied is exactly what you saw: if anything changed in between, Devpit stops.
+- **Undo is exact.** Devpit records each change before it makes it, with what was there before. Undo puts it back. If a file Devpit wrote was changed by hand since, undo stops and changes nothing.
+- **A crash never leaves a change half made.** A change that was not finished is put back at the next start.
+- **An account folder that holds a sign-in is never deleted** by an undo, and a cancelled sign-in leaves nothing behind.
+- **Nothing you type can add lines to Git's config.** A name, email or path with a line break is refused.
+- **Without a terminal, nothing changes without `--yes`.** A script or an AI agent gets exit code 3 and the message "This would change … Re-run with --yes after the user agrees." Variables such as `CI` or `CLAUDECODE` never stand in for a person.
+
+### What it touches, and what it leaves alone
+
+- **Login and account folders can never be selected in Free Up Disk Space:** `.claude`, `.ssh`, `.devpit`, `.claude-switch`, and the `gh`, Vercel, Wrangler, Supabase and Convex login folders. Account folders Devpit makes live inside `.devpit`.
+- **`devpit accounts cleanup` removes only what Devpit added:** folder rules, shims and their PATH entry, its Git files and include block, the Wrangler bindings it made and its agent skill. Never an account folder or a sign-in.
+- **Sharing a Claude Code setup never overwrites anything** in the other account: same-named items are kept beside it, renamed, or moved to a backup folder. Links are never followed when removing.
+- **Uninstalling never breaks an account.** Shared links point at your own `.claude` folder, and `devpit accounts cleanup --copy-links` turns them into copies.
+- **Careful items** (MCP servers, which may hold API keys) are never ticked for you and are only copied on the Careful path. That they ask twice on screen is decided, but the screen's test is still to come.
+- **Arguments reach a tool exactly, or not at all.** A shim never passes your arguments through `cmd.exe` in a way that could change them: npm tools run as `node.exe` directly, and other batch files only get plain arguments.
+- **A broken Devpit never blocks a tool.** If the shim cannot work out the account, it starts the real tool untouched with one warning line.
+- **Claude Code's idle accounts are not asked who they are** unless you agree, because on some versions that check can sign an idle account out (Claude Code issue [#95822](https://github.com/anthropics/claude-code/issues/95822)).
+
+### No network of its own
+
+Accounts has no network code.
+The only connections are each tool's own sign-in and "who am I" check, which the tool makes itself.
 
 ## What Devpit sends
 
 Short version: **usage stats are off until you turn them on.**
 
 Everything else runs on your PC: the scan, the sizes, the deleting, the port list and your settings.
-Devpit reads and writes two folders, and nothing in them is uploaded:
+Devpit reads and writes these places, and nothing in them is uploaded:
 
 | What | Where |
 | --- | --- |
 | Settings | `%APPDATA%\devpit\config.toml` |
+| Account rules and the undo history | `%APPDATA%\devpit\accounts.toml`, `%APPDATA%\devpit\accounts-journal.jsonl` |
+| Account folders Devpit made | `%USERPROFILE%\.devpit\accounts\` |
+| Git rule files | `%USERPROFILE%\.devpit\git\` |
 | Caches and logs | `%LOCALAPPDATA%\devpit\` |
 
 ### Usage stats (off by default)
@@ -151,6 +196,7 @@ These are not usage stats. Each one happens only for the reason given.
 | You run the installer or update | `github.com` | To download the release and its checksums |
 | You use Install or Update | The sources of Scoop, winget, Chocolatey or npm | These tools contact their own servers. Devpit only runs their commands |
 | You ping a host | The host you typed | That is what ping does |
+| You add, check or use an account | That tool's own servers | The tool's own sign-in and "who am I" check, run by the tool itself (for example `gh api user` or `vercel whoami`) |
 
 Devpit never downloads or replaces itself.
 When a newer version exists it only tells you the command to run.

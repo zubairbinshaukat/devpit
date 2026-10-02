@@ -1,0 +1,26 @@
+ Sign work in again
+
+ Devpit hands this terminal to Claude Code's own sign-in for work, in that account's own folder:
+   claude auth login
+
+ It may open your browser: sign in there with the account work is for. Devpit comes back here when
+ it is done. Nothing else changes.
+
+ [enter] sign in  [esc] back
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[keys] enter sign in

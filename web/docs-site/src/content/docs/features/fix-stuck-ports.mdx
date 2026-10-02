@@ -3,7 +3,7 @@ title: Fix "port 3000 is already in use" on Windows
 description: Free a busy port such as 3000 or 5173 in two keystrokes, list busy dev ports, and stop stuck Node processes safely with Devpit.
 sidebar:
   label: Fix stuck ports and apps
-  order: 2
+  order: 6
 published: 2026-09-29
 related:
   - features/settings
@@ -11,7 +11,7 @@ related:
   - troubleshooting
 faq:
   - question: "How do I fix port 3000 is already in use on Windows?"
-    answer: "Open Devpit, choose Fix Stuck Ports and Apps, choose Kill a port, type 3000 and press Enter. Devpit shows which app holds the port. Press y to stop it. Then start your dev server again."
+    answer: "Open Devpit, choose Ports and Network, then Fix stuck ports and apps, then Kill a port, type 3000 and press Enter. Devpit shows which app holds the port. Press y to stop it. Then start your dev server again."
   - question: "Can Devpit kill any process?"
     answer: "No. Devpit refuses to stop PID 0 and 4, Windows services, and other programs that live in the Windows System32 folder. It shows the reason instead of a tick box. The shell programs cmd, PowerShell and conhost are the exception, because dev tools start them all the time."
   - question: "What does Kill process tree do?"
@@ -34,7 +34,10 @@ Something else is using the port.
 Often it is an old copy of the same server that never closed.
 Devpit finds it and stops it, after you say yes.
 
-Open it from the main menu with <kbd>2</kbd>, or choose **Fix Stuck Ports & Apps**.
+Open it from the main menu: press <kbd>3</kbd> for **Ports & Network**, then <kbd>1</kbd> for **Fix stuck ports & apps**.
+
+<Shot name="portsnet-menu" />
+
 The section has three tools.
 
 <Shot name="ports-menu" />

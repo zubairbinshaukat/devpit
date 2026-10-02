@@ -2,12 +2,14 @@
 #
 #   task            list the tasks
 #   task check      everything CI runs, in the order CI runs it
-#   task build      build devpit.exe
+#   task build      build devpit.exe and devpit-shim.exe
 #   task run        build and run
 version: "3"
 
 vars:
   BINARY: devpit.exe
+  # The Accounts shim, shipped next to devpit.exe (see cmd/devpit-shim).
+  SHIM_BINARY: devpit-shim.exe
   # go run rather than a bare `gofumpt`, so the task works without anything
   # installed. Install it (see CONTRIBUTING.md) and it resolves from the
   # module cache instantly.
@@ -40,6 +42,12 @@ tasks:
         sh: git log -1 --format=%cI 2>/dev/null || echo unknown
     cmds:
       - go build -trimpath -ldflags "{{.LDFLAGS}}" -o {{.BINARY}} .
+      - task: build:shim
+
+  build:shim:
+    desc: Build the Accounts shim (devpit-shim.exe) that Devpit copies as claude.exe, gh.exe...
+    cmds:
+      - go build -trimpath -ldflags "-s -w" -o {{.SHIM_BINARY}} ./cmd/devpit-shim
 
   run:
     desc: Build and run Devpit
@@ -170,7 +178,7 @@ tasks:
   clean:
     desc: Remove build output
     cmds:
-      - cmd: rm -rf dist {{.BINARY}} coverage.out
+      - cmd: rm -rf dist {{.BINARY}} {{.SHIM_BINARY}} coverage.out
         platforms: [linux, darwin]
-      - cmd: powershell -NoProfile -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue dist, {{.BINARY}}, coverage.out"
+      - cmd: powershell -NoProfile -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue dist, {{.BINARY}}, {{.SHIM_BINARY}}, coverage.out"
         platforms: [windows]

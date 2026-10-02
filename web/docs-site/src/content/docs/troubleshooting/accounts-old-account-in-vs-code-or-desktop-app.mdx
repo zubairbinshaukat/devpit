@@ -1,0 +1,32 @@
+---
+title: "Old account still used in VS Code or a desktop app"
+description: "Your Devpit folder rule works in the terminal, but a VS Code extension or a desktop app still uses the old account. Why, and what you can do about it."
+sidebar:
+  label: "Old account in VS Code or an app"
+related:
+  - features/accounts
+  - features/accounts-claude-code
+  - troubleshooting/accounts-wrong-account-used
+faq:
+  - question: "Does Devpit work in the VS Code terminal?"
+    answer: "Yes. The VS Code terminal is a normal terminal, so claude, gh, git and the rest follow Devpit's folder rules there, as long as it was opened after Devpit added its shim folder to PATH."
+  - question: "Will Devpit support editor extensions later?"
+    answer: "Not in this version. Extensions and desktop apps keep their own login, and only partly honour the variables Devpit sets for terminal tools."
+---
+
+Devpit's folder rules apply to tools you start in a terminal: Windows Terminal, PowerShell, cmd, Git Bash, the **VS Code terminal**, and scripts, tasks and AI agents started from there.
+Editor extensions and desktop apps keep their own login.
+Devpit does not switch them.
+
+## Why it happens
+
+- **Extensions and apps sign in on their own.** The Claude Code extension for VS Code or JetBrains, the Claude desktop app, GitHub's sign-in inside VS Code and similar tools keep their own login and only partly honour `CLAUDE_CONFIG_DIR` and the other variables Devpit sets.
+- **They do not start through Devpit's shim.** The shim picks the account when you type `claude` or `gh`. A desktop app is started by Windows, not by your terminal.
+- **The VS Code window is older than the rule.** VS Code passes its own PATH to its terminals. If VS Code was open before Devpit added its shim folder to PATH, its terminals do not see it either.
+
+## How to fix it
+
+1. **In the VS Code terminal:** close VS Code completely and open it again, so its terminals get the new PATH. Then run `devpit accounts` in the VS Code terminal to check.
+2. **In an extension or desktop app:** sign in to the account you want inside the extension or app itself, with its own sign-in.
+3. **For Git commits from VS Code's Source Control view:** Git's own `includeIf` rules apply there too, because they live in Git's config, not in a shim. If the email is wrong, check the repository is inside the ruled folder.
+4. **For pushes from VS Code:** VS Code runs Git, and Git asks the sign-in helpers in its config, where Devpit's helper is the one for `github.com`. Pushes from VS Code with real accounts have not been checked for this release yet. If a push uses VS Code's own GitHub sign-in or the wrong account, see [git push asks for a password or uses the wrong account](/docs/troubleshooting/git-push-asks-for-password-or-wrong-account).

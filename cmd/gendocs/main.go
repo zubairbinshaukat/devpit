@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 
 	devpit "github.com/zubairbinshaukat/devpit/cmd/devpit"
+	"github.com/zubairbinshaukat/devpit/internal/accounts"
+	"github.com/zubairbinshaukat/devpit/internal/accounts/shims"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/docsgen"
 	"github.com/zubairbinshaukat/devpit/internal/selfupdate"
@@ -35,6 +37,11 @@ func Page() string {
 			{Name: selfupdate.EnvNoCheck, Effect: "Set to 1 to skip the once-a-day check for a newer Devpit."},
 			{Name: config.EnvConfigDir, Effect: "Use this folder for config.toml instead of %APPDATA%\\devpit."},
 			{Name: config.EnvCacheDir, Effect: "Use this folder for caches and logs instead of %LOCALAPPDATA%\\devpit."},
+			// The two Accounts locations. They are mainly for tests, but a
+			// portable install that moves the settings folder needs them too,
+			// and the PATH side effect of the shim folder is worth stating.
+			{Name: accounts.EnvAccountsDir, Effect: "Use this folder for the account folders Devpit creates instead of %USERPROFILE%\\.devpit\\accounts. Devpit's Git rule files move with it, to a git folder beside it. Meant for tests and portable installs."},
+			{Name: shims.EnvShimDir, Effect: "Use this folder for the account shims (claude.exe, gh.exe and the rest) instead of %LOCALAPPDATA%\\Programs\\devpit\\shims. While it is set, Devpit does not change your user PATH, so put that folder first on PATH yourself. Meant for tests and portable installs."},
 			{Name: uictx.ReducedMotionEnv, Effect: "Turn off spinners and other movement in the app."},
 		},
 	})

@@ -1,6 +1,7 @@
-// Package home is Devpit's main menu: the eight sections from the PRD, each
-// with a fixed name, an icon in the section's own colour and a one-line
-// description.
+// Package home is Devpit's main menu: six sections, each with a fixed name,
+// an icon in the section's own colour and a one-line description. Two of
+// them, Ports & Network and Install & Update, are small menus of their own
+// over the screens that used to be home entries.
 //
 // Only the highlighted section shows its description, in a line every other
 // section keeps blank: the list stays calm and keeps its shape, and the
@@ -17,6 +18,7 @@
 package home
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -28,11 +30,13 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/logo"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/accounts"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/apps"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/clean"
-	"github.com/zubairbinshaukat/devpit/internal/ui/screens/gitssh"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/install"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/network"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/ports"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/portsnet"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/share"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/update"
@@ -40,35 +44,46 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
-// Section identifiers, matching the PRD's main menu. They are the theme's
+// Section identifiers of the main menu, in menu order. They are the theme's
 // own section names, so each section's icon finds its hue by id.
 const (
+	SectionAccounts = theme.SectionAccounts
 	SectionClean    = theme.SectionClean
-	SectionPorts    = theme.SectionPorts
-	SectionInstall  = theme.SectionInstall
-	SectionUpdate   = theme.SectionUpdate
-	SectionNetwork  = theme.SectionNetwork
-	SectionGitSSH   = theme.SectionGitSSH
-	SectionSettings = theme.SectionSettings
+	SectionPortsNet = theme.SectionPortsNet
+	SectionApps     = theme.SectionApps
 	SectionShare    = theme.SectionShare
+	SectionSettings = theme.SectionSettings
 )
 
-// Tabs returns the eight sections as the header draws them: the same order
-// as the menu, with a short label that fits a tab.
+// The screens inside the two parent sections. They are not home entries; a
+// factory keyed by one of them (see [Model.WithFactories]) replaces that
+// screen where its parent menu opens it.
+const (
+	SectionPorts   = theme.SectionPorts
+	SectionNetwork = theme.SectionNetwork
+	SectionInstall = theme.SectionInstall
+	SectionUpdate  = theme.SectionUpdate
+)
+
+// SectionGitSSH is the retired Git & SSH section. Home no longer lists or
+// opens it; the id stays only until screens/gitssh is removed.
+const SectionGitSSH = theme.SectionGitSSH
+
+// Tabs returns the six sections as the header draws them: the same order as
+// the menu, with a short label that fits a tab. "Ports & Net" is short on
+// purpose: all six, with the hint beside them, fit an 80-column terminal.
 func Tabs() []header.Tab {
 	return []header.Tab{
+		{ID: SectionAccounts, Label: "Accounts"},
 		{ID: SectionClean, Label: "Clean"},
-		{ID: SectionPorts, Label: "Ports"},
-		{ID: SectionInstall, Label: "Apps"},
-		{ID: SectionUpdate, Label: "Update"},
-		{ID: SectionNetwork, Label: "Network"},
-		{ID: SectionGitSSH, Label: "Git"},
-		{ID: SectionSettings, Label: "Settings"},
+		{ID: SectionPortsNet, Label: "Ports & Net"},
+		{ID: SectionApps, Label: "Apps"},
 		{ID: SectionShare, Label: "Share"},
+		{ID: SectionSettings, Label: "Settings"},
 	}
 }
 
-// TabByDigit maps a typed "1".."7" to its tab, and reports false for any
+// TabByDigit maps a typed "1".."6" to its tab, and reports false for any
 // other key text.
 func TabByDigit(text string) (header.Tab, bool) {
 	tabs := Tabs()
@@ -79,50 +94,43 @@ func TabByDigit(text string) (header.Tab, bool) {
 }
 
 // SectionFor reports which section a screen belongs to, or "" for a screen
-// that is not one of the eight (home itself, first run, a sub-screen). The
-// header uses it to light the right tab, so it looks at the screen's type
-// rather than trusting a title that a screen may change as it works.
+// that is in none (home itself, first run, a sub-screen). The header uses it
+// to light the right tab, so it looks at the screen's type rather than
+// trusting a title that a screen may change as it works. The screens inside
+// a parent section answer with their parent.
 func SectionFor(s uictx.Screen) string {
 	switch s.(type) {
+	case accounts.Model:
+		return SectionAccounts
 	case clean.Model:
 		return SectionClean
-	case ports.Model:
-		return SectionPorts
-	case install.Model:
-		return SectionInstall
-	case update.Model:
-		return SectionUpdate
-	case network.Model:
-		return SectionNetwork
-	case gitssh.Model:
-		return SectionGitSSH
-	case settings.Model:
-		return SectionSettings
+	case portsnet.Model, ports.Model, network.Model:
+		return SectionPortsNet
+	case apps.Model, install.Model, update.Model:
+		return SectionApps
 	case share.Model:
 		return SectionShare
+	case settings.Model:
+		return SectionSettings
 	default:
 		return ""
 	}
 }
 
-// Items returns the eight menu entries, in PRD order, with the icons of the
+// Items returns the six menu entries, in menu order, with the icons of the
 // given tier. The ascii tier has no section glyphs and the menu draws nothing
 // in their place.
 func Items(ic icons.Set) []menu.Item {
 	item := func(id, title, desc string) menu.Item {
 		return menu.Item{ID: id, Title: title, Desc: desc, Icon: ic.Section(id), Hue: id}
 	}
-	ports := item(SectionPorts, "Fix Stuck Ports & Apps", "Free busy ports and stop stuck processes")
-	ports.Hint = "Port 3000 busy? Kill it"
 	return []menu.Item{
+		item(SectionAccounts, "Accounts", "Use the right account in every folder"),
 		item(SectionClean, "Free Up Disk Space", "Scan and clean dev junk, caches and temp files"),
-		ports,
-		item(SectionInstall, "Install Developer Apps", "Pick and install dev apps"),
-		item(SectionUpdate, "Update Everything", "Update apps and tools through every detected package manager"),
-		item(SectionNetwork, "Network Tools", "IP, connectivity and DNS helpers"),
-		item(SectionGitSSH, "Git & SSH Setup", "Identity and SSH key setup"),
-		item(SectionSettings, "Devpit Settings", "Preferences, theme, privacy, tool rescan"),
+		item(SectionPortsNet, "Ports & Network", "Free a busy port, check your connection"),
+		item(SectionApps, "Install & Update", "Install dev apps, update everything"),
 		item(SectionShare, "Share Files", "Move big folders between two PCs on your network"),
+		item(SectionSettings, "Devpit Settings", "Preferences, theme, privacy, tool rescan"),
 	}
 }
 
@@ -142,8 +150,9 @@ func New(ic icons.Set) Model {
 }
 
 // WithFactories overrides what a section opens, keyed by the Section
-// identifiers. Anything the map does not name keeps its real constructor, and
-// a nil map changes nothing.
+// identifiers, including the four screens inside the parent sections (the
+// parent menus are handed the same map). Anything the map does not name keeps
+// its real constructor, and a nil map changes nothing.
 //
 // Only tests use it: it is how a golden frame of a screen whose Init runs
 // real detection is rendered without ever execing a package manager.
@@ -177,7 +186,7 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	case menu.SelectedMsg:
 		return m, m.Open(msg.ID)
 	case tea.KeyPressMsg:
-		// 1-8 opens a section directly. Home has no text input, so a digit
+		// 1-6 opens a section directly. Home has no text input, so a digit
 		// can never be something the user meant to type.
 		if t, ok := TabByDigit(msg.Text); ok {
 			return m, m.Open(t.ID)
@@ -279,9 +288,9 @@ func tagline(ctx uictx.Context) string {
 		return th.Muted.Render("You've freed ") + th.Success.Render(header.FormatBytes(freed)) +
 			th.Muted.Render(" with Devpit. See you next lap.")
 	}
-	keys := "1–8"
+	keys := "1–" + strconv.Itoa(len(Tabs()))
 	if ctx.Icons.Tier == icons.TierASCII {
-		keys = "1-8"
+		keys = "1-" + strconv.Itoa(len(Tabs()))
 	}
 	return th.Muted.Render("Pit crew ready. Pick a section, or press " + keys + ".")
 }
@@ -370,30 +379,29 @@ func centre(width int, s string) string {
 }
 
 // Open maps a section to the screen it pushes. Each section owns one screen
-// and pushes it once; the flows inside a section are states of that screen,
-// not further router entries. It is exported so the tab bar can open a
-// section through exactly the path the menu uses.
+// and pushes it once; the two parent sections push their own small menu,
+// which pushes the screen picked from it. It is exported so the tab bar can
+// open a section through exactly the path the menu uses.
+//
+// The factories reach through the parent menus: a factory keyed by
+// SectionInstall replaces the install screen where Install & Update opens it.
 func (m Model) Open(id string) tea.Cmd {
 	if newScreen, ok := m.factories[id]; ok && newScreen != nil {
 		return uictx.Push(newScreen())
 	}
 	switch id {
+	case SectionAccounts:
+		return uictx.Push(accounts.New())
 	case SectionClean:
 		return uictx.Push(clean.New())
-	case SectionPorts:
-		return uictx.Push(ports.New())
-	case SectionInstall:
-		return uictx.Push(install.New())
-	case SectionUpdate:
-		return uictx.Push(update.New())
-	case SectionNetwork:
-		return uictx.Push(network.New())
-	case SectionGitSSH:
-		return uictx.Push(gitssh.New())
-	case SectionSettings:
-		return uictx.Push(settings.New())
+	case SectionPortsNet:
+		return uictx.Push(portsnet.New().WithFactories(m.factories))
+	case SectionApps:
+		return uictx.Push(apps.New().WithFactories(m.factories))
 	case SectionShare:
 		return uictx.Push(share.New())
+	case SectionSettings:
+		return uictx.Push(settings.New())
 	default:
 		return nil
 	}

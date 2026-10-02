@@ -9,16 +9,19 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
+	"github.com/zubairbinshaukat/devpit/internal/app"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
-	"github.com/zubairbinshaukat/devpit/internal/gitssh"
 	"github.com/zubairbinshaukat/devpit/internal/network"
 	"github.com/zubairbinshaukat/devpit/internal/ports"
-	gitsshui "github.com/zubairbinshaukat/devpit/internal/ui/screens/gitssh"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
 	networkui "github.com/zubairbinshaukat/devpit/internal/ui/screens/network"
 	portsui "github.com/zubairbinshaukat/devpit/internal/ui/screens/ports"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/wt"
 )
@@ -50,20 +53,24 @@ func firstRun(n int, want string) scene {
 
 // settingsRows are the indexes of the settings list rows a scene walks to.
 const (
-	settingsStats   = 3
-	settingsFolders = 4
+	settingsFont    = 3
+	settingsProbe   = 4
+	settingsFolders = 5
 	settingsNever   = 6
-	settingsPorts   = 7
-	settingsFont    = 10
-	settingsProbe   = 11
-	settingsAbout   = 14
+	settingsPorts   = 11
+	settingsSkill   = 12
+	settingsStats   = 13
+	settingsAbout   = 15
 )
 
 // settingsScreen returns the settings section over demo hooks: the font is
-// not installed and Windows Terminal is nowhere to be found, so opening the
-// font screen touches nothing.
+// not installed, Windows Terminal is nowhere to be found and the AI agent
+// skill is answered from memory, so opening any of it touches nothing.
 func settingsScreen() uictx.Screen {
-	return settings.New().WithHooks(settings.Hooks{
+	return settings.NewWith(settings.Options{
+		Skill: func() (settings.SkillService, error) { return demoSkill{}, nil },
+		Tick:  func(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil },
+	}).WithHooks(settings.Hooks{
 		FontStatus:    func(fonts.Options) (fonts.State, error) { return fonts.State{}, nil },
 		FindTerminals: func(wt.FindOptions) []wt.Location { return nil },
 		ClearCache:    func() error { return nil },
@@ -86,6 +93,38 @@ func settingsAt(row int, open bool, want string) scene {
 		s.waitFor(want)
 		return s
 	}
+}
+
+// demoSkill is the AI agent skill on the demo PC: Claude Code is there and
+// the skill is not installed yet.
+type demoSkill struct{}
+
+func (demoSkill) AgentStatus(context.Context) (service.AgentStatus, error) {
+	return service.AgentStatus{
+		ClaudeCode: true, Version: service.AgentSkillVersion,
+		Targets: []service.AgentTarget{{Account: "default", File: `C:\Users\you\.claude\skills\devpit\SKILL.md`, State: service.AgentCreate}},
+	}, nil
+}
+
+func (demoSkill) AgentInstall(ts []service.AgentTarget) ([]string, error) { return nil, nil }
+
+func (demoSkill) AgentRemove(files []string) ([]string, error) { return nil, nil }
+
+// sceneWhatsNew is the card a person sees once after updating to 0.4 from
+// 0.3, with Claude Code on the demo PC and the skill not installed yet. The
+// look at the skill is the app's own Init, which a scene never runs, so its
+// answer is sent the way the app would send it.
+func sceneWhatsNew(t *testing.T, e entry) *session {
+	cfg := demoConfig()
+	cfg.LastSeenVersion = "0.3.2"
+	s := newSessionWith(t, e, cfg, nil, func(o *app.Options) {
+		o.Version = "0.4.0"
+		o.Skill = func() (settings.SkillService, error) { return demoSkill{}, nil }
+	})
+	show, older := settings.SkillOffer(func() (settings.SkillService, error) { return demoSkill{}, nil })
+	s.send(whatsnew.OfferMsg{Show: show, Older: older})
+	s.waitFor("What's new in Devpit 0.4", "AI agent skill")
+	return s
 }
 
 // --- Network --------------------------------------------------------------
@@ -132,74 +171,28 @@ func networkHooks() networkui.Hooks {
 	}
 }
 
-// networkAt opens Network Tools, walks to row and opens it (row < 0 stays on
-// the menu).
+// parentMenu is one of the two parent sections on its own, untouched: the
+// Ports & Network or Install & Update menu, waiting for its lead-in line.
+func parentMenu(key, lead string) scene {
+	return func(t *testing.T, e entry) *session {
+		s := newSession(t, e, demoConfig(), nil)
+		s.key(key)
+		s.waitFor(lead)
+		return s
+	}
+}
+
+// networkAt opens Ports & Network, then Network tools, walks to row and
+// opens it (row < 0 stays on the menu).
 func networkAt(row int, extra []string, want string) scene {
 	return func(t *testing.T, e entry) *session {
 		s := newSession(t, e, demoConfig(), screens{
 			home.SectionNetwork: func() uictx.Screen { return networkui.New().WithHooks(networkHooks()) },
 		})
+		s.key(keyPortsNet)
+		s.waitFor(portsNetLead)
 		s.key(keyNetwork)
 		s.waitFor("IP, connectivity and DNS helpers")
-		if row >= 0 {
-			for range row {
-				s.key("down")
-			}
-			s.key("enter")
-			for _, k := range extra {
-				s.key(k)
-			}
-		}
-		s.waitFor(want)
-		return s
-	}
-}
-
-// --- Git and SSH ----------------------------------------------------------
-
-// keyPath is where the demo SSH key lives or would be written.
-const keyPath = `C:\Users\` + demoUser + `\.ssh\id_ed25519`
-
-// publicKey is a made-up ed25519 public key: well-formed, and belonging to
-// nobody.
-const publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK7f2J0mQ9xVd1oPq4Zt8LhYw3uN5cRbTgXeA6sHnMvE " + demoEmail
-
-// gitHooks are demo answers for the git and SSH screens. exists says whether
-// a key is already at keyPath, and identity whether git already knows who
-// the user is.
-func gitHooks(exists, identity bool) gitsshui.Hooks {
-	return gitsshui.Hooks{
-		Identity: func(context.Context) (gitssh.Identity, error) {
-			if !identity {
-				return gitssh.Identity{}, nil
-			}
-			return gitssh.Identity{Name: demoName, Email: demoEmail}, nil
-		},
-		SetConfig: func(context.Context, string, string) error { return nil },
-		Email: func(context.Context) (string, error) {
-			if !identity {
-				return "", nil
-			}
-			return demoEmail, nil
-		},
-		KeyPath:   keyPath,
-		KeyExists: func(string) bool { return exists },
-		Keygen: func(_ context.Context, o gitssh.KeygenOptions, _ gitssh.Options) (gitssh.KeygenResult, error) {
-			return gitssh.KeygenResult{PublicKey: publicKey, Path: o.Path}, nil
-		},
-		CopyWin32: func(string) error { return nil },
-	}
-}
-
-// gitAt opens Git and SSH Setup, walks to row and opens it (row < 0 stays on
-// the menu).
-func gitAt(row int, exists, identity bool, extra []string, want string) scene {
-	return func(t *testing.T, e entry) *session {
-		s := newSession(t, e, demoConfig(), screens{
-			home.SectionGitSSH: func() uictx.Screen { return gitsshui.New().WithHooks(gitHooks(exists, identity)) },
-		})
-		s.key(keyGit)
-		s.waitFor("Get a fresh machine ready to push code")
 		if row >= 0 {
 			for range row {
 				s.key("down")
@@ -304,12 +297,15 @@ func (m *machine) live() []ports.Conn {
 	return out
 }
 
-// portsAt opens Fix Stuck Ports, presses the given keys and waits for text.
+// portsAt opens Ports & Network, then Fix stuck ports & apps, presses the
+// given keys and waits for text.
 func portsAt(keys []string, want string) scene {
 	return func(t *testing.T, e entry) *session {
 		s := newSession(t, e, demoConfig(), screens{
 			home.SectionPorts: func() uictx.Screen { return portsui.New().WithHooks(newMachine().hooks()) },
 		})
+		s.key(keyPortsNet)
+		s.waitFor(portsNetLead)
 		s.key(keyPorts)
 		s.waitFor("Free a busy port or stop a stuck process")
 		for _, k := range keys {

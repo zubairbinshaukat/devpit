@@ -1,5 +1,6 @@
-// Command devpit is a Windows-first terminal app that frees disk space,
-// fixes stuck ports and keeps developer tools up to date.
+// Command devpit is a toolkit for developers on Windows: the right account in
+// every folder, disk space back, stuck ports freed, tools updated and big
+// folders moved between PCs, from one menu.
 package main
 
 import (

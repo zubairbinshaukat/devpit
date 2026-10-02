@@ -1,0 +1,20 @@
+ Who each tool says is signed in                     in C:\Projects\quiz-slayer
+
+     TOOL        EXPECTED                        TOOL SAYS
+ ▸ ✓ Claude Code work (you@work.example)         signed in as you@work.example
+   ✓ Git         You <you@personal.example>      commits as You <you@personal.e…
+   ✓ GitHub      work (you-at-work)              signed in as you-at-work
+   ✓ Vercel      default (you@personal.example)  signed in as you@personal.exam…
+   ─ Firebase    default (not checked yet)       not installed
+   ─ Supabase    default (not checked yet)       not installed
+   ✓ Cloudflare  default (not checked yet)       signed in
+   · Convex      default (not checked yet)       project: quiz-slayer
+
+ ✓ Everything checked is as it should be.
+
+
+ [a] also check the accounts not used here
+
+
+
+[keys] ↑↓ move  ·  a check idle accounts  ·  r check again  ·  enter back

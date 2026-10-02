@@ -3,12 +3,12 @@ title: Install developer apps on Windows with Devpit
 description: Pick developer tools from a short list and let Devpit install them through Scoop, winget or Chocolatey, one at a time, with live progress.
 sidebar:
   label: Install developer apps
-  order: 3
+  order: 8
 published: 2026-09-29
 related:
   - features/update-everything
   - features/settings
-  - features/git-and-ssh
+  - features/accounts-git-and-github
 faq:
   - question: "Which package manager does Devpit use to install apps?"
     answer: "Devpit uses one manager per run. With the default setting it picks Scoop if you have it, then winget, then Chocolatey. You can choose a manager in Settings. The confirmation shows the manager and the exact command for every app."
@@ -26,7 +26,9 @@ Setting up a new PC means installing the same tools again.
 Devpit has a short list of common developer tools.
 You tick what you want, and it installs them one after another.
 
-Open it from the main menu with <kbd>3</kbd>, or choose **Install Developer Apps**.
+Open it from the main menu: press <kbd>4</kbd> for **Install & Update**, then <kbd>1</kbd> for **Install developer apps**.
+
+<Shot name="apps-menu" />
 
 ## What is in the list
 
@@ -47,7 +49,7 @@ Each app shows a one-line description.
 
 ## Install apps
 
-1. Press <kbd>3</kbd> on the main menu.
+1. On the main menu press <kbd>4</kbd>, then <kbd>1</kbd>.
 2. Wait a moment while Devpit checks which tools you already have.
 3. Move with <kbd>↑</kbd> <kbd>↓</kbd> and press <kbd>Space</kbd> to tick the apps you want.
 
@@ -115,4 +117,4 @@ Run the command from the confirmation screen yourself to see the manager's own m
 
 Open a new terminal window so it sees the new PATH.
 To keep everything current, use [Update everything](/docs/features/update-everything).
-To set up Git next, see [Git and SSH setup](/docs/features/git-and-ssh).
+To set your Git name and email next, or a different one per folder, see [Git and GitHub accounts](/docs/features/accounts-git-and-github).

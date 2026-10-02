@@ -1,0 +1,26 @@
+ Accounts                                                                in C:\Projects\quiz-slayer
+
+    TOOL            ACCOUNT                            WHY
+| > Claude Code   X work (you@work.example)  problem   folder rule: C:\Projects - see below
+    Git           + You <you@personal.example>         everywhere
+    GitHub        + work (you-at-work)                 folder rule: C:\Projects
+    Vercel        + default (you@personal.example)     everywhere
+    Firebase      - not installed
+    Supabase      - not installed
+    Cloudflare    + default (not checked yet)          everywhere - beta
+    Convex        + project: quiz-slayer               set by this project's .env.local
+
+ ! CLAUDE_CONFIG_DIR is set in this terminal by something other than Devpit (to
+   C:\Users\you\.claude-switch\accounts\client). Claude Code started through Devpit uses Devpit's
+   rule instead.
+   Fix: If you did not mean to set it, remove it here with `Remove-Item Env:CLAUDE_CONFIG_DIR`
+        (PowerShell), and from wherever sets it, then open a new terminal.
+   Docs: https://devpit.zubyr.dev/docs/troubleshooting/claude-config-dir-set-by-something-else
+
+
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

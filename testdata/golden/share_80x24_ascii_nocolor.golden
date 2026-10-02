@@ -1,7 +1,7 @@
- DEVPIT  vdev  -  Share Files                                node ...   git ...
+ DEVPIT  dev  -  Share Files                                 node ...   git ...
 
-  Clean    Ports    Apps    Update    Network    Git    Settings    Share
--------------------------------------------------------------------=======------
+  Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
+---------------------------------------------=======----------------------------
 Move big folders between two PCs on the same Wi-Fi or network.
 Both PCs stay on your own network. Nothing goes to the internet.
 

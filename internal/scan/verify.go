@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
 // Verify re-checks an item immediately before anything is deleted.
@@ -16,7 +18,8 @@ import (
 // refuses the ones that fail, which is what keeps safety rule 10 from being a
 // comment in a design document.
 //
-// Verify checks, in order, that the path is not protected, still exists, is
+// Verify checks, in order, that the path is not protected (a drive root, a
+// system tree, a network path, or a login or account folder), still exists, is
 // still the kind of thing it was, is not and does not resolve through a
 // reparse point, still has the name it had, and still has one of the marker
 // files that made it junk in the first place. An item the scan already
@@ -35,6 +38,12 @@ func Verify(it Item) error {
 	}
 	if protectedByEnvironment(path) {
 		return fmt.Errorf("scan: %s: %w", path, ErrProtectedPath)
+	}
+	// Rule 30: a login or account folder, in either direction. Only the
+	// built-in list is known here; the delete pre-flight also applies the
+	// caller's extra account folders.
+	if hit, why := protect.Default(os.LookupEnv).Covers(path); hit {
+		return fmt.Errorf("scan: %s (%s): %w", path, why, ErrProtectedPath)
 	}
 
 	info, err := os.Lstat(path)

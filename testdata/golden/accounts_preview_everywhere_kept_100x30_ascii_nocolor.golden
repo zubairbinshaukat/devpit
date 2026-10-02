@@ -1,0 +1,26 @@
+ Here is what will change                                                in C:\Projects\quiz-slayer
+
+ Everywhere, Claude Code will use work (you@work.example).
+
+ 1 folder keeps its own rule and will not change:
+   C:\Projects   work (you@work.example)
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (changes)
+     [everywhere]
+     claude = "work"
+
+╭───────────────────────────────────────────────────╮
+│ Make this change?                                 │
+│ You can undo it afterwards: u on the next screen. │
+│                                                   │
+│ [ No ]   [ Yes ]                                  │
+╰───────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

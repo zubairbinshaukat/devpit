@@ -1,0 +1,20 @@
+ Push with an SSH key                                in C:\Projects\quiz-slayer
+
+ In C:\Projects\quiz-slayer and every folder inside it, Git will push over SSH
+ with the key C:\Users\you\.ssh\id_ed25519_devpit_work, and only that key.
+ GitHub then sees the account that key belongs to. Pushes over HTTPS are not
+ affected.
+
+ Devpit will write:
+   ~/.devpit/git/rules.gitconfig (changes)
+     [includeIf "gitdir/i:C:/Projects/quiz-slayer/"]
+     path = "ssh-1a2b3c4d.gitconfig"
+
+╭─────────────────────────────────────────────────────────╮
+│ Make this change?                                       │
+│ You can undo it afterwards with u on the Accounts page. │
+│                                                         │
+│ [ No ]   [ Yes ]                                        │
+╰─────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

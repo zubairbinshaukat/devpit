@@ -1,0 +1,26 @@
+ Accounts   in C:\Users\you\Documents\Clients\Northwind Traders\2026 engagement\web-platf…\checkout
+
+    TOOL            ACCOUNT                                  WHY
+▌ ▸ Claude Code   ✓ work (you@work.example)                  folder rule: C:\…\web-platform-monorepo
+    Git           ✓ You <you@personal.example>               everywhere
+    GitHub        ✓ default (you-personal@users.example)     everywhere
+    Vercel        ✓ northwind                                folder rule: C:\…\web-platform-monorepo
+    Firebase      ─ not installed
+    Supabase      ─ not installed
+    Cloudflare    ✓ default (not checked yet)                everywhere · beta
+    Convex        ✓ project: quiz-slayer                     set by this project's .env.local
+
+ Folder rule: an account you chose for a folder and every folder inside it.
+ Not checked yet: Devpit has not asked the tool who is signed in. Press v to check.
+
+
+
+
+
+
+
+
+
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

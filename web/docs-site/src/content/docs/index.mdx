@@ -1,10 +1,10 @@
 ---
 title: Devpit documentation
-description: Learn how to install Devpit, the free Windows terminal app that frees disk space, fixes stuck ports and updates your developer tools from one menu.
+description: Docs for Devpit, the free toolkit for developers on Windows. The right account in every folder, disk space back, stuck ports freed and tools updated.
 template: splash
 published: 2026-09-29
 hero:
-  tagline: A pit stop for your dev machine. Free disk space, fix stuck ports and keep your tools up to date from one terminal menu.
+  tagline: A pit stop for your dev machine. A free toolkit for developers on Windows, with the right account in every folder, disk space back, stuck ports freed and tools updated. One menu.
   actions:
     - text: Get started
       link: /docs/getting-started
@@ -15,7 +15,7 @@ hero:
       variant: minimal
 faq:
   - question: "What is Devpit?"
-    answer: "Devpit is a free, open-source terminal app for Windows. One menu frees disk space from developer junk such as node_modules and caches, fixes stuck ports, installs and updates developer tools, and sets up Git and SSH."
+    answer: "Devpit is a free, open-source toolkit for developers on Windows. One terminal menu puts the right account in every folder for Claude Code, Git, GitHub and more, frees disk space, fixes stuck ports, installs and updates your tools and moves big folders between PCs."
   - question: "How do I install Devpit?"
     answer: "In PowerShell run irm https://devpit.zubyr.dev/install | iex, or add the zubyr Scoop bucket and run scoop install devpit. You can also download the zip from GitHub. No administrator rights are needed."
   - question: "Which versions of Windows does Devpit support?"
@@ -23,7 +23,7 @@ faq:
   - question: "Is Devpit free?"
     answer: "Yes. Devpit is free and open source under the MIT licence. There is no account, and usage stats are off unless you turn them on."
   - question: "Where do I start?"
-    answer: "Read Getting started to install Devpit and take the first-launch tour. Then open Free up disk space, which is the feature most people come for."
+    answer: "Read Getting started to install Devpit and take the first-launch tour. Then pick the section you need: Accounts if you use more than one account, Free up disk space if your drive is full."
 related:
   - getting-started
   - features
@@ -32,7 +32,7 @@ related:
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-Devpit is a free terminal app for Windows 10 and 11.
+Devpit is a free toolkit for developers on Windows 10 and 11, in one terminal menu.
 It is small, fast and open source.
 These pages show you how to use it, one step at a time.
 
@@ -52,6 +52,11 @@ No administrator rights needed.
 
 <CardGrid>
   <LinkCard
+    title="Use the right account in every folder"
+    description="Claude Code, Git, GitHub, Vercel and more pick the account you set for each folder. Preview, undo, verify."
+    href="/docs/features/accounts"
+  />
+  <LinkCard
     title="Free up disk space"
     description="Find node_modules, build folders and caches. See the size. Delete only what you tick."
     href="/docs/features/free-up-disk-space"
@@ -62,6 +67,11 @@ No administrator rights needed.
     href="/docs/features/fix-stuck-ports"
   />
   <LinkCard
+    title="Network tools"
+    description="Local and public IP, ping and DNS flush."
+    href="/docs/features/network-tools"
+  />
+  <LinkCard
     title="Install developer apps"
     description="Pick from a short list. Devpit installs through Scoop, winget or Chocolatey."
     href="/docs/features/install-developer-apps"
@@ -70,16 +80,6 @@ No administrator rights needed.
     title="Update everything"
     description="One pass through winget, Scoop, Chocolatey and npm. Untick what you want to keep."
     href="/docs/features/update-everything"
-  />
-  <LinkCard
-    title="Network tools"
-    description="Local and public IP, ping and DNS flush."
-    href="/docs/features/network-tools"
-  />
-  <LinkCard
-    title="Git and SSH setup"
-    description="Set your Git name and email. Make an SSH key and copy the public half."
-    href="/docs/features/git-and-ssh"
   />
   <LinkCard
     title="Share files"
@@ -96,8 +96,11 @@ No administrator rights needed.
 ## Why you can trust it
 
 <CardGrid>
-  <Card title="Nothing goes without a preview" icon="approve-check">
-    You always see the list first. Nothing is deleted until you confirm, and the default answer is **No**.
+  <Card title="Nothing changes without a preview" icon="approve-check">
+    You always see what will happen first. Nothing is deleted or switched until you confirm, and the default answer is **No**.
+  </Card>
+  <Card title="No tokens" icon="seti:lock">
+    Each tool keeps its own login. Devpit stores no token, and every account change can be undone.
   </Card>
   <Card title="Risk labels on everything" icon="warning">
     **Safe**, **Review** or **Careful**. Careful items need a typed word and go to the Recycle Bin.

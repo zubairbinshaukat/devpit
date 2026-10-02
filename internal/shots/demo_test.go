@@ -57,14 +57,29 @@ type scene func(t *testing.T, e entry) *session
 // screens is the map a home menu section opens, keyed by home.Section*.
 type screens = map[string]func() uictx.Screen
 
-// homeKeys are the digits that open each home section.
+// homeKeys are the digits that open each of the six home sections.
 const (
-	keyClean    = "1"
-	keyPorts    = "2"
-	keyInstall  = "3"
-	keyUpdate   = "4"
-	keyNetwork  = "5"
-	keyGit      = "6"
-	keySettings = "7"
-	keyShare    = "8"
+	keyAccounts = "1"
+	keyClean    = "2"
+	keyPortsNet = "3"
+	keyApps     = "4"
+	keyShare    = "5"
+	keySettings = "6"
+)
+
+// The digits that open an entry inside the two parent sections: Ports &
+// Network (1 Fix stuck ports & apps, 2 Network tools) and Install & Update
+// (1 Install developer apps, 2 Update everything).
+const (
+	keyPorts   = "1"
+	keyNetwork = "2"
+	keyInstall = "1"
+	keyUpdate  = "2"
+)
+
+// The lead-in lines the two parent menus draw, so a scene can wait for the
+// menu before it presses the digit that opens a screen behind it.
+const (
+	portsNetLead = "Free a busy port, check your connection."
+	appsLead     = "Install dev apps, update everything."
 )

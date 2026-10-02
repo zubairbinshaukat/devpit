@@ -1,0 +1,20 @@
+ Claude Code accounts
+
+ The Claude Code account work will be called office.
+
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (changes)
+     [[account]] claude work
+
+╭─────────────────────────────────────────────────────────╮
+│ Rename it?                                              │
+│ You can undo it afterwards with u on the Accounts page. │
+│                                                         │
+│ [ No ]   [ Yes ]                                        │
+╰─────────────────────────────────────────────────────────╯
+
+
+
+
+
+[keys] y/n yes/no  ·  enter confirm

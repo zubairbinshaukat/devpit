@@ -166,6 +166,40 @@ func TestTelemetryNeedsAnExplicitYes(t *testing.T) {
 	}
 }
 
+// The privacy step mentions the AI agent skill and where to add it, and only
+// mentions it: finishing changes nothing about it, and the button under the
+// note still finishes on a click.
+func TestPrivacyStepMentionsTheAgentSkill(t *testing.T) {
+	cfg := config.Default()
+	for _, set := range []icons.Set{icons.Unicode(), icons.ASCII()} {
+		ctx := ctxFor(set, cfg)
+		keys := []string{"enter", "enter", "enter"}
+		if set.Tier == icons.TierASCII {
+			keys = keys[:2]
+		}
+		m, _ := drive(t, New(cfg), ctx, keys...)
+		lines := strings.Split(ansi.Strip(m.View(ctx)), "\n")
+		out := strings.Join(lines, "\n")
+		sep := "›"
+		if set.Tier == icons.TierASCII {
+			sep = ">"
+		}
+		if !strings.Contains(strings.Join(strings.Fields(out), " "), "Settings "+sep+" AI agent skill") {
+			t.Fatalf("%s: the privacy step does not mention the skill:\n%s", set.Tier, out)
+		}
+		button := -1
+		for i, l := range lines {
+			if strings.Contains(l, "Start using Devpit") {
+				button = i
+			}
+		}
+		_, cmd := m.Update(tea.MouseClickMsg{X: 5, Y: ctx.BodyTop + button, Button: tea.MouseLeft}, ctx)
+		if done(t, cmd).FirstRunDone != true {
+			t.Errorf("%s: clicking the button did not finish", set.Tier)
+		}
+	}
+}
+
 // A click on an option picks it, and a click on the button moves on.
 func TestClicksPickAndPress(t *testing.T) {
 	cfg := config.Default()
