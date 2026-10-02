@@ -68,6 +68,10 @@ func TestMain(m *testing.M) {
 	}
 	if os.Getenv("DEVPIT_LAUNCH_HELPER") == "launcher" {
 		if os.Getenv("DEVPIT_LAUNCH_CTRLC") == "1" {
+			// A parent that ignores Ctrl+C hands that down to every process
+			// it starts, and a git hook's shell is such a parent: without
+			// this the child would never see the Ctrl+C sent below.
+			_, _, _ = windows.NewLazySystemDLL("kernel32.dll").NewProc("SetConsoleCtrlHandler").Call(0, 0)
 			go func() {
 				// Only once the child listens: a Ctrl+C that lands before its
 				// handler is in place would end it with 0xC000013A instead.
