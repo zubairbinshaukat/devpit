@@ -54,6 +54,8 @@ The screenshots on this page use a made-up PC. The last column is the **why**:
 | `set by this project's .env.local` | The project picks the account (Convex). Devpit shows it but does not change it. |
 | `not signed in` / `not installed` | The tool has no login yet, or Devpit cannot find it. Rules you made for it are kept. |
 
+An account shown as `default (not checked yet)` is the tool's own sign-in, which Devpit has not asked the tool about yet. Press <kbd>v</kbd> to check it. Under the table, the page explains the words **Folder rule** and **Not checked yet** whenever the table uses them.
+
 When rules are nested, the nearest folder wins, one tool at a time.
 A rule on `C:\Work\client-api` beats a rule on `C:\Work` inside `client-api`, for that tool only.
 The tool page shows the chain of rules and which one won.
@@ -70,12 +72,12 @@ This example makes Claude Code use your `work` account in `C:\Work`.
 
 1. Open a terminal in the folder, for example `cd C:\Work`, and type `devpit`.
 2. Press <kbd>1</kbd> to open **Accounts**.
-3. Move to the **Claude Code** row and press <kbd>Enter</kbd>. The tool page shows who is signed in, where that comes from, and what you can do: **Use another account here…**, **Use another account everywhere…**, **Just this once…**, **Sign in with another account…**, **Sign in again**, removing the rule here, and **Manage accounts…** to rename or remove one.
+3. Move to the **Claude Code** row and press <kbd>Enter</kbd>. The tool page opens with a **Right now** block: who is signed in here, why that account (**Why this one**), and which account other folders use. Below it are the choices, grouped: **Change the account** (**Use another account here**, **Use another account everywhere**, **Use another account just once**, and **Forget this folder's choice** when a folder rule applies), **Sign in** (**Sign in again**, **Sign in with another account**), **Claude Code setup** and **Manage** (**Rename or remove an account**). The highlighted choice is explained beside the list, with what happens when you press <kbd>Enter</kbd>. A choice a tool cannot make stays in the list, greyed, with the reason. Press <kbd>v</kbd> to check who the tool is really signed in as.
 
    <Shot name="accounts-tool-claude" />
 
-4. Choose **Use another account here…**.
-5. Pick the account from the list. Type to filter it. If the account is not there yet, choose **+ Sign in with another account…**: Devpit runs the tool's own sign-in, you finish it in the browser, and you give the account a short name such as `work`. See [Add a second Claude Code account](/docs/features/accounts-claude-code#add-a-second-account).
+4. Choose **Use another account here**.
+5. Pick the account from the list. Type to filter it. If the account is not there yet, choose **+ Sign in with another account**: Devpit runs the tool's own sign-in, you finish it in the browser, and you give the account a short name such as `work`. See [Add a second Claude Code account](/docs/features/accounts-claude-code#add-a-second-account).
 
    <Shot name="accounts-picker" />
 
@@ -112,9 +114,9 @@ After you pick an account, Devpit asks where it should be used:
 | Choice | What it does |
 | --- | --- |
 | **This folder** | This folder and every folder inside it. |
-| **Everywhere** | Every folder that has no rule of its own. The preview lists the folder rules that still win. |
+| **Everywhere** | Every folder without a choice (a folder rule) of its own. The preview lists the folder rules that still win. |
 | **Just this once** | One command with that account. Devpit shows the `devpit <tool> run` command to type in any terminal, ready to copy. Nothing is saved, so there is nothing to undo. |
-| **Another folder…** | Pick a different folder, or type its path. The rule covers it and every folder inside it. |
+| **Another folder** | Pick a different folder, or type its path. The rule covers it and every folder inside it. |
 
 <Shot name="accounts-just-once" caption="Just this once: the command to run, with nothing saved" />
 
@@ -283,7 +285,7 @@ See [Keyboard and mouse](/docs/keyboard-and-mouse#accounts) for every key.
 - **A tool installed for all users** can sit in the system PATH, and Windows puts the system PATH before your user PATH. Then that copy runs before Devpit's shim and rules do not apply to it. Verify finds this and says what to move. See [The shim is not first on PATH](/docs/troubleshooting/accounts-shim-not-first-on-path).
 - **A PowerShell function or alias** with a tool's name runs before any program on PATH, shims included. `Get-Command claude` shows which one runs.
 - **WSL is not covered.** Rules apply to Windows programs.
-- **Rename or remove an account** with **Manage accounts…** on the tool page. Removing one lists the folder rules that used it and what those folders use afterwards, suggests the tool's own sign-out first, and asks you to type a word. The account's folder, and the sign-in in it, is kept. Both changes have a preview and can be undone.
+- **Rename or remove an account** with **Rename or remove an account** on the tool page. Removing one lists the folder rules that used it and what those folders use afterwards, suggests the tool's own sign-out first, and asks you to type a word. The account's folder, and the sign-in in it, is kept. Both changes have a preview and can be undone.
 - **Two Devpit windows** can be open at once. Only one can change accounts at a time.
 
 ## Safety

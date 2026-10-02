@@ -1,17 +1,17 @@
- DEVPIT  vdev  ·  Ports & Network › Fix stuck ports              node …   git …
+ DEVPIT  dev  ·  Ports & Network › Fix stuck ports               node …   git …
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings     tab ⇄ · 1–6
 ──────────────────────━━━━━━━━━━━━━─────────────────────────────────────────────
 Free a busy port or stop a stuck process.
 
 ▌ ▸ Kill a port
-▌   Type a port number and free whatever is listening on it
+▌   Type a port number, see what uses it, close it after a yes
 
     Busy dev ports
-    Check every configured dev port at once
+    See which dev server ports are in use; close what is stuck
 
     Node processes
-    List and stop node, npm, pnpm or yarn
+    See running node, npm, pnpm and yarn; stop the ones you pick
 
 
 

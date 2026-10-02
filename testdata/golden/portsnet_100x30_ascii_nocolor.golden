@@ -1,14 +1,14 @@
- DEVPIT  vdev  -  Ports & Network                                                node ...   git ...
+ DEVPIT  dev  -  Ports & Network                                                 node ...   git ...
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                       tab <-> - 1-6
 ----------------------=============-----------------------------------------------------------------
 Free a busy port, check your connection.
 
 | > Fix stuck ports & apps
-|   Kill whatever holds a port, stop stuck Node processes
+|   Close what is using a port, or stop stuck Node programs
 
     Network tools
-    Your IP addresses, a ping check and a DNS flush
+    See your IP addresses, test your connection, clear the DNS cache
 
 
 

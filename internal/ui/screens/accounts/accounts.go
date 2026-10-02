@@ -334,6 +334,26 @@ func (m Model) View(ctx uictx.Context) string {
 	return strings.Join(out, "\n")
 }
 
+// legend explains the two words the table uses that a new user would not
+// know: a folder rule, and an account not checked yet. Each line shows only
+// when the table uses its word.
+func legend(ctx uictx.Context, s *session) []string {
+	th := ctx.Theme
+	var rule, unchecked bool
+	for _, ts := range s.ov.Tools {
+		rule = rule || ts.Resolution.Reason == accounts.ReasonFolderRule
+		unchecked = unchecked || (ts.Installed && isNotChecked(ts.Display))
+	}
+	var out []string
+	if rule {
+		out = append(out, wrap(ctx, th.Muted, "Folder rule: an account you chose for a folder and every folder inside it.", 1, 2)...)
+	}
+	if unchecked {
+		out = append(out, wrap(ctx, th.Muted, "Not checked yet: Devpit has not asked the tool who is signed in. Press v to check.", 1, 2)...)
+	}
+	return out
+}
+
 // below is what sits under the table: the selected tool's problems with
 // their fixes, or, before anything is set up, the first step.
 func (m Model) below(ctx uictx.Context, t acctable.Model) []string {
@@ -358,7 +378,10 @@ func (m Model) below(ctx uictx.Context, t acctable.Model) []string {
 	}
 	if len(out) == 0 && !managesAnything(m.sess) {
 		out = append(out, wrap(ctx, th.Muted,
-			"Nothing is set up yet, so every tool uses its own sign-in. To use a second account here, pick a tool, press Enter, then \"Use another account here…\".", 1, 0)...)
+			"Nothing is set up yet, so every tool uses its own sign-in. To use a second account here, pick a tool, press Enter, then \"Use another account here\".", 1, 0)...)
+	}
+	if len(out) == 0 {
+		out = append(out, legend(ctx, m.sess)...)
 	}
 	if len(out) > room {
 		out = out[:room]

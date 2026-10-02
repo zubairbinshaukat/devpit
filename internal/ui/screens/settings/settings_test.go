@@ -564,12 +564,12 @@ func TestSpaceCyclesASetting(t *testing.T) {
 	ctx := testContext(cfg)
 
 	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
-	m.cursor = rowIcons
+	m = m.at(rowIcons)
 	space := tea.KeyPressMsg{Code: ' ', Text: " "}
 	if space.String() != "space" {
 		t.Fatalf("the space key reports %q; this test is wired wrong", space.String())
 	}
-	if !key.Matches(space, m.keys.Change) {
+	if !key.Matches(space, m.list.Keys.Change) {
 		t.Fatal("the toggle binding does not match the space key")
 	}
 

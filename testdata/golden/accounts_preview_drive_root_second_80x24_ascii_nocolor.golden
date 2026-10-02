@@ -10,11 +10,11 @@
      folder = 'D:\'
      claude = "default"
 
-╭───────────────────────────────────────────────────────────────────────────╮
-│ This rule covers every folder on D:\. Apply it to the whole drive?        │
-│ Every project on the drive follows this rule unless a folder has its own. │
-│                                                                           │
-│ [ No ]   [ Yes ]                                                          │
-╰───────────────────────────────────────────────────────────────────────────╯
-
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ This rule covers every folder on D:\. Apply it to the whole drive?           │
+│ Every project on the drive uses this account unless a folder has its own     │
+│ choice.                                                                      │
+│                                                                              │
+│ [ No ]   [ Yes ]                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
 [keys] y/n yes/no  ·  enter confirm

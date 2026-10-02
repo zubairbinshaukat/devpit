@@ -1,20 +1,20 @@
- Sign in to another Claude Code account              in C:\Projects\quiz-slayer
+ Forget this folder's choice?                        in C:\Projects\quiz-slayer
 
- Devpit hands this window to Claude Code's own sign-in:
-   claude auth login
+ C:\Projects will no longer have its own Claude Code rule. It and every folder
+ inside it will use default (you@personal.example), like everywhere else.
 
- It opens your browser. Sign in there with the account you want to add. When it
- is done, Devpit comes back here and shows who signed in.
+ Devpit will write:
+   ~/AppData/Roaming/devpit/accounts.toml (changes)
+     [[rule]]
+     folder = 'C:\Projects'
+     github = "work"
 
- Nothing is saved until you name the account. Ctrl+C in the sign-in stops it,
- and nothing is left behind.
-
- [enter] start sign-in  [esc] back
-
-
-
-
+╭───────────────────────────────────────────────────╮
+│ Make this change?                                 │
+│ You can undo it afterwards: u on the next screen. │
+│                                                   │
+│ [ No ]   [ Yes ]                                  │
+╰───────────────────────────────────────────────────╯
 
 
-
-[keys] enter start sign-in
+[keys] y/n yes/no  ·  enter confirm

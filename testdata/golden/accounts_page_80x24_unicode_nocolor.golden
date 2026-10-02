@@ -10,9 +10,9 @@
     Cloudflare   ✓ default (not checked yet)    everywhere · beta
     Convex       ✓ project: quiz-slayer         set by this project's .env.local
 
-
-
-
+ Folder rule: an account you chose for a folder and every folder inside it.
+ Not checked yet: Devpit has not asked the tool who is signed in. Press v to
+   check.
 
 
 

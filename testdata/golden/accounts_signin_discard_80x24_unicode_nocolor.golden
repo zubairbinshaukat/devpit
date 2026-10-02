@@ -1,20 +1,20 @@
- Name the new Claude Code account                    in C:\Projects\quiz-slayer
+ Accounts                                            in C:\Projects\quiz-slayer
 
- ✓ Signed in as you@side.example
+    TOOL           ACCOUNT                      WHY
+▌ ▸ Claude Code  ✓ work (you@work.example)      folder rule: C:\Projects
+    Git          ✓ You <you@personal.example>   everywhere
+    GitHub       ✓ work (you-at-work)           folder rule: C:\Projects
+    Vercel       ✓ default                      everywhere
+    Firebase     ─ not installed
+    Supabase     ─ not installed
+    Cloudflare   ✓ default (not checked yet)    everywhere · beta
+    Convex       ✓ project: quiz-slayer         set by this project's .env.local
 
-╭───────────────────────────────────────────────────────────────╮
-│ Throw away this sign-in?                                      │
-│ Nothing is saved. Devpit removes the folder the sign-in made. │
-│                                                               │
-│ [ No ]   [ Yes ]                                              │
-╰───────────────────────────────────────────────────────────────╯
-
-
-
-
-
-
-
+ Folder rule: an account you chose for a folder and every folder inside it.
+ Not checked yet: Devpit has not asked the tool who is signed in. Press v to
+   check.
 
 
-[keys] y/n yes/no  ·  enter confirm
+
+
+[keys] v verify  ·  b folders  ·  f folder  ·  u undo

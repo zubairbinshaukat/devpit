@@ -212,7 +212,7 @@ func (m flow) Title() string {
 	name := m.tool.DisplayName()
 	switch {
 	case m.kind == flowRemove:
-		return name + " › Remove rule"
+		return name + " › Forget a folder's choice"
 	case m.kind == flowAdd || m.stage == stIntro || m.stage == stName:
 		return name + " › Sign in"
 	case m.scope == accounts.ScopeOnce:
@@ -392,21 +392,21 @@ func (m flow) pickItems() []menu.Item {
 			it.Hint = "used here"
 		}
 		if a.Everywhere {
-			desc = append(desc, "used everywhere else")
+			desc = append(desc, "used in folders without a choice of their own")
 		}
 		if len(a.Rules) > 0 {
-			desc = append(desc, "rules: "+strings.Join(a.Rules, ", "))
+			desc = append(desc, "chosen for "+strings.Join(a.Rules, ", "))
 		}
 		if a.Detected {
 			it.Title = a.Name + " (" + firstNonEmpty(a.Login, a.Email) + ")"
-			desc = []string{"found in " + m.tool.DisplayName() + ", not in Devpit yet; picking it adds it"}
+			desc = []string{"signed in to " + m.tool.DisplayName() + " but not saved in Devpit yet; picking it saves it"}
 		}
 		it.Desc = strings.Join(desc, " · ")
 		out = append(out, it)
 	}
-	add := menu.Item{ID: pickAdd, Title: "+ Sign in with another account…", Desc: "Run " + m.tool.DisplayName() + "'s own sign-in and name the account"}
+	add := menu.Item{ID: pickAdd, Title: "+ Sign in with another account", Desc: m.tool.DisplayName() + "'s own sign-in runs here, then you give the account a short name"}
 	if m.tool == accounts.ToolGit {
-		add = menu.Item{ID: pickAdd, Title: "+ Add another identity…", Desc: "A name and email to commit as"}
+		add = menu.Item{ID: pickAdd, Title: "+ Add a name and email", Desc: "A short form: the name and email to commit with"}
 	}
 	if caps := m.caps(); !caps.AddAccount {
 		add.Disabled, add.Hint = true, "not available"
@@ -602,9 +602,9 @@ func (m flow) toScope() (uictx.Screen, tea.Cmd) {
 		here.Disabled, here.Hint = true, "not available"
 	} else if m.sess.folderNote != "" {
 		here.Disabled, here.Hint = true, "pick a folder"
-		here.Desc = "A rule here would cover too much: pick a folder inside it"
+		here.Desc = "This folder holds too much (a drive or your user folder): pick a folder inside it"
 	}
-	every := menu.Item{ID: string(accounts.ScopeEverywhere), Title: "Everywhere", Desc: "Wherever no folder rule says otherwise. Now: " + ts.EverywhereDisplay}
+	every := menu.Item{ID: string(accounts.ScopeEverywhere), Title: "Everywhere", Desc: "Every folder without a choice of its own. Now: " + accountPlain(ts.EverywhereDisplay, m.tool)}
 	if !c.Everywhere {
 		every.Disabled, every.Hint = true, "not available"
 	}
@@ -612,7 +612,7 @@ func (m flow) toScope() (uictx.Screen, tea.Cmd) {
 	if !c.JustOnce {
 		once.Disabled, once.Hint = true, "not available"
 	}
-	other := menu.Item{ID: scopeOther, Title: "Another folder…", Desc: "Pick a folder; the rule covers it and every folder inside it"}
+	other := menu.Item{ID: scopeOther, Title: "Another folder", Desc: "Pick a folder; the choice covers it and every folder inside it"}
 	if !c.FolderRules {
 		other.Disabled, other.Hint = true, "not available"
 	}
@@ -672,7 +672,7 @@ func (m flow) onAnswer(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 		}
 		if m.preview.DriveRoot {
 			m.stage = stSecond
-			m.second = confirm.New(dlgSecond, m.preview.SecondConfirm, "Every project on the drive follows this rule unless a folder has its own.")
+			m.second = confirm.New(dlgSecond, m.preview.SecondConfirm, "Every project on the drive uses this account unless a folder has its own choice.")
 			return m, nil
 		}
 		return m.apply()
@@ -687,6 +687,9 @@ func (m flow) onAnswer(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 			return m, m.name.Focus()
 		}
 		svc, acct := m.sess.svc, *m.signed
+		// The sign-in is being thrown away now: leaving the screen must not
+		// throw it away a second time.
+		m.signed = nil
 		return m, func() tea.Msg {
 			note, err := svc.DiscardSignIn(acct)
 			return discardedMsg{note: note, err: err}
@@ -907,7 +910,7 @@ func (m flow) question() string {
 		return "Where should " + m.chosen + " be used?"
 	case stPlanning, stPreview, stSecond:
 		if m.kind == flowRemove {
-			return "Remove this rule?"
+			return "Forget this folder's choice?"
 		}
 		return "Here is what will change"
 	case stApplying:
@@ -964,6 +967,9 @@ func (m flow) View(ctx uictx.Context) string {
 		out = append(out, m.signedView(ctx)...)
 		out = append(out, "", m.discard.View(ctx))
 	case stScope:
+		// One line on what follows, then the choices, which the mouse finds
+		// two rows under the heading.
+		out = append(out, " "+th.Muted.Render(fit(ctx, "Then you see a preview. Nothing changes until you say yes.", ctx.Width-2)), "")
 		out = append(out, m.scopes.View(ctx))
 	case stFolder:
 		out = append(out, m.picker.View(ctx))

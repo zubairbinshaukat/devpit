@@ -95,8 +95,8 @@ func TestSkillInstallAsksFirst(t *testing.T) {
 	if s.sess.status.Overall() != service.AgentInstalled {
 		t.Errorf("the shared session still says %q", s.sess.status.Overall())
 	}
-	if r := skillRow(s.sess); r.value != "installed" {
-		t.Errorf("the Settings row says %q", r.value)
+	if r := skillRow(s.sess); r.Value != "installed" {
+		t.Errorf("the Settings row says %q", r.Value)
 	}
 }
 

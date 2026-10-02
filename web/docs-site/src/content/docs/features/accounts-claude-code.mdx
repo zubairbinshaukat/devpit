@@ -37,7 +37,7 @@ This page covers what is special about Claude Code.
 ## Add a second account
 
 1. Open Devpit, press <kbd>1</kbd> for **Accounts**, then open **Claude Code**.
-2. Choose **Use another account here…**, then **+ Sign in with another account…**.
+2. Choose **Use another account here**, then **+ Sign in with another account**.
 3. Devpit makes a new, empty folder, `%USERPROFILE%\.devpit\accounts\claude\<name>`, and runs Claude Code's own `claude auth login` with that folder set. Each step is shown as it happens.
 4. Finish the sign-in in your browser.
 5. Devpit shows who signed in and asks for a short name, suggested from the email, for example `work`.
@@ -67,8 +67,8 @@ Devpit asks one question, **Bring your Claude Code setup to work?** (with your a
 | **Keep them in sync** | Share what is safe to share; copy settings and hooks. Shared items stay in step with your main account. |
 | **Copy them once** | A separate copy of everything safe, now. |
 | **Start empty** | Bring nothing over. |
-| **Choose…** | Pick item by item, starting from the defaults below. |
-| **Not now** | Shown right after you add an account: do this later from the Claude Code page, with **Bring your Claude Code setup over…**. |
+| **Choose** | Pick item by item, starting from the defaults below. |
+| **Not now** | Shown right after you add an account: do this later from the Claude Code page, with **Bring your Claude Code setup over**. |
 
 <Shot name="accounts-claude-ask" />
 
@@ -141,7 +141,7 @@ A copied item does not follow your main account. Copy it again later to bring ch
 
 ### Change it later
 
-Open **Claude Code** in Accounts and choose **Bring your Claude Code setup over…** to see what is shared, copied or kept apart, item by item.
+Open **Claude Code** in Accounts and choose **Bring your Claude Code setup over** to see what is shared, copied or kept apart, item by item.
 
 - **Stop sharing** (<kbd>s</kbd>) turns a shared item into the account's own copy: Devpit copies it first, removes only the link, and puts the copy in its place. <kbd>h</kbd> shares a copied item instead.
 - A link whose target is gone is shown as **broken link**, with a repair (<kbd>r</kbd>). See [A shared skill link is broken](/docs/troubleshooting/claude-shared-skill-link-broken).
@@ -151,7 +151,7 @@ Open **Claude Code** in Accounts and choose **Bring your Claude Code setup over�
 
 ## Pick which folders use it
 
-Use **Use another account here…** on the Claude Code page, or from a terminal:
+Use **Use another account here** on the Claude Code page, or from a terminal:
 
 ```powershell
 devpit claude use work                       # this folder and every folder inside it

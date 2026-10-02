@@ -39,9 +39,9 @@ func New() Model {
 
 func items() []menu.Item {
 	return []menu.Item{
-		{ID: itemIP, Title: "My IP addresses", Desc: "Local interfaces and your public IP"},
-		{ID: itemPing, Title: "Ping a host", Desc: "Check connectivity, default 1.1.1.1"},
-		{ID: itemDNS, Title: "Flush DNS cache", Desc: "Clear the resolver cache"},
+		{ID: itemIP, Title: "My IP addresses", Desc: "This PC's addresses on your network and on the internet"},
+		{ID: itemPing, Title: "Ping a host", Desc: "Check that an address answers (1.1.1.1 unless you type one)"},
+		{ID: itemDNS, Title: "Flush DNS cache", Desc: "Clear Windows' saved web addresses; fixes some sites that will not load"},
 	}
 }
 

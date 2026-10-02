@@ -235,7 +235,7 @@ func goldenStates() []goldenState {
 		}},
 		{"remove_rule", func(t *testing.T) uictx.Screen {
 			h := toolPage(t, demo.New(), 0)
-			return top(h.clickText("Remove the rule on"))
+			return top(h.clickText("Forget this folder's choice"))
 		}},
 
 		// Verify.
@@ -337,12 +337,14 @@ func goldenStates() []goldenState {
 		{"import_guide", func(t *testing.T) uictx.Screen { return top(importOpen(t).keys("enter", "y", "enter")) }},
 
 		// Manage accounts and sign in again.
-		{"manage", func(t *testing.T) uictx.Screen { return top(toolPage(t, demo.New(), 0).clickText("Manage accounts")) }},
+		{"manage", func(t *testing.T) uictx.Screen {
+			return top(toolPage(t, demo.New(), 0).clickText("Rename or remove an account"))
+		}},
 		{"manage_remove", func(t *testing.T) uictx.Screen {
-			return top(toolPage(t, demo.New(), 0).clickText("Manage accounts").keys("d"))
+			return top(toolPage(t, demo.New(), 0).clickText("Rename or remove an account").keys("d"))
 		}},
 		{"manage_rename", func(t *testing.T) uictx.Screen {
-			return top(toolPage(t, demo.New(), 0).clickText("Manage accounts").keys("r", "backspace", "backspace", "backspace", "backspace").typed("office").keys("enter"))
+			return top(toolPage(t, demo.New(), 0).clickText("Rename or remove an account").keys("r", "backspace", "backspace", "backspace", "backspace").typed("office").keys("enter"))
 		}},
 		{"sign_in_again", func(t *testing.T) uictx.Screen {
 			return top(toolPage(t, demo.New(), 0).clickText("Sign in again"))

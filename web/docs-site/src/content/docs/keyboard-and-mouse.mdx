@@ -15,7 +15,7 @@ faq:
   - question: "How do I quit Devpit?"
     answer: "Press q on the main menu, or press Ctrl+C anywhere. If a delete or install is running, Ctrl+C asks it to stop first and Devpit leaves when the item in flight is finished. A second Ctrl+C leaves at once."
   - question: "Does Devpit work with a mouse?"
-    answer: "Yes. Click a tab or a menu row, click a tick box, scroll a list with the wheel, and hover a row on the main menu to read its description. The keyboard still does everything."
+    answer: "Yes. Click a tab or a menu row, click a tick box, scroll a list with the wheel, and hover a row to read its description. In Settings and on the Accounts tool pages, the pointer highlights a row and a click on the highlighted row (or on its value) acts. The keyboard still does everything."
   - question: "Why does Devpit say it needs a bigger window?"
     answer: "Devpit draws its screens in at least 80 columns by 24 rows. Make the terminal window bigger and it redraws by itself."
 ---
@@ -73,6 +73,9 @@ These keys work in every menu and pick list.
 | <kbd>↓</kbd> or <kbd>j</kbd> | Move down |
 | <kbd>Enter</kbd> | Choose the highlighted row |
 | <kbd>Space</kbd> | Tick or untick a row, in lists that have tick boxes |
+| <kbd>Home</kbd> <kbd>End</kbd> | First or last row, in Settings and on the Accounts tool pages |
+
+Settings and the Accounts tool pages (and the Git page) share one layout: what is true now at the top, then the choices in short groups under headings. The cursor skips the headings. A row ending in `›` opens a screen; a value in `‹ ›` changes in place with <kbd>Enter</kbd>, <kbd>Space</kbd> or <kbd>←</kbd> <kbd>→</kbd>; `●`/`○` is on or off. The highlighted row is explained beside the list (under it on a small window), including what happens when you press <kbd>Enter</kbd>. A row that cannot be used right now stays in the list, greyed, with the reason.
 
 ## Questions (the confirm box)
 
@@ -95,7 +98,7 @@ Type it exactly, in capital letters, then press <kbd>Enter</kbd>.
 | --- | --- |
 | <kbd>↑</kbd> <kbd>↓</kbd> | Move between tools |
 | <kbd>Enter</kbd> | Open the tool on this row |
-| <kbd>v</kbd> | Verify: check every tool, expected against actual |
+| <kbd>v</kbd> | Verify: check every tool, expected against actual. Also works on a tool page and the Git page |
 | <kbd>u</kbd> | Undo the last account change |
 | <kbd>b</kbd> | Browse the folders that have rules |
 | <kbd>f</kbd> | Look at another folder |
@@ -219,7 +222,8 @@ The mouse is an extra. The keyboard does everything.
 | --- | --- |
 | Click a tab in the header | Jump to that section |
 | Click a menu row | Open it, like pressing <kbd>Enter</kbd> |
-| Hover a row on the main menu | Highlights it and shows its description |
+| Hover a row on a menu | Highlights it and shows its description |
+| Click a row in Settings or on an Accounts tool page | The first click highlights it; a click on the highlighted row, or on a value, changes or opens it |
 | Click a tick box | Ticks or unticks that row, or everything under a project heading |
 | Click a fold arrow | Folds or unfolds a group |
 | Click a row | Moves the cursor there |

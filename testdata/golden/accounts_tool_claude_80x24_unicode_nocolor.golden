@@ -1,20 +1,20 @@
- Claude Code                                         in C:\Projects\quiz-slayer
-
- Signed in as  work (you@work.example)
- Comes from    folder rule: C:\Projects
- Everywhere    default (you@personal.example)
-
-▌ ▸ Use another account here…
-▌   In this folder and every folder inside it
-    Use another account everywhere…
-    Just this once…
-    Sign in with another account…
-    Sign in again
-    Remove the rule on C:\Projects
-    Bring your Claude Code setup over…
-    Manage accounts…
-
-
-
-
-[keys] ↑↓ move  ·  enter select
+  Right now ──────────────────────────────────────── in C:\Projects\quiz-slayer
+    Signed in as   work (you@work.example)
+    Why this one   chosen for C:\Projects and the folders inside it
+    Other folders  your usual Claude Code sign-in (you@personal.example)
+  Change the account ───────────────────
+▌ ▸ Use another account here           ›
+    Use another account everywhere     ›
+    Use another account just once      ›
+    Forget this folder's choice        ›
+  Sign in ──────────────────────────────
+    Sign in again                      ›
+    Sign in with another account       ›
+  Claude Code setup ────────────────────
+    Bring your Claude Code setup over  ›
+  Manage ───────────────────────────────
+    Rename or remove an account        ›
+  Use another account here ───────────────────────────────────────────────────
+  Pick which Claude Code account this folder and every folder inside it use.
+  You pick one, then see a preview. Nothing changes until you say yes.
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

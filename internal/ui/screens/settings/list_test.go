@@ -68,30 +68,30 @@ func TestKeysWalkRowsAndSkipHeadings(t *testing.T) {
 		m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
 		var seen []string
 		for range len(order) + 2 {
-			seen = append(seen, m.arrange(ctx).cur)
+			seen = append(seen, m.lay(ctx).Cursor)
 			m, _ = step(t, m, ctx, keyPress("down"))
 		}
 		if want := append(slices.Clone(order), rowWhatsNew, rowWhatsNew); !slices.Equal(seen, want) {
 			t.Fatalf("%v: down walked %v, want %v", size, seen, want)
 		}
 		m, _ = step(t, m, ctx, keyPress("k"))
-		if m.cursor != rowAbout {
-			t.Errorf("k from the last row went to %q", m.cursor)
+		if m.cursor() != rowAbout {
+			t.Errorf("k from the last row went to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("home"))
-		if m.cursor != rowTheme {
-			t.Errorf("home went to %q", m.cursor)
+		if m.cursor() != rowTheme {
+			t.Errorf("home went to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("up"))
-		if m.cursor != rowTheme {
-			t.Errorf("up at the top moved to %q", m.cursor)
+		if m.cursor() != rowTheme {
+			t.Errorf("up at the top moved to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("end"))
-		if m.cursor != rowWhatsNew {
-			t.Errorf("end went to %q", m.cursor)
+		if m.cursor() != rowWhatsNew {
+			t.Errorf("end went to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("pgup"))
-		if m.cursor == rowWhatsNew {
+		if m.cursor() == rowWhatsNew {
 			t.Error("page up did not move")
 		}
 	}
@@ -109,7 +109,7 @@ func TestCyclingAndToggling(t *testing.T) {
 	if !ok || saved.Theme != themes[1] {
 		t.Fatalf("→ on Theme saved %q (%v), want %q", saved.Theme, ok, themes[1])
 	}
-	if m.savedID != rowTheme || !strings.Contains(ansi.Strip(m.View(ctx)), "✓ saved") {
+	if m.list.Saved() != rowTheme || !strings.Contains(ansi.Strip(m.View(ctx)), "✓ saved") {
 		t.Error("the row does not say it saved")
 	}
 	_, cmd = step(t, m, ctx, keyPress("left"))
@@ -119,15 +119,15 @@ func TestCyclingAndToggling(t *testing.T) {
 
 	// The fade clears only the mark it was scheduled for.
 	faded, _ := step(t, m, ctx, savedFadeMsg{seq: m.savedSeq - 1})
-	if faded.savedID == "" {
+	if faded.list.Saved() == "" {
 		t.Error("a stale fade cleared the mark")
 	}
 	faded, _ = step(t, m, ctx, savedFadeMsg{seq: m.savedSeq})
-	if faded.savedID != "" {
+	if faded.list.Saved() != "" {
 		t.Error("the fade did not clear the mark")
 	}
 
-	m.cursor = rowTelemetry
+	m = m.at(rowTelemetry)
 	for _, k := range []string{"enter", "left", "right", " "} {
 		_, cmd = step(t, m, ctx, keyPress(k))
 		if saved, ok := findConfigChanged(flattenCmd(cmd)); !ok || !saved.TelemetryOptIn {
@@ -136,7 +136,7 @@ func TestCyclingAndToggling(t *testing.T) {
 	}
 
 	// ← and → do nothing on a row that opens a screen.
-	m.cursor = rowFont
+	m = m.at(rowFont)
 	if _, cmd := step(t, m, ctx, keyPress("right")); cmd != nil {
 		t.Error("→ on Icon font did something")
 	}
@@ -157,7 +157,7 @@ func TestEveryOpenRowOpensItsScreen(t *testing.T) {
 			continue // the font screen reads the font state when built; its own tests cover it
 		}
 		m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
-		m.cursor = id
+		m = m.at(id)
 		_, cmd := step(t, m, ctx, keyPress("enter"))
 		s, ok := findPush(flattenCmd(cmd))
 		if !ok {
@@ -177,13 +177,12 @@ func TestMouse(t *testing.T) {
 	cfg := config.Default()
 	ctx := sized(cfg, icons.Unicode(), 100, 30)
 	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
-	lo := m.arrange(ctx)
-	valueX := leadW + caretW + lo.labelW + gapW + 1
+	valueX := m.lay(ctx).ValueX + 1
 
 	y := ctx.BodyTop + bodyRowOf(t, m, ctx, rowEmoji)
 	m, cmd := step(t, m, ctx, tea.MouseClickMsg{X: 6, Y: y, Button: tea.MouseLeft})
-	if m.cursor != rowEmoji || cmd != nil {
-		t.Fatalf("a first click on a label: cursor %q, cmd %v", m.cursor, cmd != nil)
+	if m.cursor() != rowEmoji || cmd != nil {
+		t.Fatalf("a first click on a label: cursor %q, cmd %v", m.cursor(), cmd != nil)
 	}
 	_, cmd = step(t, m, ctx, tea.MouseClickMsg{X: 6, Y: y, Button: tea.MouseLeft})
 	if saved, ok := findConfigChanged(flattenCmd(cmd)); !ok || saved.Emoji {
@@ -192,13 +191,13 @@ func TestMouse(t *testing.T) {
 
 	y = ctx.BodyTop + bodyRowOf(t, m, ctx, rowManager)
 	m2, cmd := step(t, m, ctx, tea.MouseClickMsg{X: valueX, Y: y, Button: tea.MouseLeft})
-	if saved, ok := findConfigChanged(flattenCmd(cmd)); !ok || saved.PreferredManager != "scoop" || m2.cursor != rowManager {
+	if saved, ok := findConfigChanged(flattenCmd(cmd)); !ok || saved.PreferredManager != "scoop" || m2.cursor() != rowManager {
 		t.Error("a click on a value did not change it")
 	}
 
 	// The heading above the first row, and a click right of the list.
 	head := ctx.BodyTop + bodyRowOf(t, m, ctx, rowTheme) - 1
-	if n, cmd := step(t, m, ctx, tea.MouseClickMsg{X: 4, Y: head, Button: tea.MouseLeft}); cmd != nil || n.cursor != m.cursor {
+	if n, cmd := step(t, m, ctx, tea.MouseClickMsg{X: 4, Y: head, Button: tea.MouseLeft}); cmd != nil || n.cursor() != m.cursor() {
 		t.Error("a click on a heading did something")
 	}
 	if _, cmd := step(t, m, ctx, tea.MouseClickMsg{X: 98, Y: y, Button: tea.MouseLeft}); cmd != nil {
@@ -207,16 +206,16 @@ func TestMouse(t *testing.T) {
 
 	y = ctx.BodyTop + bodyRowOf(t, m, ctx, rowDevPorts)
 	m, _ = step(t, m, ctx, tea.MouseMotionMsg{X: 6, Y: y})
-	if m.cursor != rowDevPorts {
-		t.Errorf("hover left the cursor on %q", m.cursor)
+	if m.cursor() != rowDevPorts {
+		t.Errorf("hover left the cursor on %q", m.cursor())
 	}
 	m, _ = step(t, m, ctx, tea.MouseWheelMsg{Button: tea.MouseWheelDown})
-	if m.cursor != rowSkill {
-		t.Errorf("the wheel moved to %q, want the next row", m.cursor)
+	if m.cursor() != rowSkill {
+		t.Errorf("the wheel moved to %q, want the next row", m.cursor())
 	}
 	m, _ = step(t, m, ctx, tea.MouseWheelMsg{Button: tea.MouseWheelUp})
-	if m.cursor != rowDevPorts {
-		t.Errorf("the wheel back moved to %q", m.cursor)
+	if m.cursor() != rowDevPorts {
+		t.Errorf("the wheel back moved to %q", m.cursor())
 	}
 }
 
@@ -234,9 +233,8 @@ func TestScrollingKeepsTheCursorOnScreen(t *testing.T) {
 			t.Fatalf("%s: the top of a long list should say what is below only:\n%s", set.Tier, out)
 		}
 		for _, id := range order {
-			lo := m.arrange(ctx)
-			if lo.cur != id {
-				t.Fatalf("cursor on %q, want %q", lo.cur, id)
+			if cur := m.lay(ctx).Cursor; cur != id {
+				t.Fatalf("cursor on %q, want %q", cur, id)
 			}
 			if !strings.Contains(ansi.Strip(m.View(ctx)), labelOf(id)) {
 				t.Fatalf("%s: %q is not on screen:\n%s", set.Tier, id, ansi.Strip(m.View(ctx)))
@@ -251,10 +249,10 @@ func TestScrollingKeepsTheCursorOnScreen(t *testing.T) {
 		}
 
 		// Hover over the top row of the window: the window stays put.
-		before := m.arrange(ctx).start
+		before := m.lay(ctx).Start
 		for y := range ctx.BodyHeight {
 			m2, _ := step(t, m, ctx, tea.MouseMotionMsg{X: 6, Y: ctx.BodyTop + y})
-			if m2.arrange(ctx).start != before {
+			if m2.lay(ctx).Start != before {
 				t.Fatalf("hover on body row %d scrolled the list", y)
 			}
 		}
@@ -265,22 +263,13 @@ func TestScrollingKeepsTheCursorOnScreen(t *testing.T) {
 // up first when there is not.
 func TestGapsGoFirst(t *testing.T) {
 	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
-	tall := m.arrange(sized(config.Default(), icons.Unicode(), 120, 40))
-	short := m.arrange(sized(config.Default(), icons.Unicode(), 100, 30))
-	gaps := func(lo layout) int {
-		n := 0
-		for _, l := range lo.lines {
-			if l.kind == lineGap {
-				n++
-			}
-		}
-		return n
+	tall := m.lay(sized(config.Default(), icons.Unicode(), 120, 40))
+	short := m.lay(sized(config.Default(), icons.Unicode(), 100, 30))
+	if tall.Gaps == 0 || tall.Scrolling {
+		t.Errorf("a tall terminal: %d gaps, scrolling %v", tall.Gaps, tall.Scrolling)
 	}
-	if gaps(tall) == 0 || tall.scrolling {
-		t.Errorf("a tall terminal: %d gaps, scrolling %v", gaps(tall), tall.scrolling)
-	}
-	if gaps(short) != 0 || short.scrolling {
-		t.Errorf("100x30: %d gaps, scrolling %v; the gaps should go and the list fit", gaps(short), short.scrolling)
+	if short.Gaps != 0 || short.Scrolling {
+		t.Errorf("100x30: %d gaps, scrolling %v; the gaps should go and the list fit", short.Gaps, short.Scrolling)
 	}
 }
 
@@ -292,18 +281,18 @@ func TestEveryRowExplainsItself(t *testing.T) {
 	}
 	for _, s := range sessions {
 		for _, g := range groups(config.Default(), s, "0.4.0") {
-			if g.title == "" {
+			if g.Title == "" {
 				t.Error("a group has no heading")
 			}
-			for _, r := range g.rows {
-				if r.kind == kindNote {
+			for _, r := range g.Items {
+				if r.Kind == kindNote {
 					continue
 				}
-				if len(r.desc) < 60 || !strings.HasSuffix(r.desc, ".") {
-					t.Errorf("%s: description %q is too short or not a sentence", r.id, r.desc)
+				if len(r.Desc) < 60 || !strings.HasSuffix(r.Desc, ".") {
+					t.Errorf("%s: description %q is too short or not a sentence", r.ID, r.Desc)
 				}
-				if strings.Contains(r.label, ":") || strings.Contains(r.value, "(s)") {
-					t.Errorf("%s: label %q value %q", r.id, r.label, r.value)
+				if strings.Contains(r.Label, ":") || strings.Contains(r.Value, "(s)") {
+					t.Errorf("%s: label %q value %q", r.ID, r.Label, r.Value)
 				}
 			}
 		}
@@ -321,8 +310,7 @@ func TestNoLineWiderThanTheTerminal(t *testing.T) {
 				ctx := sized(cfg, set, w, h)
 				m := newTest(skillWith(service.AgentCurrent, service.AgentUpdate))
 				for _, id := range []string{rowTheme, rowFolders, rowWhatsNew} {
-					m.cursor = id
-					m = m.settle(ctx)
+					m = m.at(id).settled(ctx)
 					for _, l := range strings.Split(m.View(ctx), "\n") {
 						if lw := ansi.StringWidth(l); lw > w {
 							t.Fatalf("%s %dx%d on %s: a line of %d cells: %q", set.Tier, w, h, id, lw, ansi.Strip(l))
@@ -347,7 +335,7 @@ func TestValuesReadNaturally(t *testing.T) {
 		}
 	}
 	cfg.NeverTouch = []string{`D:\a`, `D:\b`}
-	if v := rowOf(cfg, rowNeverT).value; v != "2 folders" {
+	if v := rowOf(cfg, rowNeverT).Value; v != "2 folders" {
 		t.Errorf("two never-touch folders read %q", v)
 	}
 }
@@ -368,12 +356,12 @@ func TestSkillRowStates(t *testing.T) {
 	}
 	for _, c := range cases {
 		r := skillRow(sessionOf(c.f))
-		if r.value != c.value || r.kind != kindOpen {
+		if r.Value != c.value || r.Kind != kindOpen {
 			t.Errorf("row %+v, want %q", r, c.value)
 		}
 	}
-	if r := skillRow(&skillSession{}); r.value != "checking…" {
-		t.Errorf("before the look the row says %q", r.value)
+	if r := skillRow(&skillSession{}); r.Value != "checking…" {
+		t.Errorf("before the look the row says %q", r.Value)
 	}
 
 	ctx := sized(config.Default(), icons.Unicode(), 100, 30)
@@ -381,10 +369,10 @@ func TestSkillRowStates(t *testing.T) {
 	if !strings.Contains(ansi.Strip(m.View(ctx)), "Claude Code is not installed") {
 		t.Errorf("no note without Claude Code:\n%s", ansi.Strip(m.View(ctx)))
 	}
-	m.cursor = rowDevPorts
+	m = m.at(rowDevPorts)
 	m, _ = step(t, m, ctx, keyPress("down"))
-	if m.cursor != rowTelemetry {
-		t.Errorf("down from Dev ports stopped on %q, past the note", m.cursor)
+	if m.cursor() != rowTelemetry {
+		t.Errorf("down from Dev ports stopped on %q, past the note", m.cursor())
 	}
 }
 
@@ -392,12 +380,12 @@ func TestSkillRowStates(t *testing.T) {
 // last time shows up.
 func TestSettingsLooksAgainOnEveryOpen(t *testing.T) {
 	f := &fakeSkill{claude: false}
-	if r := skillRow(newTest(f).skill); r.kind != kindNote {
+	if r := skillRow(newTest(f).skill); r.Kind != kindNote {
 		t.Fatalf("without Claude Code: %+v", r)
 	}
 	f.claude = true
 	f.targets = []service.AgentTarget{{Account: "default", File: skillDefault, State: service.AgentCreate}}
-	if r := skillRow(newTest(f).skill); r.kind != kindOpen || r.value != "not installed" {
+	if r := skillRow(newTest(f).skill); r.Kind != kindOpen || r.Value != "not installed" {
 		t.Errorf("after installing Claude Code: %+v", r)
 	}
 }
@@ -433,7 +421,7 @@ func sessionOf(f *fakeSkill) *skillSession {
 }
 
 // labelOf is the label of the row with this id.
-func labelOf(id string) string { return rowOf(config.Default(), id).label }
+func labelOf(id string) string { return rowOf(config.Default(), id).Label }
 
 // hasMore reports a "n more" line with the given arrow.
 func hasMore(out, arrow string) bool {

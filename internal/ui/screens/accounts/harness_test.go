@@ -86,6 +86,9 @@ type harness struct {
 	svc    *demo.Service
 	copied []string
 	status []string
+	// wait is how long settle waits for one command; settleWait when zero.
+	// A test over the real engine, which reads real files, waits longer.
+	wait time.Duration
 }
 
 // newHarness opens the page over svc, at 80x24 on the unicode tier.
@@ -184,7 +187,11 @@ func (h *harness) settle(cmd tea.Cmd) {
 	if cmd == nil {
 		return
 	}
-	msg, ok := runFor(cmd, settleWait)
+	wait := h.wait
+	if wait == 0 {
+		wait = settleWait
+	}
+	msg, ok := runFor(cmd, wait)
 	if !ok {
 		return
 	}
@@ -254,9 +261,13 @@ func (h *harness) typed(s string) *harness {
 	return h
 }
 
-// click is a left click at a body row and column.
+// click is a left click at a body row and column. The pointer passes over
+// the spot first, the way it does on a real terminal, so a list that
+// highlights a row on hover and acts on a click of the highlighted row
+// behaves here as it does there.
 func (h *harness) click(x, row int) *harness {
 	h.t.Helper()
+	h.send(tea.MouseMotionMsg{X: x, Y: row + h.ctx.BodyTop})
 	return h.send(tea.MouseClickMsg{Button: tea.MouseLeft, X: x, Y: row + h.ctx.BodyTop})
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/accounts"
 	"github.com/zubairbinshaukat/devpit/internal/accounts/adapters"
 	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
-	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/choices"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
@@ -32,24 +32,26 @@ type capsMsg struct {
 	caps adapters.Caps
 }
 
-// toolScreen is one tool's page: who it is signed in as here, where that
-// comes from (the rule chain when rules are nested), and the actions, the
-// main ones first. An action the tool cannot do is shown greyed out with
-// the adapter's own reason, never hidden.
+// toolScreen is one tool's page: at the top, what is true now (who it is
+// signed in as here, why that account, and which one other folders use);
+// below, the choices in groups, the most likely first. A choice the tool
+// cannot make is shown quiet with the adapter's own reason, never hidden.
 type toolScreen struct {
 	sess  *session
 	tool  accounts.Tool
 	depth int
 	caps  adapters.Caps
 	asked bool
-	menu  menu.Model
+	list  choices.Model
+	check key.Binding
 }
 
 // newToolScreen returns the page of tool t, depth screens above the page.
 func newToolScreen(s *session, t accounts.Tool, depth int) toolScreen {
-	m := toolScreen{sess: s, tool: t, depth: depth, caps: adapters.Supports(t)}
-	m.menu = menu.New(m.items()).DescOnSelectedOnly(true)
-	return m
+	return toolScreen{
+		sess: s, tool: t, depth: depth, caps: adapters.Supports(t),
+		list: choices.New(), check: bind("check who is signed in", "v"),
+	}
 }
 
 // Init implements uictx.Screen: ask the tool what it supports here. For
@@ -68,11 +70,16 @@ func (m toolScreen) Title() string { return m.tool.DisplayName() }
 
 // ShortHelp implements uictx.Screen.
 func (m toolScreen) ShortHelp() []key.Binding {
-	return []key.Binding{m.menu.Keys.Up, m.menu.Keys.Select}
+	if !m.status().Installed {
+		return m.list.Keys.ShortHelp()
+	}
+	return []key.Binding{m.list.Keys.Up, m.list.Keys.Change, m.check}
 }
 
 // FullHelp implements uictx.Screen.
-func (m toolScreen) FullHelp() [][]key.Binding { return [][]key.Binding{m.ShortHelp()} }
+func (m toolScreen) FullHelp() [][]key.Binding {
+	return append(m.list.Keys.FullHelp(), []key.Binding{m.check})
+}
 
 // status is the tool's row of the latest overview.
 func (m toolScreen) status() service.ToolStatus {
@@ -80,87 +87,131 @@ func (m toolScreen) status() service.ToolStatus {
 	return ts
 }
 
-// items builds the action list from what the tool supports and what is set
-// up here.
-func (m toolScreen) items() []menu.Item {
+// groups builds the choices from what the tool supports and what is set up
+// here: changing the account, signing in, the tool's own extras, tidying up.
+func (m toolScreen) groups() []choices.Group {
 	ts := m.status()
 	c := m.caps
 	name := m.tool.DisplayName()
-	off := func(it menu.Item, ok bool, hint string) menu.Item {
+	reason := c.Why
+	if reason == "" {
+		reason = name + " cannot do this."
+	}
+	off := func(it choices.Item, ok bool) choices.Item {
 		if !ok {
-			it.Disabled = true
-			it.Hint = hint
+			it.Disabled = reason
 		}
 		return it
 	}
-	var out []menu.Item
-	if c.ShowOnly {
-		return []menu.Item{{ID: actHere, Title: "Use another account…", Hint: "show only", Disabled: true}}
-	}
-	manage := menu.Item{ID: actManage, Title: "Manage accounts…", Desc: "Rename or remove an account"}
+	manage := choices.Group{Title: "Manage", Items: []choices.Item{{
+		ID: actManage, Label: "Rename or remove an account",
+		Desc: "Rename or remove an account Devpit saved for " + name + ". Your usual sign-in is " + name + "'s own, so it is not listed.",
+		Next: "You pick one, then see what changes before anything happens.",
+	}}}
 	if !ts.Installed {
 		// Nothing can be checked or switched; the accounts Devpit already
 		// has can still be tidied up.
-		return []menu.Item{manage}
+		return []choices.Group{manage}
+	}
+	if c.ShowOnly {
+		return []choices.Group{{Title: "Change the account", Items: []choices.Item{{
+			ID: actHere, Label: "Use another account here", Disabled: reason,
+			Desc: "Pick which " + name + " account this folder uses.",
+		}}}}
 	}
 	expired := ts.Identity.State() == accounts.StateExpired || ts.Identity.State() == accounts.StateNotSignedIn
-	again := menu.Item{ID: actSignAgain, Title: "Sign in again", Desc: "Sign " + ts.Account.Name + " in again, in its own folder"}
 	canAgain := service.SignInAgainArgs(m.tool) != nil
-	if expired && canAgain {
-		out = append(out, again)
+	again := choices.Item{
+		ID: actSignAgain, Label: "Sign in again",
+		Desc: "Sign " + ts.Account.Name + " in again with " + name + "'s own sign-in, kept in that account's own folder.",
+		Next: name + "'s sign-in runs in this terminal; Devpit comes back when it finishes.",
 	}
-	out = append(out,
-		off(menu.Item{ID: actHere, Title: "Use another account here…", Desc: "In this folder and every folder inside it"}, c.FolderRules, "not available"),
-		off(menu.Item{ID: actEverywhere, Title: "Use another account everywhere…", Desc: "Wherever no folder rule says otherwise"}, c.Everywhere, "not available"),
-		off(menu.Item{ID: actOnce, Title: "Just this once…", Desc: "Run one command with another account; nothing is saved"}, c.JustOnce, "not available"),
-		off(menu.Item{ID: actAdd, Title: "Sign in with another account…", Desc: "Run " + name + "'s own sign-in and name the account"}, c.AddAccount, "not available"),
-	)
-	if !expired && canAgain && !ts.Account.IsDefault() {
-		out = append(out, again)
+	change := []choices.Item{
+		off(choices.Item{
+			ID: actHere, Label: "Use another account here",
+			Desc: "Pick which " + name + " account this folder and every folder inside it use.",
+			Next: nextPick,
+		}, c.FolderRules),
+		off(choices.Item{
+			ID: actEverywhere, Label: "Use another account everywhere",
+			Desc: "Pick which account " + name + " uses in every folder that has no choice of its own.",
+			Next: nextPick,
+		}, c.Everywhere),
+		off(choices.Item{
+			ID: actOnce, Label: "Use another account just once",
+			Desc: "Run one command with another account. Nothing is saved and nothing else changes.",
+			Next: "You pick an account and get the command to run.",
+		}, c.JustOnce),
 	}
 	if ts.Resolution.Reason == accounts.ReasonFolderRule {
-		out = append(out, menu.Item{
-			ID: actRemoveRule, Title: "Remove the rule on " + ts.Resolution.RuleFolder,
-			Desc: "This folder then follows the next rule out, or everywhere",
+		change = append(change, choices.Item{
+			ID: actRemoveRule, Label: "Forget this folder's choice",
+			Desc: name + " uses " + ts.Account.Name + " here because you chose it for " + ts.Resolution.RuleFolder +
+				" and the folders inside it. Forget that choice and this folder uses the account of the folder around it, or your usual one.",
+			Next: nextPreview,
 		})
 	}
-	if m.tool == accounts.ToolClaude {
-		out = append(out, menu.Item{ID: actClaude, Title: "Bring your Claude Code setup over…", Desc: "Share or copy skills, agents, commands, CLAUDE.md and settings"})
+	signIn := []choices.Item{off(choices.Item{
+		ID: actAdd, Label: "Sign in with another account",
+		Desc: "Sign in to another " + name + " account and give it a short name, so you can use it in some folders.",
+		Next: name + "'s own sign-in runs in this terminal, then you name the account.",
+	}, c.AddAccount)}
+	if canAgain && (expired || !ts.Account.IsDefault()) {
+		signIn = append([]choices.Item{again}, signIn...)
 	}
-	if m.tool == accounts.ToolGitHub {
-		out = append(out, menu.Item{ID: actGit, Title: "Pushes and SSH keys…", Desc: "Which account a push uses here, and a key for this folder"})
+	groups := []choices.Group{{Title: "Change the account", Items: change}, {Title: "Sign in", Items: signIn}}
+	if expired && canAgain {
+		// Signing in again is the one thing to do: it comes first.
+		groups[0], groups[1] = groups[1], groups[0]
 	}
-	return append(out, manage)
+	switch m.tool {
+	case accounts.ToolClaude:
+		groups = append(groups, choices.Group{Title: "Claude Code setup", Items: []choices.Item{{
+			ID: actClaude, Label: "Bring your Claude Code setup over",
+			Desc: "Share or copy your skills, agents, commands, CLAUDE.md and settings into another Claude Code account. Login files are never copied.",
+			Next: "You choose what comes over and how, then see a preview.",
+		}}})
+	case accounts.ToolGitHub:
+		groups = append(groups, choices.Group{Title: "Pushes", Items: []choices.Item{{
+			ID: actGit, Label: "Pushes and SSH keys",
+			Desc: "See which GitHub account a push from this folder uses, or use an SSH key for it.",
+			Next: "Opens the Git page.",
+		}}})
+	}
+	return append(groups, manage)
+}
+
+// spec is what the page shows this frame.
+func (m toolScreen) spec(ctx uictx.Context) choices.Spec {
+	return choices.Spec{
+		FactsTitle: "Right now",
+		FactsAside: "in " + m.sess.folder,
+		Facts:      m.facts(ctx),
+		Groups:     m.groups(),
+	}
 }
 
 // Update implements uictx.Screen.
 func (m toolScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	if m.sess.absorb(msg) {
-		m.menu = m.menu.SetItems(m.items())
+		m.list = m.list.Settle(ctx, m.spec(ctx))
 		return m, nil
 	}
 	switch msg := msg.(type) {
 	case capsMsg:
 		if msg.tool == m.tool {
 			m.caps, m.asked = msg.caps, true
-			cur := m.menu.Cursor()
-			m.menu = menu.New(m.items()).DescOnSelectedOnly(true)
-			m.menu = m.menu.SetCursor(cur)
-			if it, ok := m.menu.Selected(); ok && it.Disabled {
-				m.menu = menu.New(m.items()).DescOnSelectedOnly(true)
-			}
+			m.list = m.list.Settle(ctx, m.spec(ctx))
 		}
 		return m, nil
-	case menu.SelectedMsg:
-		return m, m.act(msg.ID)
+	case tea.KeyPressMsg:
+		if key.Matches(msg, m.check) && m.status().Installed {
+			return m, uictx.Push(newVerifyScreen(m.sess, m.depth+1))
+		}
 	}
-	if next, cmd, ok := m.sizedMenu(ctx).Pointer(ctx, msg, m.menuTop(ctx)); ok {
-		m.menu = next
-		return m, cmd
-	}
-	next, cmd := m.menu.Update(msg)
-	m.menu = next
-	return m, cmd
+	next, a := m.list.Update(msg, ctx, m.spec(ctx))
+	m.list = next
+	return m, m.act(a.ID)
 }
 
 // act opens what an action leads to.
@@ -190,124 +241,76 @@ func (m toolScreen) act(id string) tea.Cmd {
 	return nil
 }
 
-// facts are the lines above the actions: who, why, the chain, everywhere.
-func (m toolScreen) facts(ctx uictx.Context) []string {
-	th := ctx.Theme
+// facts are what is true now: who, why, other folders, and anything that
+// needs a look.
+func (m toolScreen) facts(ctx uictx.Context) []choices.Fact {
 	ts := m.status()
-	label := func(s string) string { return " " + th.Muted.Render(s+pad(14-len(s))) }
-	val := func(s string) string { return fit(ctx, s, ctx.Width-16) }
-	var out []string
+	name := m.tool.DisplayName()
 	if !ts.Installed {
-		out = append(out, label("Installed")+th.Muted.Render(ctx.Icons.Absent+" not on this PC"))
-		why := m.tool.DisplayName() + " is not installed, so nothing is checked or changed for it."
+		why := name + " is not installed, so nothing is checked or changed for it."
 		if ts.Managed {
-			why += " Its rules are kept and apply once it is installed."
+			why += " The choices you made for it are kept and apply once it is installed."
 		}
-		return append(out, "", strings.Join(wrap(ctx, th.Muted, why, 1, 0), "\n"))
-	}
-	who := ts.Display
-	whoStyle := th.Base.Bold(true)
-	switch ts.Identity.State() {
-	case accounts.StateExpired:
-		who += "  " + ctx.Icons.Warn + " expired, sign in again"
-		whoStyle = th.Warning
-	case accounts.StateNotSignedIn:
-		who += "  " + ctx.Icons.Queued + " not signed in"
+		return []choices.Fact{{Label: "Installed", Value: "no, not on this PC", Notes: []string{why}}}
 	}
 	first := "Signed in as"
-	if m.tool == accounts.ToolGit {
+	switch m.tool {
+	case accounts.ToolGit:
 		first = "Commits as"
-	}
-	if m.tool == accounts.ToolConvex {
+	case accounts.ToolConvex:
 		first = "Project"
-		who = strings.TrimPrefix(who, "project: ")
 	}
-	out = append(out, label(first)+whoStyle.Render(val(who)))
-	why := ts.Why
-	out = append(out, label("Comes from")+th.Base.Render(val(why)))
+	who := choices.Fact{Label: first, Value: accountPlain(ts.Display, m.tool)}
+	if m.tool == accounts.ToolConvex {
+		who.Value = strings.TrimPrefix(ts.Display, "project: ")
+	}
+	switch ts.Identity.State() {
+	case accounts.StateExpired:
+		who.Tone = choices.Warn
+		who.Value += ", but the sign-in has expired"
+		who.Notes = append(who.Notes, "Sign in again (below) to use it.")
+	case accounts.StateNotSignedIn:
+		who.Tone = choices.Warn
+		who.Value += ", not signed in"
+	}
+	if isNotChecked(ts.Display) {
+		who.Notes = append(who.Notes, notCheckedNote(m.tool))
+	}
+	why := choices.Fact{Label: "Why this one", Value: wherePlain(ts.Resolution), Wrap: true}
+	if m.tool == accounts.ToolConvex {
+		why.Value = ts.Why
+	}
 	if c := chainCaption(ctx, ts.Resolution); c != "" {
-		out = append(out, label("Rules here")+th.Muted.Render(val(c)))
+		why.Notes = append(why.Notes, "Choices around this folder: "+c)
 	}
+	out := []choices.Fact{who, why}
 	if m.tool != accounts.ToolConvex {
-		out = append(out, label("Everywhere")+th.Base.Render(val(ts.EverywhereDisplay)))
+		out = append(out, choices.Fact{Label: "Other folders", Value: accountPlain(ts.EverywhereDisplay, m.tool)})
+	}
+	if n := m.note(); n != "" && !m.caps.ShowOnly {
+		out = append(out, choices.Fact{Label: "Good to know", Value: n, Wrap: true})
+	}
+	if len(ts.Problems) > 0 {
+		p := ts.Problems[0]
+		f := choices.Fact{Label: "Needs a look", Value: p.Message, Tone: choices.Warn, Wrap: true}
+		if p.Fix != "" {
+			f.Notes = append(f.Notes, "Fix: "+p.Fix)
+		}
+		if l := p.Link(); l != "" {
+			f.Notes = append(f.Notes, "Help: "+l)
+		}
+		out = append(out, f)
 	}
 	return out
 }
 
-// menuTop is the body row the action list starts on.
-func (m toolScreen) menuTop(ctx uictx.Context) int {
-	return 2 + len(m.facts(ctx)) + 1
-}
-
 // View implements uictx.Screen.
-func (m toolScreen) View(ctx uictx.Context) string {
-	th := ctx.Theme
-	out := []string{heading(ctx, m.tool.DisplayName(), "in "+m.sess.folder), ""}
-	out = append(out, m.facts(ctx)...)
-	out = append(out, "")
-	out = append(out, m.sizedMenu(ctx).View(ctx))
-	note := m.note()
-	if note != "" {
-		out = append(out, "")
-		out = append(out, wrap(ctx, th.Muted, note, 1, 0)...)
-	}
-	if ts := m.status(); len(ts.Problems) > 0 && ts.Installed {
-		p := ts.Problems[0]
-		out = append(out, "")
-		out = append(out, wrap(ctx, th.Warning, ctx.Icons.Warn+" "+p.Message, 1, 2)...)
-		if p.Fix != "" {
-			out = append(out, wrap(ctx, th.Muted, "Fix: "+p.Fix, 3, 5)...)
-		}
-		out = append(out, docsLine(ctx, p, 3)...)
-	}
-	return strings.Join(out, "\n")
-}
+func (m toolScreen) View(ctx uictx.Context) string { return m.list.View(ctx, m.spec(ctx)) }
 
-// sizedMenu is the action list at the height View draws it, so a click
-// and the frame measure the same rows.
-func (m toolScreen) sizedMenu(ctx uictx.Context) menu.Model {
-	return m.menu.SetHeight(tightHeight(m.menu, ctx.BodyHeight-m.menuTop(ctx)-m.noteRoom(ctx)-m.problemRoom(ctx)))
-}
-
-// tightHeight is a list's height when it shows its description under the
-// selected row only: every row and that one description, with no blank
-// lines between rows (which the menu would add when it has room, so one
-// tool's page would be spaced out and the next not), or room, whichever is
-// less.
-func tightHeight(mm menu.Model, room int) int {
-	return max(3, min(room, len(mm.Items())+1))
-}
-
-// problemRoom is the room kept for the first problem and its fix.
-func (m toolScreen) problemRoom(ctx uictx.Context) int {
-	ts := m.status()
-	if len(ts.Problems) == 0 || !ts.Installed {
-		return 0
-	}
-	p := ts.Problems[0]
-	n := 1 + len(wrap(ctx, ctx.Theme.Warning, p.Message, 1, 2))
-	if p.Fix != "" {
-		n += len(wrap(ctx, ctx.Theme.Muted, "Fix: "+p.Fix, 3, 5))
-	}
-	n += len(docsLine(ctx, p, 3))
-	return n
-}
-
-// noteRoom is the room kept under the actions for the note.
-func (m toolScreen) noteRoom(ctx uictx.Context) int {
-	if m.note() == "" {
-		return 0
-	}
-	return 1 + len(wrap(ctx, ctx.Theme.Muted, m.note(), 1, 0))
-}
-
-// note explains, in the adapter's own words, why some actions are off, or
+// note explains, in the adapter's own words, why some choices are off, or
 // what is special about this tool.
 func (m toolScreen) note() string {
 	c := m.caps
-	if ts := m.status(); !ts.Installed {
-		return ""
-	}
 	switch {
 	case c.ShowOnly:
 		return c.Why

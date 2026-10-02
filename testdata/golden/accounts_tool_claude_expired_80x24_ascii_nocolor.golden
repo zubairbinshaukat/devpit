@@ -1,20 +1,20 @@
- Claude Code                                         in C:\Projects\quiz-slayer
+  Right now ---------------------------------------- in C:\Projects\quiz-slayer
+    Signed in as   ! work (you@work.example), but the sign-in has expired
+                   Sign in again (below) to use it.
+    Why this one   chosen for C:\Projects and the folders inside it
+    Other folders  your usual Claude Code sign-in (you@personal.example)
 
- Signed in as  work (you@work.example)  ! expired, sign in again
- Comes from    folder rule: C:\Projects
- Everywhere    default (you@personal.example)
+  Sign in ------------------------------
+| > Sign in again                      >
+    Sign in with another account       >
+  Change the account -------------------
+    Use another account here           >
+    Use another account everywhere     >
+    Use another account just once      >
+  v 3 more
 
-| > Sign in again
-|   Sign work in again, in its own folder
-    Use another account here…
-    Use another account everywhere…
-    Just this once…
-    Sign in with another account…
-    Remove the rule on C:\Projects
-    Bring your Claude Code setup over…
-    Manage accounts…
-
-
-
-
-[keys] ↑↓ move  ·  enter select
+  Sign in again --------------------------------------------------------------
+  Sign work in again with Claude Code's own sign-in, kept in that account's
+  own folder. Claude Code's sign-in runs in this terminal; Devpit comes back
+  when it finishes.
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

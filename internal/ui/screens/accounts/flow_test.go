@@ -79,7 +79,7 @@ func TestEverywhereListsTheFolderRulesThatStillWin(t *testing.T) {
 	h := newHarness(t, demo.New()).keys("enter")
 	h.clickText("Use another account everywhere")
 	h.keys("up", "enter") // default, everywhere
-	h.mustSee("Everywhere", "Wherever no folder rule says otherwise")
+	h.mustSee("Everywhere", "Every folder without a choice of its own")
 	if _, ok := h.top().(flow); !ok {
 		t.Fatalf("not in the flow: %T", h.top())
 	}
@@ -150,7 +150,7 @@ func TestVerifyMismatchAndTheRiskyCheckPrompt(t *testing.T) {
 func TestExpiredLoginLeadsWithSignInAgain(t *testing.T) {
 	h := newHarness(t, expiredSvc()).keys("v", "enter")
 	h.mustSee("expired", "sign in again")
-	h.keys("enter").mustSee("expired, sign in again")
+	h.keys("enter").mustSee("the sign-in has expired")
 	h.keys("enter").mustSee("Sign work in again", "claude auth login")
 	h.keys("enter").mustSee("sign-in finished")
 	if expiredSvc().Called("sign in again") != 0 {

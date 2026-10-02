@@ -69,7 +69,9 @@ func TestRealEngineAddsAClaudeAccountAndUsesItInOneFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := &harness{t: t, ctx: testCtx(100, 30, icons.TierUnicode)}
+	// The real engine reads real (temporary) files, which can take longer
+	// than the demo's instant answers on a busy machine.
+	h := &harness{t: t, ctx: testCtx(100, 30, icons.TierUnicode), wait: time.Second}
 	opts := testOptions(nil, &h.copied)
 	opts.Folder = work
 	opts.Open = func() (Service, error) { return svc, nil }

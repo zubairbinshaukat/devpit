@@ -12,15 +12,18 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/accounts"
 	"github.com/zubairbinshaukat/devpit/internal/accounts/adapters"
 	"github.com/zubairbinshaukat/devpit/internal/gitssh"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/choices"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
-// The Git page answers the two questions people mix up, as two rows: who a
-// commit is made as here (name and email, and which file decided it), and
-// which GitHub account a push uses (or that the SSH key decides, for an SSH
-// remote). Everything the old Git & SSH screen did is here: see the
-// identity, set a new one, make an SSH key and copy its public half.
+// The Git page answers the two questions people mix up: who a commit is made
+// as here (name and email, and which setting decided it), and which GitHub
+// account a push uses (or that the SSH key decides, for an SSH remote). The
+// two answers sit at the top as plain facts; the choices are below them in
+// three groups: commits, pushes, and tidying up. Everything the old Git &
+// SSH screen did is here: see the name and email, set another, make an SSH
+// key and copy its public half.
 
 // gitFactsMsg is what Git says about the folder, offline.
 type gitFactsMsg struct {
@@ -47,13 +50,12 @@ type gitScreen struct {
 	depth  int
 	loaded bool
 	facts  gitFactsMsg
-	menu   menu.Model
+	list   choices.Model
+	check  key.Binding
 }
 
 func newGitScreen(s *session, depth int) gitScreen {
-	m := gitScreen{sess: s, depth: depth}
-	m.menu = menu.New(m.items()).DescOnSelectedOnly(true)
-	return m
+	return gitScreen{sess: s, depth: depth, list: choices.New(), check: bind("check who is signed in", "v")}
 }
 
 func (m gitScreen) Init() tea.Cmd { return m.factsCmd() }
@@ -74,52 +76,107 @@ func (m gitScreen) factsCmd() tea.Cmd {
 func (m gitScreen) Title() string { return "Git" }
 
 func (m gitScreen) ShortHelp() []key.Binding {
-	return []key.Binding{m.menu.Keys.Up, m.menu.Keys.Select}
+	return []key.Binding{m.list.Keys.Up, m.list.Keys.Change, m.check}
 }
 
-func (m gitScreen) FullHelp() [][]key.Binding { return [][]key.Binding{m.ShortHelp()} }
+func (m gitScreen) FullHelp() [][]key.Binding {
+	return append(m.list.Keys.FullHelp(), []key.Binding{m.check})
+}
 
-func (m gitScreen) items() []menu.Item {
+// nextPreview and nextPick are what follows a change on these pages.
+const (
+	nextPreview = "You see a preview first. Nothing changes until you say yes."
+	nextPick    = "You pick one, then see a preview. Nothing changes until you say yes."
+)
+
+// groups are the choices: commits, pushes, and tidying up.
+func (m gitScreen) groups() []choices.Group {
 	ts, _ := m.sess.status(accounts.ToolGit)
-	out := []menu.Item{
-		{ID: gitHere, Title: "Commit as another identity here…", Desc: "In this folder and every folder inside it"},
-		{ID: gitEverywhere, Title: "Commit as another identity everywhere…", Desc: "Wherever no folder rule says otherwise"},
-		{ID: gitAdd, Title: "Add another identity…", Desc: "A name and email to commit as, with suggestions from GitHub"},
-		{ID: gitHubHere, Title: "Push as another GitHub account here…", Desc: "Pushes over HTTPS and gh follow the folder"},
-		{ID: gitSSH, Title: "Push with an SSH key…", Desc: "Make a key, copy it for GitHub, and use it for this folder"},
+	commits := []choices.Item{
+		{
+			ID: gitHere, Label: "Commit as someone else here",
+			Desc: "Use a different name and email for commits in this folder and every folder inside it.",
+			Next: nextPick,
+		},
+		{
+			ID: gitEverywhere, Label: "Commit as someone else everywhere",
+			Desc: "Use a different name and email for commits in every folder that has no choice of its own.",
+			Next: nextPick,
+		},
+		{
+			ID: gitAdd, Label: "Add a name and email",
+			Desc: "Save another name and email to commit with, such as a work address. Your GitHub accounts can suggest their private no-reply address.",
+			Next: "A short form opens. Saving it changes nothing else.",
+		},
 	}
 	if ts.Resolution.Reason == accounts.ReasonFolderRule {
-		out = append(out, menu.Item{ID: gitRemoveRule, Title: "Remove the rule on " + ts.Resolution.RuleFolder, Desc: "This folder then follows the next rule out, or everywhere"})
+		commits = append(commits, choices.Item{
+			ID: gitRemoveRule, Label: "Forget this folder's choice",
+			Desc: "Commits here use " + ts.Display + " because you chose it for " + ts.Resolution.RuleFolder +
+				" and the folders inside it. Forget that choice and this folder uses the one from the folder around it, or your usual one.",
+			Next: nextPreview,
+		})
+	}
+	pushes := []choices.Item{
+		{
+			ID: gitHubHere, Label: "Push as another GitHub account here",
+			Desc: "Pick which GitHub account your pushes (and the gh tool) use in this folder and the folders inside it.",
+			Next: nextPick,
+		},
+		{
+			ID: gitSSH, Label: "Push with an SSH key",
+			Desc: "An SSH key is a file that proves who you are to GitHub. A key just for this folder keeps work and personal pushes apart.",
+			Next: "You make a key or pick one you have, add it to GitHub, then see a preview before it is used.",
+		},
 	}
 	if !ts.Installed {
-		for i := range out {
-			out[i].Disabled, out[i].Hint = true, "Git is not installed"
+		for _, l := range [][]choices.Item{commits, pushes} {
+			for i := range l {
+				l[i].Disabled = "Git is not installed on this PC. Install & Update can install it."
+			}
 		}
 	}
-	return append(out, menu.Item{ID: gitManage, Title: "Manage identities…", Desc: "Rename or remove an identity"})
+	manage := []choices.Item{{
+		ID: gitManage, Label: "Rename or remove a name and email",
+		Desc: "Rename or remove a name and email Devpit saved. Your usual one, in Git's own settings, is not listed and is never changed here.",
+		Next: "You pick one, then see what changes before anything happens.",
+	}}
+	return []choices.Group{
+		{Title: "Commits", Items: commits},
+		{Title: "Pushes", Items: pushes},
+		{Title: "Manage", Items: manage},
+	}
+}
+
+func (m gitScreen) spec(ctx uictx.Context) choices.Spec {
+	return choices.Spec{
+		FactsTitle: "Right now",
+		FactsAside: "in " + m.sess.folder,
+		Facts:      m.gitFacts(ctx),
+		Groups:     m.groups(),
+	}
 }
 
 func (m gitScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	if m.sess.absorb(msg) {
-		m.menu = m.menu.SetItems(m.items())
+		m.list = m.list.Settle(ctx, m.spec(ctx))
 		return m, m.factsCmd()
 	}
 	switch msg := msg.(type) {
 	case gitFactsMsg:
 		m.facts, m.loaded = msg, true
+		m.list = m.list.Settle(ctx, m.spec(ctx))
 		return m, nil
 	case accountAddedMsg:
 		return m, uictx.Push(newFlowAt(m.sess, accounts.ToolGit, msg.acct.Name, accounts.ScopeFolder, m.depth+1))
-	case menu.SelectedMsg:
-		return m, m.act(msg.ID)
+	case tea.KeyPressMsg:
+		if key.Matches(msg, m.check) {
+			return m, uictx.Push(newVerifyScreen(m.sess, m.depth+1))
+		}
 	}
-	if next, cmd, ok := m.sizedMenu(ctx).Pointer(ctx, msg, m.menuTop(ctx)); ok {
-		m.menu = next
-		return m, cmd
-	}
-	next, cmd := m.menu.Update(msg)
-	m.menu = next
-	return m, cmd
+	next, a := m.list.Update(msg, ctx, m.spec(ctx))
+	m.list = next
+	return m, m.act(a.ID)
 }
 
 func (m gitScreen) act(id string) tea.Cmd {
@@ -144,89 +201,82 @@ func (m gitScreen) act(id string) tea.Cmd {
 	return nil
 }
 
-// rows are the two answers: commits as, pushes as.
-func (m gitScreen) rows(ctx uictx.Context) []string {
-	th := ctx.Theme
-	label := func(s string) string { return " " + th.Muted.Render(padTo(s, 12)) }
-	cont := pad(13)
-	w := ctx.Width - 14
+// gitFacts are the two answers: commits as, pushes as.
+func (m gitScreen) gitFacts(ctx uictx.Context) []choices.Fact {
 	ts, _ := m.sess.status(accounts.ToolGit)
 	if !ts.Installed {
-		return []string{label("Commits as") + th.Muted.Render(ctx.Icons.Absent+" Git is not installed")}
+		return []choices.Fact{{
+			Label: "Commits as", Value: "nobody yet: Git is not installed",
+			Notes: []string{"Install Git (Install & Update can do it), then come back here."},
+		}}
 	}
 	if !m.loaded {
-		return []string{label("Commits as") + th.Base.Render(fit(ctx, ts.Display, w)), cont + th.Muted.Render("asking Git"+ellipsis(ctx))}
+		return []choices.Fact{{Label: "Commits as", Value: ts.Display, Notes: []string{"asking Git" + ellipsis(ctx)}}}
 	}
-	var out []string
+	var out []choices.Fact
 	ci := m.facts.commits
 	switch {
 	case m.facts.commitsErr != nil:
-		out = append(out, label("Commits as")+th.Base.Render(fit(ctx, ts.Display, w)))
-		out = append(out, cont+th.Warning.Render(fit(ctx, ctx.Icons.Warn+" "+accounts.Scrub(m.facts.commitsErr.Error()), w)))
+		out = append(out, choices.Fact{
+			Label: "Commits as", Value: ts.Display,
+			Warnings: []string{accounts.Scrub(m.facts.commitsErr.Error())},
+		})
 	default:
 		who := strings.TrimSpace(ci.Name.Value + " <" + ci.Email.Value + ">")
 		if ci.Email.Value == "" {
 			who = "no email set"
 		}
-		st := th.Base.Bold(true)
+		f := choices.Fact{Label: "Commits as", Value: who}
 		if ci.Mismatch {
-			st = th.Danger
-			who = ctx.Icons.Fail + " " + who
+			f.Tone = choices.Bad
 		}
-		out = append(out, label("Commits as")+st.Render(fit(ctx, who, w)))
-		from := "from " + string(ci.Email.From)
+		from := "from " + fromPlain(ci.Email.From)
 		if ci.Expected.Reason == accounts.ReasonFolderRule {
-			from += sep(ctx) + "rule on " + ci.Expected.RuleFolder
+			from += sep(ctx) + "chosen for " + ci.Expected.RuleFolder
 		}
-		out = append(out, cont+th.Muted.Render(fit(ctx, from, w)))
+		f.Notes = append(f.Notes, from)
 		if !ci.Repo.IsRepo && len(ci.Notes) == 0 {
-			out = append(out, cont+th.Muted.Render(fit(ctx, "applies once this folder is a Git repo", w)))
+			f.Notes = append(f.Notes, "This folder is not a Git repository yet; this applies once it is.")
 		}
-		for _, n := range ci.Notes {
-			out = append(out, wrap(ctx, th.Warning, n, 13, 0)...)
-		}
+		f.Warnings = append(f.Warnings, ci.Notes...)
+		out = append(out, f)
 	}
-	out = append(out, "")
+
 	p := m.facts.pushes
 	gh, _ := m.sess.status(accounts.ToolGitHub)
+	github := "GitHub: " + accountPlain(gh.Display, accounts.ToolGitHub)
 	switch {
 	case m.facts.pushesErr != nil && !errors.Is(m.facts.pushesErr, accounts.ErrNotFoundTool):
-		out = append(out, label("Pushes as")+th.Base.Render(fit(ctx, "GitHub: "+gh.Display, w)))
-		out = append(out, cont+th.Warning.Render(fit(ctx, ctx.Icons.Warn+" "+accounts.Scrub(m.facts.pushesErr.Error()), w)))
+		out = append(out, choices.Fact{
+			Label: "Pushes as", Value: github,
+			Warnings: []string{accounts.Scrub(m.facts.pushesErr.Error())},
+		})
 	case p.Via == adapters.PushViaSSHKey:
-		key := "the keys ssh offers by default"
+		k := "your usual SSH keys"
 		if p.SSHKey != "" {
-			key = p.SSHKey
+			k = p.SSHKey
 		}
-		out = append(out, label("Pushes as")+th.Base.Bold(true).Render(fit(ctx, "follows the SSH key", w)))
-		out = append(out, cont+th.Muted.Render(fit(ctx, "this repo pushes over SSH; key: "+key, w)))
+		out = append(out, choices.Fact{
+			Label: "Pushes as", Value: "the GitHub account of the SSH key " + k,
+			Notes: []string{"This repository pushes over SSH, so the key decides which GitHub account is used."},
+		})
 	default:
-		out = append(out, label("Pushes as")+th.Base.Bold(true).Render(fit(ctx, "GitHub: "+gh.Display, w)))
-		via := "over HTTPS"
+		f := choices.Fact{Label: "Pushes as", Value: github}
+		note := wherePlain(gh.Resolution)
 		if p.Via != "" {
-			via = string(p.Via)
+			note += sep(ctx) + viaPlain(p.Via)
 		}
-		out = append(out, cont+th.Muted.Render(fit(ctx, gh.Why+sep(ctx)+via, w)))
-		for _, n := range p.Notes {
-			out = append(out, wrap(ctx, th.Muted, n, 13, 0)...)
+		f.Notes = append(f.Notes, note)
+		if isNotChecked(gh.Display) {
+			f.Notes = append(f.Notes, notCheckedNote(accounts.ToolGitHub))
 		}
+		f.Notes = append(f.Notes, p.Notes...)
+		out = append(out, f)
 	}
 	return out
 }
 
-func (m gitScreen) menuTop(ctx uictx.Context) int { return 2 + len(m.rows(ctx)) + 1 }
-
-// sizedMenu is the action list at the height View draws it.
-func (m gitScreen) sizedMenu(ctx uictx.Context) menu.Model {
-	return m.menu.SetHeight(tightHeight(m.menu, ctx.BodyHeight-m.menuTop(ctx)))
-}
-
-func (m gitScreen) View(ctx uictx.Context) string {
-	out := []string{heading(ctx, "Git", "in "+m.sess.folder), ""}
-	out = append(out, m.rows(ctx)...)
-	out = append(out, "", m.sizedMenu(ctx).View(ctx))
-	return strings.Join(out, "\n")
-}
+func (m gitScreen) View(ctx uictx.Context) string { return m.list.View(ctx, m.spec(ctx)) }
 
 // --- a new identity ---
 
@@ -281,7 +331,7 @@ func (m identityScreen) Init() tea.Cmd {
 	})
 }
 
-func (m identityScreen) Title() string { return "Git › New identity" }
+func (m identityScreen) Title() string { return "Git › New name and email" }
 
 func (m identityScreen) ShortHelp() []key.Binding {
 	return []key.Binding{m.keys.Next, m.keys.Save}
@@ -377,7 +427,7 @@ func (m identityScreen) save() (uictx.Screen, tea.Cmd) {
 	email := strings.TrimSpace(m.fields[2].Value())
 	switch {
 	case name == "":
-		m.err = "Give the identity a name in Devpit, like work."
+		m.err = "Give it a short name in Devpit, like work."
 		return m, nil
 	case email == "":
 		m.err = "Type the email Git should commit with, or pick one below."
@@ -405,7 +455,7 @@ func (m identityScreen) save() (uictx.Screen, tea.Cmd) {
 			if last.Err != nil {
 				return identitySavedMsg{err: last.Err}
 			}
-			return identitySavedMsg{err: errors.New("the identity was not added")}
+			return identitySavedMsg{err: errors.New("the name and email were not saved")}
 		}
 		acct, _, err := svc.SaveAccount(*last.Account, name)
 		return identitySavedMsg{acct: acct, err: err}
@@ -416,9 +466,9 @@ func (m identityScreen) suggTop() int { return 2 + 3*3 + 2 }
 
 func (m identityScreen) View(ctx uictx.Context) string {
 	th := ctx.Theme
-	out := []string{heading(ctx, "A new Git identity", ""), ""}
-	labels := [3]string{"Name in Devpit", "Commit name", "Email"}
-	hints := [3]string{"what you type in commands, like devpit git use work", "leave empty to keep the name in your global Git config", "the address commits are made with"}
+	out := []string{heading(ctx, "A new name and email to commit with", ""), ""}
+	labels := [3]string{"Short name", "Name on commits", "Email on commits"}
+	hints := [3]string{"how Devpit lists it, like work", "leave empty to keep the name in your usual Git settings", "the address your commits show"}
 	for i := range m.fields {
 		st := th.Muted
 		if i == m.focus {
@@ -508,7 +558,7 @@ func newSSHScreen(s *session, push adapters.GitHubPush, depth int) sshScreen {
 	m.path = s.svc.SuggestedSSHKeyPath(name)
 	items := []menu.Item{
 		{ID: sshNew, Title: "Make a new key", Desc: m.path},
-		{ID: sshHave, Title: "Use a key I already have…", Desc: "Type the path of its private key"},
+		{ID: sshHave, Title: "Use a key I already have", Desc: "Type where its private key file is"},
 	}
 	if push.SSHKey != "" {
 		items = append(items, menu.Item{ID: sshRemove, Title: "Stop using " + push.SSHKey + " here", Desc: "Pushes over SSH use your usual keys again"})

@@ -277,10 +277,12 @@ func (m claudeScreen) toAsk() (uictx.Screen, tea.Cmd) {
 		claudeshare.PresetSync:     "Share what is safe to share; copy settings and hooks",
 		claudeshare.PresetCopyOnce: "A separate copy of everything safe, now",
 		claudeshare.PresetEmpty:    "Bring nothing over",
-		claudeshare.PresetChoose:   "Pick item by item",
+		claudeshare.PresetChoose:   "Pick item by item on the next screen",
 	}
 	for _, p := range claudeshare.Presets() {
-		items = append(items, menu.Item{ID: string(p), Title: p.Title(), Desc: desc[p]})
+		// A row that opens another screen says so in its description, not
+		// with a trailing "…".
+		items = append(items, menu.Item{ID: string(p), Title: strings.TrimSuffix(p.Title(), "…"), Desc: desc[p]})
 	}
 	if m.fromFlow {
 		items = append(items, menu.Item{ID: ansNotNow, Title: "Not now", Desc: "Do this later from the Claude Code page"})

@@ -1,14 +1,14 @@
- DEVPIT  vdev  ·  Install & Update                                                   node …   git …
+ DEVPIT  dev  ·  Install & Update                                                    node …   git …
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
 ─────────────────────────────────────━━━━━━─────────────────────────────────────────────────────────
 Install dev apps, update everything.
 
 ▌ ▸ Install developer apps
-▌   Pick dev apps and install them with your package manager
+▌   Pick apps from a list; Devpit installs them for you
 
     Update everything
-    Update apps and tools through every package manager found
+    See what is out of date, then pick what to update
 
 
 

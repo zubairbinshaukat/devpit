@@ -172,7 +172,7 @@ func (m Model) View(ctx uictx.Context) string {
 	}
 	name.WriteString(th.Badge.Render(" DEVPIT "))
 	name.WriteByte(' ')
-	name.WriteString(th.Muted.Render("v" + version.Short()))
+	name.WriteString(th.Muted.Render(VersionLabel(version.Short())))
 	if m.Title != "" {
 		name.WriteString(th.Muted.Render(separator(ascii)))
 		name.WriteString(th.Subtitle.Render(m.Title))
@@ -410,4 +410,15 @@ func FormatBytes(b uint64) string {
 		return fmt.Sprintf("%.0f %s", val, suffix)
 	}
 	return fmt.Sprintf("%.1f %s", val, suffix)
+}
+
+// VersionLabel is how a version is shown: "v0.4.0" for a release, and "dev"
+// for a development build, including one linked with an empty version, which
+// would otherwise read as a lone "v".
+func VersionLabel(v string) string {
+	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	if v == "" || v == "dev" {
+		return "dev"
+	}
+	return "v" + v
 }

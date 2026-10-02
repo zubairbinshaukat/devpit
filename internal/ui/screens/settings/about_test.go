@@ -9,6 +9,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/about"
 	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/version"
 )
@@ -17,7 +18,7 @@ func TestAboutNamesTheAuthorAndTheBuild(t *testing.T) {
 	out := newAboutScreen(version.Short()).View(testContext(config.Default()))
 	for _, want := range []string{
 		about.Byline, about.Author, about.Portfolio, about.Website, about.Repo,
-		"v" + version.Short(), about.License, "checks once a day",
+		header.VersionLabel(version.Short()), about.License, "checks once a day",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("about screen lacks %q:\n%s", want, out)
@@ -44,14 +45,14 @@ func TestAboutSaysHowToUpgrade(t *testing.T) {
 
 func TestUpdateCheckRowToggles(t *testing.T) {
 	cfg := config.Default()
-	if r := rowOf(cfg, rowUpdates); !r.on || r.kind != kindToggle {
+	if r := rowOf(cfg, rowUpdates); !r.On || r.Kind != kindToggle {
 		t.Errorf("fresh config row = %+v, want a toggle that is on", r)
 	}
 	cfg, changed := apply(cfg, rowUpdates, 1)
 	if !changed || !cfg.SkipUpdateCheck {
 		t.Fatalf("toggle did not turn the check off: changed=%v skip=%v", changed, cfg.SkipUpdateCheck)
 	}
-	if r := rowOf(cfg, rowUpdates); r.on {
+	if r := rowOf(cfg, rowUpdates); r.On {
 		t.Errorf("after toggle row = %+v, want off", r)
 	}
 }
@@ -59,7 +60,7 @@ func TestUpdateCheckRowToggles(t *testing.T) {
 func TestEnterOnAboutPushesTheScreen(t *testing.T) {
 	cfg := config.Default()
 	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
-	m.cursor = rowAbout
+	m = m.at(rowAbout)
 
 	_, cmd := m.Update(pressKey("enter"), testContext(cfg))
 	s, ok := findPush(flattenCmd(cmd))
@@ -85,8 +86,8 @@ func TestClickOnAboutPushesTheScreen(t *testing.T) {
 		t.Fatal("a first click on the label opened the screen")
 	}
 	m = next.(Model)
-	if m.cursor != rowAbout {
-		t.Fatalf("the click left the cursor on %q", m.cursor)
+	if m.cursor() != rowAbout {
+		t.Fatalf("the click left the cursor on %q", m.cursor())
 	}
 	_, cmd = m.Update(tea.MouseClickMsg{X: 8, Y: y, Button: tea.MouseLeft}, ctx)
 	s, ok := findPush(flattenCmd(cmd))
@@ -118,8 +119,8 @@ func TestAboutOpensWhatsNew(t *testing.T) {
 // rowOf finds a row by id.
 func rowOf(cfg config.Config, id string) row {
 	for _, g := range groups(cfg, nil, "0.4.0") {
-		for _, r := range g.rows {
-			if r.id == id {
+		for _, r := range g.Items {
+			if r.ID == id {
 				return r
 			}
 		}
@@ -130,9 +131,9 @@ func rowOf(cfg config.Config, id string) row {
 // bodyRowOf is the body row the row with this id is drawn on.
 func bodyRowOf(t *testing.T, m Model, ctx uictx.Context, id string) int {
 	t.Helper()
-	lo := m.arrange(ctx)
+	spec := m.spec(ctx)
 	for y := range ctx.BodyHeight {
-		if r, _, ok := lo.rowAt(y, 6); ok && r.id == id {
+		if r, ok := m.list.ItemAt(ctx, spec, y, 6); ok && r.ID == id {
 			return y
 		}
 	}

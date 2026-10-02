@@ -122,13 +122,13 @@ func (m manageScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.
 		m.st = msg.st
 		var items []menu.Item
 		for _, a := range msg.st.AccountsFor(m.tool) {
-			desc := "no folder rule uses it"
+			desc := "not chosen for any folder"
 			if rs := msg.st.RulesUsing(m.tool, a.Name); len(rs) > 0 {
 				var fs []string
 				for _, r := range rs {
 					fs = append(fs, r.Folder)
 				}
-				desc = "rules: " + strings.Join(fs, ", ")
+				desc = "chosen for " + strings.Join(fs, ", ")
 			}
 			items = append(items, menu.Item{ID: a.Name, Title: a.Display(), Desc: desc})
 		}
@@ -214,7 +214,7 @@ func (m manageScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.
 
 // listIntro is the line above the list.
 func (m manageScreen) listIntro(ctx uictx.Context) []string {
-	return wrap(ctx, ctx.Theme.Muted, "The default account is the tool's own sign-in, so it is not listed. Select one, then press r or d.", 1, 0)
+	return wrap(ctx, ctx.Theme.Muted, "Your usual sign-in is the tool's own, so it is not listed. Pick one, then press r to rename it or d to remove it.", 1, 0)
 }
 
 // listTop is the body row the list starts on.
@@ -243,14 +243,14 @@ func (m manageScreen) View(ctx uictx.Context) string {
 		out = append(out, " "+th.Muted.Render("Reading the accounts"+ellipsis(ctx)))
 	case mgList:
 		if len(m.list.Items()) == 0 {
-			out = append(out, wrap(ctx, th.Muted, "Devpit has no named "+m.tool.DisplayName()+" account yet. The default account is the tool's own sign-in; it is not Devpit's to rename or remove.", 1, 0)...)
+			out = append(out, wrap(ctx, th.Muted, "Devpit has not saved any "+m.tool.DisplayName()+" account yet. Your usual sign-in is the tool's own; it is not Devpit's to rename or remove.", 1, 0)...)
 			break
 		}
 		out = append(out, m.listIntro(ctx)...)
 		out = append(out, "", m.sizedList(ctx).View(ctx))
 	case mgRename:
 		out = append(out, " "+th.Base.Render("A new name for "+m.target+":"), " "+styleInput(m.name, ctx).View())
-		out = append(out, "   "+th.Muted.Render("Folder rules that use it keep using it under the new name."))
+		out = append(out, "   "+th.Muted.Render("Folders that use it keep using it under the new name."))
 	case mgChange:
 		out = append(out, m.change.view(ctx, ctx.BodyHeight-2)...)
 	case mgFailed:

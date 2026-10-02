@@ -1,20 +1,20 @@
- Name the new Claude Code account                    in C:\Projects\quiz-slayer
-
- ✓ Signed in as you@side.example
-
- What should Devpit call this account?
- › work
-   ✗ Another account already has this name.
-
- [enter] save  [esc] throw this sign-in away
-
-
-
-
-
-
-
-
-
-
-[keys] enter save
+  Right now ──────────────────────────────────────── in C:\Projects\quiz-slayer
+    Signed in as   work (you@work.example)
+    Why this one   chosen for C:\Projects and the folders inside it
+    Other folders  your usual Claude Code sign-in (you@personal.example)
+  Change the account ───────────────────
+    Use another account here           ›
+    Use another account everywhere     ›
+▌ ▸ Use another account just once      ›
+    Forget this folder's choice        ›
+  Sign in ──────────────────────────────
+    Sign in again                      ›
+    Sign in with another account       ›
+  Claude Code setup ────────────────────
+    Bring your Claude Code setup over  ›
+  Manage ───────────────────────────────
+    Rename or remove an account        ›
+  Use another account just once ──────────────────────────────────────────────
+  Run one command with another account. Nothing is saved and nothing else
+  changes. You pick an account and get the command to run.
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

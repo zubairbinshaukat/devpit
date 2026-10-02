@@ -1,18 +1,18 @@
  Where should work be used?                                              in C:\Projects\quiz-slayer
 
+ Then you see a preview. Nothing changes until you say yes.
+
 | > This folder
 |   C:\Projects\quiz-slayer and every folder inside it
 
     Everywhere
-    Wherever no folder rule says otherwise. Now: default (you@personal.example)
+    Every folder without a choice of its own. Now: your usual Claude Code sign-in (you@personal.e...
 
     Just this once
     One command, run from a terminal. Nothing is saved.
 
-    Another folder…
-    Pick a folder; the rule covers it and every folder inside it
-
-
+    Another folder
+    Pick a folder; the choice covers it and every folder inside it
 
 
 

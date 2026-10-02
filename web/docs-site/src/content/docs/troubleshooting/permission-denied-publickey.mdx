@@ -33,7 +33,7 @@ Your computer tried to log in with a key pair. The server looked at the public k
 
 In Devpit, SSH keys for GitHub live under **Accounts**, on the **GitHub** row. See [Git and GitHub accounts](/docs/features/accounts-git-and-github#generate-an-ssh-key).
 
-- **Push with an SSH key…** creates an ed25519 key with `ssh-keygen` in your `.ssh` folder, with its own file name per account, and shows the public half so you can paste it into GitHub.
+- **Push with an SSH key** creates an ed25519 key with `ssh-keygen` in your `.ssh` folder, with its own file name per account, and shows the public half so you can paste it into GitHub.
 - It never overwrites an existing key. If a file is already there, it stops.
 - It can use that key for one folder only (`core.sshCommand` with `IdentitiesOnly=yes`), so the right GitHub account is used there.
 - The key has an empty passphrase (Devpit runs `ssh-keygen` with an empty `-N`).
@@ -49,7 +49,7 @@ ssh -vT git@github.com
 ```
 
 2. Read the output. "identity file ... type -1" and "Trying private key" mean SSH found no key file. Lines that say "Offering public key" mean it found one.
-3. If there is no key, use **Push with an SSH key…** in Devpit, or run ssh-keygen yourself:
+3. If there is no key, use **Push with an SSH key** in Devpit, or run ssh-keygen yourself:
 
 ```powershell
 ssh-keygen -t ed25519 -C "your_email@example.com"

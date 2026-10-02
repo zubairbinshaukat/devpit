@@ -1,10 +1,10 @@
  Claude Code accounts
 
- The default account is the tool's own sign-in, so it is not listed. Select one, then press r or d.
+ Your usual sign-in is the tool's own, so it is not listed. Pick one, then press r to rename it or
+ d to remove it.
 
 ▌ ▸ work (you@work.example)
-▌   rules: C:\Projects
-
+▌   chosen for C:\Projects
 
 
 

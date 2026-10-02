@@ -11,7 +11,7 @@
     Convex       + project: quiz-slayer        set by this project's .env.local
 
  Nothing is set up yet, so every tool uses its own sign-in. To use a second
- account here, pick a tool, press Enter, then "Use another account here…".
+ account here, pick a tool, press Enter, then "Use another account here".
 
 
 

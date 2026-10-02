@@ -360,7 +360,7 @@ func (m verifyScreen) details(ctx uictx.Context) []string {
 			out = append(out, docsLine(ctx, p, 3)...)
 		}
 		if m.fixable(m.cursor) {
-			out = append(out, " "+ctx.KeyHint("f", "fix this"))
+			out = append(out, " "+ctx.KeyHint("f", "fix this on the tool's page"))
 		}
 	}
 	if !m.all {

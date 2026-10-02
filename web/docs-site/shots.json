@@ -25,7 +25,7 @@
   },
   {
     "name": "accounts-tool-claude",
-    "alt": "Claude Code tool page in Devpit Accounts showing who is signed in, where that comes from, and actions such as Use another account here, Just this once, Sign in again and Bring your Claude Code setup over",
+    "alt": "Claude Code page in Devpit Accounts: a Right now block with who is signed in here, why that account and which one other folders use, then choices grouped under Change the account, Sign in, Claude Code setup and Manage, with the highlighted choice explained beside them",
     "screen": "accounts",
     "state": "tool-claude",
     "cols": 100,
@@ -81,7 +81,7 @@
   },
   {
     "name": "accounts-git",
-    "alt": "Git page in Devpit Accounts with two rows, Commits as and Pushes as, and actions to commit as another identity, push as another GitHub account or push with an SSH key",
+    "alt": "Git page in Devpit Accounts: a Right now block saying who commits are made as and which GitHub account pushes use, and where each comes from, then choices grouped under Commits, Pushes and Manage, with the highlighted choice explained beside them",
     "screen": "accounts",
     "state": "git",
     "cols": 100,
@@ -89,7 +89,7 @@
   },
   {
     "name": "accounts-git-preview",
-    "alt": "Preview of a Git identity folder rule saying Git will commit as the work email in this folder and every folder inside it",
+    "alt": "Preview of a Git folder rule saying Git will commit with the work name and email in this folder and every folder inside it",
     "screen": "accounts",
     "state": "git-preview",
     "cols": 100,

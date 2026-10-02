@@ -52,8 +52,8 @@ func New() Model {
 // Items returns the two entries, in the order the menu draws them.
 func Items() []menu.Item {
 	return []menu.Item{
-		{ID: ItemInstall, Title: "Install developer apps", Desc: "Pick dev apps and install them with your package manager"},
-		{ID: ItemUpdate, Title: "Update everything", Desc: "Update apps and tools through every package manager found"},
+		{ID: ItemInstall, Title: "Install developer apps", Desc: "Pick apps from a list; Devpit installs them for you"},
+		{ID: ItemUpdate, Title: "Update everything", Desc: "See what is out of date, then pick what to update"},
 	}
 }
 

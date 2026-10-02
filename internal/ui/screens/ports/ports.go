@@ -183,17 +183,17 @@ func submenuItems() []menu.Item {
 		{
 			ID:    itemKillPort,
 			Title: "Kill a port",
-			Desc:  "Type a port number and free whatever is listening on it",
+			Desc:  "Type a port number, see what uses it, close it after a yes",
 		},
 		{
 			ID:    itemBusyPorts,
 			Title: "Busy dev ports",
-			Desc:  "Check every configured dev port at once",
+			Desc:  "See which dev server ports are in use; close what is stuck",
 		},
 		{
 			ID:    itemNodeProcs,
 			Title: "Node processes",
-			Desc:  "List and stop node, npm, pnpm or yarn",
+			Desc:  "See running node, npm, pnpm and yarn; stop the ones you pick",
 		},
 	}
 }

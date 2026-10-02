@@ -1,26 +1,26 @@
- Name the new Claude Code account                                        in C:\Projects\quiz-slayer
+  Right now --------------------------------------------------------- in C:\Projects\quiz-slayer
+    Signed in as   work (you@work.example)
+    Why this one   chosen for C:\Projects and the folders inside it
+    Other folders  your usual Claude Code sign-in (you@personal.example)
 
- + Signed in as you@work.example
- ! Same login twice: new is signed in as you@work.example, like work. Two folders signed in to the
-   same account can sign each other out when the login refreshes.
-
- What should Devpit call this account?
- > work-2
-   Letters, digits and dashes. You type it in commands, like devpit claude use work.
-
- [enter] save  [esc] throw this sign-in away
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[keys] enter save
+  Change the account -------------------  |  Forget this folder's choice
+    Use another account here           >  |
+    Use another account everywhere     >  |  Claude Code uses work here because you chose it for
+    Use another account just once      >  |  C:\Projects and the folders inside it. Forget that
+| > Forget this folder's choice        >  |  choice and this folder uses the account of the folder
+                                          |  around it, or your usual one.
+  Sign in ------------------------------  |
+    Sign in again                      >  |  You see a preview first. Nothing changes until you say
+    Sign in with another account       >  |  yes.
+                                          |
+  Claude Code setup --------------------  |  [enter] open
+    Bring your Claude Code setup over  >  |
+                                          |
+  Manage -------------------------------  |
+    Rename or remove an account        >  |
+                                          |
+                                          |
+                                          |
+                                          |
+                                          |
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in

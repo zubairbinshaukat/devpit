@@ -29,6 +29,7 @@ import (
 
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/choices"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/version"
@@ -38,42 +39,22 @@ import (
 // savedFor is how long a row says "✓ saved" after a change.
 const savedFor = 1500 * time.Millisecond
 
-// keyMap is the list's keys.
-type keyMap struct {
-	Up, Down, Home, End, PageUp, PageDown key.Binding
-	Change, Left, Right                   key.Binding
-}
+// saveNote is the one reassurance the screen keeps on show, quietly.
+const saveNote = "Changes save as soon as you make them."
 
-func newKeyMap() keyMap {
-	return keyMap{
-		Up:       key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑↓", "move")),
-		Down:     key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
-		Home:     key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("home", "first")),
-		End:      key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("end", "last")),
-		PageUp:   key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
-		PageDown: key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdown", "page down")),
-		Change:   key.NewBinding(key.WithKeys("enter", "space"), key.WithHelp("enter", "change/open")),
-		Left:     key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←→", "choose")),
-		Right:    key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→", "next")),
-	}
-}
+// valueW fixes the value column, so stepping a value never moves it.
+const valueW = 20
 
-// Model is the settings screen.
+// Model is the settings screen: the shared choices list over the groups.
 type Model struct {
 	opts  Options
-	keys  keyMap
+	list  choices.Model
 	skill *skillSession
 
-	// cursor is the id of the highlighted row; "" means the first.
-	cursor string
-	// offset is the first line drawn when the list scrolls.
-	offset int
 	// openSkill opens the AI agent skill screen as soon as Settings is up:
 	// the What's new card's offer lands there.
 	openSkill bool
-	// savedID is the row showing "✓ saved"; savedSeq tells a stale fade
-	// from the current one.
-	savedID  string
+	// savedSeq tells a stale "✓ saved" fade from the current one.
 	savedSeq int
 
 	// Engine hooks. Production leaves these at their New defaults, which
@@ -105,9 +86,11 @@ func NewWith(o Options) Model {
 	if o.Version == "" {
 		o.Version = version.Short()
 	}
+	list := choices.New()
+	list.Keys.Change.SetHelp("enter", "change/open")
 	return Model{
 		opts:  o,
-		keys:  newKeyMap(),
+		list:  list,
 		skill: &skillSession{open: o.Skill},
 
 		fontStatusFn:  fonts.Status,
@@ -135,7 +118,7 @@ func (m Model) Init() tea.Cmd {
 // made there is on the Settings row on the way back.
 func (m Model) OpeningSkill() Model {
 	m.openSkill = true
-	m.cursor = rowSkill
+	m.list = m.list.SetCursor(rowSkill)
 	return m
 }
 
@@ -144,23 +127,22 @@ func (m Model) Title() string { return "Settings" }
 
 // ShortHelp implements uictx.Screen.
 func (m Model) ShortHelp() []key.Binding {
-	return []key.Binding{m.keys.Up, m.keys.Change, m.keys.Left}
+	return []key.Binding{m.list.Keys.Up, m.list.Keys.Change, m.list.Keys.Left}
 }
 
 // FullHelp implements uictx.Screen.
-func (m Model) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{m.keys.Up, m.keys.Down, m.keys.Home, m.keys.End, m.keys.PageUp, m.keys.PageDown},
-		{m.keys.Change, m.keys.Left, m.keys.Right},
-	}
-}
+func (m Model) FullHelp() [][]key.Binding { return m.list.Keys.FullHelp() }
 
 // savedFadeMsg clears the "✓ saved" mark it was scheduled for.
 type savedFadeMsg struct{ seq int }
 
-// arrange is this frame's layout.
-func (m Model) arrange(ctx uictx.Context) layout {
-	return arrange(ctx, groups(ctx.Config, m.skill, m.opts.Version), m.cursor, m.offset)
+// spec is what the list shows this frame.
+func (m Model) spec(ctx uictx.Context) choices.Spec {
+	return choices.Spec{
+		Groups:     groups(ctx.Config, m.skill, m.opts.Version),
+		Note:       saveNote,
+		ValueWidth: valueW,
+	}
 }
 
 // Update implements uictx.Screen.
@@ -168,137 +150,35 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	switch msg := msg.(type) {
 	case skillLoadedMsg:
 		m.skill.apply(msg)
-		return m.settle(ctx), nil
-
+		m.list = m.list.Settle(ctx, m.spec(ctx))
+		return m, nil
 	case savedFadeMsg:
 		if msg.seq == m.savedSeq {
-			m.savedID = ""
-		}
-		return m, nil
-
-	case tea.KeyPressMsg:
-		return m.onKey(msg, ctx)
-
-	case tea.MouseWheelMsg:
-		switch msg.Button {
-		case tea.MouseWheelUp:
-			return m.move(ctx, -1), nil
-		case tea.MouseWheelDown:
-			return m.move(ctx, 1), nil
-		}
-		return m, nil
-
-	case tea.MouseClickMsg:
-		if msg.Button != tea.MouseLeft {
-			return m, nil
-		}
-		lo := m.arrange(ctx)
-		r, onValue, ok := lo.rowAt(ctx.BodyRow(msg.Y), msg.X)
-		if !ok {
-			return m, nil
-		}
-		// A click on a row's value changes it, as does a second click on the
-		// row already highlighted; a first click elsewhere only moves there.
-		already := r.id == lo.cur
-		m.cursor = r.id
-		m = m.settle(ctx)
-		if onValue || already {
-			return m.activate(ctx, r, 1)
-		}
-		return m, nil
-
-	case tea.MouseMotionMsg:
-		// The pointer passing over a row highlights it and shows its
-		// description. It never scrolls the list: a row under the pointer is
-		// already on screen, so the list stays put under a still pointer.
-		lo := m.arrange(ctx)
-		if r, _, ok := lo.rowAt(ctx.BodyRow(msg.Y), msg.X); ok && r.id != lo.cur {
-			next := m
-			next.cursor, next.offset = r.id, lo.start
-			if next.arrange(ctx).start == lo.start {
-				return next, nil
-			}
+			m.list = m.list.MarkSaved("")
 		}
 		return m, nil
 	}
-	return m, nil
-}
-
-// onKey handles the list's keys.
-func (m Model) onKey(msg tea.KeyPressMsg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
-	lo := m.arrange(ctx)
-	switch {
-	case key.Matches(msg, m.keys.Up):
-		return m.move(ctx, -1), nil
-	case key.Matches(msg, m.keys.Down):
-		return m.move(ctx, 1), nil
-	case key.Matches(msg, m.keys.Home):
-		return m.move(ctx, -len(lo.sel)), nil
-	case key.Matches(msg, m.keys.End):
-		return m.move(ctx, len(lo.sel)), nil
-	case key.Matches(msg, m.keys.PageUp):
-		return m.move(ctx, -max(1, lo.listH/2)), nil
-	case key.Matches(msg, m.keys.PageDown):
-		return m.move(ctx, max(1, lo.listH/2)), nil
-	}
-	r, ok := m.focused(lo)
-	if !ok {
+	next, act := m.list.Update(msg, ctx, m.spec(ctx))
+	m.list = next
+	if act.ID == "" {
 		return m, nil
 	}
-	switch {
-	case key.Matches(msg, m.keys.Change):
-		return m.activate(ctx, r, 1)
-	case key.Matches(msg, m.keys.Left) && r.kind != kindOpen:
-		return m.activate(ctx, r, -1)
-	case key.Matches(msg, m.keys.Right) && r.kind != kindOpen:
-		return m.activate(ctx, r, 1)
-	}
-	return m, nil
-}
-
-// move steps the cursor by n rows, stopping at the ends, and scrolls the list
-// so it stays on screen. Headings and notes are never stopped on.
-func (m Model) move(ctx uictx.Context, n int) Model {
-	lo := m.arrange(ctx)
-	if len(lo.sel) == 0 {
-		return m
-	}
-	at := 0
-	for i, r := range lo.sel {
-		if r.id == lo.cur {
-			at = i
-		}
-	}
-	at = min(max(0, at+n), len(lo.sel)-1)
-	m.cursor = lo.sel[at].id
-	return m.settle(ctx)
-}
-
-// settle keeps the scroll position that puts the cursor on screen.
-func (m Model) settle(ctx uictx.Context) Model {
-	lo := m.arrange(ctx)
-	m.offset = lo.start
-	m.cursor = lo.cur
-	return m
+	return m.activate(ctx, act)
 }
 
 // activate acts on a row: cycles or flips it and saves, or opens its screen.
-// dir is +1 for the next choice and -1 for the one before.
-func (m Model) activate(ctx uictx.Context, r row, dir int) (uictx.Screen, tea.Cmd) {
-	switch r.kind {
-	case kindNote:
-		return m, nil
-	case kindOpen:
-		if scr, ok := m.subScreen(r.id, ctx.Config); ok {
+func (m Model) activate(ctx uictx.Context, a choices.Act) (uictx.Screen, tea.Cmd) {
+	if a.Kind == kindOpen {
+		if scr, ok := m.subScreen(a.ID, ctx.Config); ok {
 			return m, uictx.Push(scr)
 		}
 		return m, nil
 	}
-	cfg, changed := apply(ctx.Config, r.id, dir)
+	cfg, changed := apply(ctx.Config, a.ID, a.Dir)
 	if !changed {
 		return m, nil
 	}
-	m.savedID = r.id
+	m.list = m.list.MarkSaved(a.ID)
 	m.savedSeq++
 	seq := m.savedSeq
 	return m, tea.Batch(
@@ -308,9 +188,7 @@ func (m Model) activate(ctx uictx.Context, r row, dir int) (uictx.Screen, tea.Cm
 }
 
 // View implements uictx.Screen.
-func (m Model) View(ctx uictx.Context) string {
-	return m.view(ctx, m.arrange(ctx))
-}
+func (m Model) View(ctx uictx.Context) string { return m.list.View(ctx, m.spec(ctx)) }
 
 // subScreen builds the private sub-screen a row pushes, if it has one.
 func (m Model) subScreen(id string, cfg config.Config) (uictx.Screen, bool) {

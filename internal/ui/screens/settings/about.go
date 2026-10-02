@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/about"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/logo"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
@@ -68,7 +69,7 @@ func (s aboutScreen) View(ctx uictx.Context) string {
 	b.WriteString("\n\n")
 
 	rows := [][2]string{
-		{"Version", "v" + s.version},
+		{"Version", header.VersionLabel(s.version)},
 		{"Build", version.Commit + ", " + version.Date},
 		{"Author", about.Author + " (" + about.Handle + ")"},
 		{"Portfolio", about.Portfolio},

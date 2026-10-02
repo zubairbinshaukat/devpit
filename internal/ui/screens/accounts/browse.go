@@ -429,7 +429,7 @@ func (m browseScreen) View(ctx uictx.Context) string {
 				"  "+ctx.KeyHint("x", "fix old rules"))
 		} else if len(m.st.Rules) == 0 {
 			out = append(out, "")
-			out = append(out, wrap(ctx, th.Muted, "No folder has a rule yet. Open a tool on the Accounts page and pick \"Use another account here…\" to make one.", 1, 0)...)
+			out = append(out, wrap(ctx, th.Muted, "No folder has a rule yet. A folder rule is an account you chose for a folder and the folders inside it: open a tool on the Accounts page and pick \"Use another account here\" to make one.", 1, 0)...)
 		}
 	case bFix:
 		out = append(out, m.fixIntro(ctx)...)

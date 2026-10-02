@@ -3,10 +3,10 @@
  › wo
 
 ▌ ▸ work (you@work.example)                                            used here
-▌   rules: C:\Projects
+▌   chosen for C:\Projects
 
-    + Sign in with another account…
-    Run Claude Code's own sign-in and name the account
+    + Sign in with another account
+    Claude Code's own sign-in runs here, then you give the account a short name
 
 
 

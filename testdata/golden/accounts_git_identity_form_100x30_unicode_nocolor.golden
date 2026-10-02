@@ -1,12 +1,12 @@
- A new Git identity
+ A new name and email to commit with
 
- Name in Devpit  what you type in commands, like devpit git use work
+ Short name  how Devpit lists it, like work
  › oss
 
- Commit name  leave empty to keep the name in your global Git config
+ Name on commits  leave empty to keep the name in your usual Git settings
  › You
 
- Email  the address commits are made with
+ Email on commits  the address your commits show
  › you@example.com
 
  Suggested by your GitHub accounts (Tab to here, Enter to pick):

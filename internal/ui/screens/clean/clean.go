@@ -1119,7 +1119,7 @@ func submenuRows() []menu.Item {
 		{
 			ID:    rowProject,
 			Title: "Project Junk",
-			Desc:  "node_modules, dist, target, build output in your projects folder",
+			Desc:  "Scan your projects folder for node_modules, dist, build and target",
 		},
 		{
 			ID:    rowFull,
@@ -1128,13 +1128,13 @@ func submenuRows() []menu.Item {
 		},
 		{
 			ID:    rowChoose,
-			Title: "Choose folder…",
-			Desc:  "Scan a folder other than your default one",
+			Title: "Choose folder",
+			Desc:  "Pick another folder to scan, then see what it holds",
 		},
 		{
 			ID:    rowResume,
 			Title: "Resume interrupted deletes",
-			Desc:  "Finish anything a stopped clean left behind",
+			Desc:  "Finish deleting what a stopped clean-up left half done",
 		},
 	}
 }

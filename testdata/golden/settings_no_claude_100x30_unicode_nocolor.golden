@@ -1,14 +1,14 @@
- DEVPIT  vdev  ·  Settings                                                           node …   git …
+ DEVPIT  dev  ·  Settings                                                            node …   git …
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
 ──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
                                                    │
   Look ──────────────────────────────────────────  │  Usage stats
     Theme                 ‹ auto ›                 │
-    Icons                 ‹ unicode ›              │  When on, Devpit sends one small report after a
-    Emoji                 ○ off                    │  cleanup: space freed and how many items. Never
-    Icon font             not installed         ›  │  a file name, a path or anything about you. Off
-    Icon check            needs the icon font   ›  │  unless you turn it on.
+    Icons                 ‹ unicode ›              │  When on, Devpit sends one small report after
+    Emoji                 ○ off                    │  a cleanup: space freed and how many items.
+    Icon font             not installed         ›  │  Never a file name, a path or anything about
+    Icon check            needs the icon font   ›  │  you. Off unless you turn it on.
   Cleaning ──────────────────────────────────────  │
     Projects folder       D:\work\projects      ›  │  [enter] turn on
     Never-touch folders   2 folders             ›  │

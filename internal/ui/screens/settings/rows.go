@@ -6,6 +6,8 @@ import (
 
 	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/choices"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 )
 
@@ -30,42 +32,20 @@ const (
 	rowWhatsNew   = "whats_new"
 )
 
-// rowKind is how a row changes.
-type rowKind int
-
-const (
-	// kindCycle steps through a list of values in place: ‹ auto ›.
-	kindCycle rowKind = iota
-	// kindToggle switches on and off in place.
-	kindToggle
-	// kindOpen opens a screen of its own: a trailing ›.
-	kindOpen
-	// kindNote is a quiet line that is never selected.
-	kindNote
+// row is one setting as the list draws it, and group a heading and its
+// rows: the shared choices component's own types.
+type (
+	row   = choices.Item
+	group = choices.Group
 )
 
-// row is one setting as the list draws it.
-type row struct {
-	id    string
-	label string
-	// value is the current value in words. A toggle's value is on.
-	value string
-	on    bool
-	// quiet draws the value in the muted grey: "not set", "none".
-	quiet bool
-	// path marks a value that is a folder, shortened in the middle.
-	path bool
-	kind rowKind
-	// desc says what the setting does and what its values mean, in plain
-	// words for someone who has never opened Settings before.
-	desc string
-}
-
-// group is a heading and its rows.
-type group struct {
-	title string
-	rows  []row
-}
+// The ways a row changes, in the component's words.
+const (
+	kindCycle  = choices.Cycles
+	kindToggle = choices.Toggles
+	kindOpen   = choices.Opens
+	kindNote   = choices.Note
+)
 
 // iconTiers, themes and managers are the cycle orders for the in-place enum
 // settings. managers starts with "", which Preferred (internal/tools/
@@ -82,91 +62,91 @@ var (
 // first.
 func groups(cfg config.Config, skill *skillSession, ver string) []group {
 	return []group{
-		{"Look", []row{
+		{Title: "Look", Items: []row{
 			{
-				id: rowTheme, label: "Theme", value: cfg.Theme, kind: kindCycle,
-				desc: "The colours Devpit uses. auto follows your terminal, light or dark; dark and light pick one. " +
+				ID: rowTheme, Label: "Theme", Value: cfg.Theme, Kind: kindCycle,
+				Desc: "The colours Devpit uses. auto follows your terminal, light or dark; dark and light pick one. " +
 					"aqua, blue and rose change the accent colour, and mono uses no colour at all, only shapes and words.",
 			},
 			{
-				id: rowIcons, label: "Icons", value: cfg.Icons, kind: kindCycle,
-				desc: "The symbols Devpit draws. unicode works in every modern terminal. nerd adds file and tool icons " +
+				ID: rowIcons, Label: "Icons", Value: cfg.Icons, Kind: kindCycle,
+				Desc: "The symbols Devpit draws. unicode works in every modern terminal. nerd adds file and tool icons " +
 					"but needs the icon font below. ascii uses plain letters for old consoles. auto picks for you.",
 			},
 			{
-				id: rowEmoji, label: "Emoji", on: cfg.Emoji, kind: kindToggle,
-				desc: "An emoji now and then in titles and summaries, such as the flag on the welcome screen. " +
+				ID: rowEmoji, Label: "Emoji", On: cfg.Emoji, Kind: kindToggle,
+				Desc: "An emoji now and then in titles and summaries, such as the flag on the welcome screen. " +
 					"Never in lists or tables, so columns always line up.",
 			},
 			{
-				id: rowFont, label: "Icon font", value: fontLabel(cfg), quiet: !cfg.FontInstalled, kind: kindOpen,
-				desc: "Installs the free Symbols Nerd Font for your Windows user (no admin needed) and adds it to " +
+				ID: rowFont, Label: "Icon font", Value: fontLabel(cfg), Quiet: !cfg.FontInstalled, Kind: kindOpen,
+				Desc: "Installs the free Symbols Nerd Font for your Windows user (no admin needed) and adds it to " +
 					"Windows Terminal as a fallback, so nerd icons can draw. Your own font stays as it is.",
 			},
 			{
-				id: rowProbe, label: "Icon check", value: probeLabel(cfg), quiet: !cfg.GlyphsConfirmed, kind: kindOpen,
-				desc: "Shows a few icons and asks whether they look right. Nerd icons are only used after you say yes, " +
+				ID: rowProbe, Label: "Icon check", Value: probeLabel(cfg), Quiet: !cfg.GlyphsConfirmed, Kind: kindOpen,
+				Desc: "Shows a few icons and asks whether they look right. Nerd icons are only used after you say yes, " +
 					"so a terminal that cannot draw them never shows boxes instead.",
 			},
 		}},
-		{"Cleaning", []row{
+		{Title: "Cleaning", Items: []row{
 			folderRow(cfg),
 			{
-				id: rowNeverT, label: "Never-touch folders", value: count(len(cfg.NeverTouch), "folder", "folders"),
-				quiet: len(cfg.NeverTouch) == 0, kind: kindOpen,
-				desc: "Folders Devpit never scans and never deletes from, whatever is inside them. " +
+				ID: rowNeverT, Label: "Never-touch folders", Value: count(len(cfg.NeverTouch), "folder", "folders"),
+				Quiet: len(cfg.NeverTouch) == 0, Kind: kindOpen,
+				Desc: "Folders Devpit never scans and never deletes from, whatever is inside them. " +
 					"Devpit's own files and login folders such as .ssh and .claude are protected anyway.",
 			},
 			{
-				id: rowActiveDays, label: "Recent projects", value: "last " + days(cfg.ActiveDays), kind: kindOpen,
-				desc: fmt.Sprintf("A project you changed in the last %s counts as in use. Its junk is still listed but "+
+				ID: rowActiveDays, Label: "Recent projects", Value: "last " + days(cfg.ActiveDays), Kind: kindOpen,
+				Desc: fmt.Sprintf("A project you changed in the last %s counts as in use. Its junk is still listed but "+
 					"never ticked for you, so you do not delete something you are working on.", days(cfg.ActiveDays)),
 			},
 			{
-				id: rowOlderDays, label: "Age filter", value: "older than " + days(cfg.OlderDays), kind: kindOpen,
-				desc: fmt.Sprintf("In the cleaning results, the age filter shows only folders nobody touched for more "+
+				ID: rowOlderDays, Label: "Age filter", Value: "older than " + days(cfg.OlderDays), Kind: kindOpen,
+				Desc: fmt.Sprintf("In the cleaning results, the age filter shows only folders nobody touched for more "+
 					"than %s, so old leftovers stand out. This sets the number of days.", days(cfg.OlderDays)),
 			},
 			{
-				id: rowRescan, label: "Forget last scan", kind: kindOpen,
-				desc: "Devpit remembers the last scan so results show up at once next time. This clears that memory, " +
+				ID: rowRescan, Label: "Forget last scan", Kind: kindOpen,
+				Desc: "Devpit remembers the last scan so results show up at once next time. This clears that memory, " +
 					"so the next scan reads the disk from scratch. Nothing on disk is deleted.",
 			},
 		}},
-		{"Tools", []row{
+		{Title: "Tools", Items: []row{
 			{
-				id: rowManager, label: "Package manager", value: managerLabel(cfg.PreferredManager), kind: kindCycle,
-				desc: "Which installer Install & Update uses for new apps. auto uses Scoop if you have it, " +
+				ID: rowManager, Label: "Package manager", Value: managerLabel(cfg.PreferredManager), Kind: kindCycle,
+				Desc: "Which installer Install & Update uses for new apps. auto uses Scoop if you have it, " +
 					"then winget, then Chocolatey. Pick one to always use it.",
 			},
 			{
-				id: rowDevPorts, label: "Dev ports", value: count(len(cfg.DevPorts), "port", "ports"), kind: kindOpen,
-				desc: "The ports Busy dev ports looks at in Ports & Network: the ones dev servers usually use, " +
+				ID: rowDevPorts, Label: "Dev ports", Value: count(len(cfg.DevPorts), "port", "ports"), Kind: kindOpen,
+				Desc: "The ports Busy dev ports looks at in Ports & Network: the ones dev servers usually use, " +
 					"such as 3000 to 3010, 5173 and 8080. Add your own, or go back to the defaults.",
 			},
 		}},
-		{"AI agents", []row{skillRow(skill)}},
-		{"Privacy and updates", []row{
+		{Title: "AI agents", Items: []row{skillRow(skill)}},
+		{Title: "Privacy and updates", Items: []row{
 			{
-				id: rowTelemetry, label: "Usage stats", on: cfg.TelemetryOptIn, kind: kindToggle,
-				desc: "When on, Devpit sends one small report after a cleanup: space freed and how many items. " +
+				ID: rowTelemetry, Label: "Usage stats", On: cfg.TelemetryOptIn, Kind: kindToggle,
+				Desc: "When on, Devpit sends one small report after a cleanup: space freed and how many items. " +
 					"Never a file name, a path or anything about you. Off unless you turn it on.",
 			},
 			{
-				id: rowUpdates, label: "Update check", on: !cfg.SkipUpdateCheck, kind: kindToggle,
-				desc: "When on, Devpit asks GitHub once a day whether a newer version is out, and says so at the top. " +
+				ID: rowUpdates, Label: "Update check", On: !cfg.SkipUpdateCheck, Kind: kindToggle,
+				Desc: "When on, Devpit asks GitHub once a day whether a newer version is out, and says so at the top. " +
 					"It sends nothing about you and never installs anything by itself.",
 			},
 		}},
-		{"About", []row{
+		{Title: "About", Items: []row{
 			{
-				id: rowAbout, label: "About Devpit", value: "v" + ver, kind: kindOpen,
-				desc: "The version you are running, who makes Devpit, links to the website and the source, " +
+				ID: rowAbout, Label: "About Devpit", Value: header.VersionLabel(ver), Kind: kindOpen,
+				Desc: "The version you are running, who makes Devpit, links to the website and the source, " +
 					"and the one command that updates your install.",
 			},
 			{
-				id: rowWhatsNew, label: "What's new", value: whatsNewLabel(ver), kind: kindOpen,
-				desc: "What changed in this version and where things moved: the same card Devpit shows once after an update.",
+				ID: rowWhatsNew, Label: "What's new", Value: whatsNewLabel(ver), Kind: kindOpen,
+				Desc: "What changed in this version and where things moved: the same card Devpit shows once after an update.",
 			},
 		}},
 	}
@@ -176,16 +156,16 @@ func groups(cfg config.Config, skill *skillSession, ver string) []group {
 // middle when long, with the whole of it in the description.
 func folderRow(cfg config.Config) row {
 	r := row{
-		id: rowFolders, label: "Projects folder", kind: kindOpen, path: true,
-		desc: "The folder Free Up Disk Space looks through first, usually where you keep your code. " +
+		ID: rowFolders, Label: "Projects folder", Kind: kindOpen, Path: true,
+		Desc: "The folder Free Up Disk Space looks through first, usually where you keep your code. " +
 			"It also lists the folders you scanned lately, so you can remove one.",
 	}
 	if cfg.DefaultProjectsFolder == "" {
-		r.value, r.quiet, r.path = "not set", true, false
+		r.Value, r.Quiet, r.Path = "not set", true, false
 		return r
 	}
-	r.value = cfg.DefaultProjectsFolder
-	r.desc += " Now: " + cfg.DefaultProjectsFolder
+	r.Value = cfg.DefaultProjectsFolder
+	r.Desc += " Now: " + cfg.DefaultProjectsFolder
 	return r
 }
 
@@ -195,38 +175,38 @@ func folderRow(cfg config.Config) row {
 // where the skill will be.
 func skillRow(s *skillSession) row {
 	r := row{
-		id: rowSkill, label: "AI agent skill", kind: kindOpen,
-		desc: "Lets Claude Code use Devpit for you: check which account a folder uses and explain why. " +
+		ID: rowSkill, Label: "AI agent skill", Kind: kindOpen,
+		Desc: "Lets Claude Code use Devpit for you: check which account a folder uses and explain why. " +
 			"It never changes anything without your yes. Open it to see the details, then install or remove it.",
 	}
 	switch {
 	case s == nil || !s.loaded:
-		r.value, r.quiet = "checking…", true
+		r.Value, r.Quiet = "checking…", true
 		return r
 	case s.err != nil:
-		r.value, r.quiet = "could not check", true
-		r.desc = "Devpit could not look at Claude Code's skills folder. Open it to see why."
+		r.Value, r.Quiet = "could not check", true
+		r.Desc = "Devpit could not look at Claude Code's skills folder. Open it to see why."
 		return r
 	case !s.status.ClaudeCode:
-		return row{id: rowSkill, label: "Claude Code is not installed.", kind: kindNote}
+		return row{ID: rowSkill, Label: "Claude Code is not installed.", Kind: kindNote}
 	}
 	switch s.status.Overall() {
 	case service.AgentInstalled:
-		r.value, r.on = "installed", true
+		r.Value, r.On = "installed", true
 	case service.AgentViaLink:
-		r.value, r.on = "installed via a link", true
-		r.desc = "Claude Code gets the Devpit skill through a shared skills folder, so nothing is written here. " +
+		r.Value, r.On = "installed via a link", true
+		r.Desc = "Claude Code gets the Devpit skill through a shared skills folder, so nothing is written here. " +
 			"It never changes anything without your yes. Open it to see where the skill comes from."
 	case service.AgentOlder:
-		r.value = "update available"
-		r.desc = "The Devpit skill in Claude Code is older than this Devpit, or missing in one of your Claude Code " +
+		r.Value = "update available"
+		r.Desc = "The Devpit skill in Claude Code is older than this Devpit, or missing in one of your Claude Code " +
 			"accounts. Open it to update: you see what is written where, and say yes first."
 	case service.AgentInTheWay:
-		r.value = "another devpit skill"
-		r.desc = "Claude Code already has a skill called devpit that Devpit did not write, so Devpit will not " +
+		r.Value = "another devpit skill"
+		r.Desc = "Claude Code already has a skill called devpit that Devpit did not write, so Devpit will not " +
 			"replace it. Open it to see where it is."
 	default:
-		r.value, r.quiet = "not installed", true
+		r.Value, r.Quiet = "not installed", true
 	}
 	return r
 }

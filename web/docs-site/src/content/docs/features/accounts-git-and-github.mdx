@@ -36,22 +36,22 @@ Read [Accounts](/docs/features/accounts) first for the page, the preview, undo a
 
 :::note[Git & SSH Setup moved here]
 Earlier versions had a **Git & SSH Setup** section on the main menu.
-Showing and setting your Git identity is now the **Git** row of Accounts, and making an SSH key is an option on the **GitHub** row.
+Seeing and setting the name and email your commits use is now the **Git** row of Accounts, and making an SSH key is on the Git page too (also reachable from the **GitHub** row with **Pushes and SSH keys**).
 :::
 
-## Commits as: a Git identity per folder
+## Commits as: a name and email per folder
 
 1. Open a terminal in the folder, type `devpit`, press <kbd>1</kbd> for **Accounts**, and open **Git**.
-2. You see **Commits as** (the name and email Git will commit with here, and where that comes from) and **Pushes as**.
+2. The **Right now** block at the top says what is true in this folder: **Commits as** (the name and email Git will commit with here, and which setting decided it) and **Pushes as** (the GitHub account a push uses, and what picks it). Below it are the choices, in three groups: **Commits**, **Pushes** and **Manage**. The highlighted choice is explained beside the list (under it on a small terminal), including what happens when you press <kbd>Enter</kbd>. Press <kbd>v</kbd> to check who each tool is really signed in as.
 
    <Shot name="accounts-git" priority />
 
-3. Choose **Commit as another identity here…** (or **…everywhere…**), then pick an identity. To make one, choose **Add another identity…**: type a short name for it in Devpit, the commit name (leave it empty to keep the one in your global Git config) and the email. An identity is a name and an email; Git has no sign-in. If Devpit knows your GitHub accounts, it suggests their email addresses: press <kbd>Tab</kbd> to reach the list and <kbd>Enter</kbd> to pick one. GitHub's private `noreply` address links commits to your account without showing your email.
+3. Choose **Commit as someone else here** (or **Commit as someone else everywhere**), then pick a saved name and email. To save one, choose **Add a name and email**: type a short name for it in Devpit, the name on commits (leave it empty to keep the one in your usual Git settings) and the email. Git has no sign-in: a name and an email is all it needs. If Devpit knows your GitHub accounts, it suggests their email addresses: press <kbd>Tab</kbd> to reach the list and <kbd>Enter</kbd> to pick one. GitHub's private `noreply` address links commits to your account without showing your email.
 4. Read the preview. It shows the exact lines Devpit will write. The default answer is **No**.
 
    <Shot name="accounts-git-preview" />
 
-**Manage identities…** renames or removes one, with a preview like every other change.
+**Rename or remove a name and email** renames or removes one, with a preview like every other change.
 
 From a terminal:
 
@@ -107,7 +107,7 @@ When the last Git and GitHub rule is gone, Devpit removes the block again.
 
 Devpit uses the GitHub CLI, `gh`, for GitHub accounts.
 `gh` 2.40 and later can hold several accounts side by side.
-Add one with **+ Sign in with another account…** in the account list (on the GitHub row, or **Push as another GitHub account here…** on the Git page), or `devpit github add`.
+Add one with **+ Sign in with another account** in the account list (on the GitHub row, or **Push as another GitHub account here** on the Git page), or `devpit github add`.
 Both run `gh auth login`, which adds an account and does not sign out the others.
 
 Devpit never runs `gh auth switch`, because that would change the account for every terminal at once.
@@ -177,9 +177,9 @@ Pushes over HTTPS are not affected.
 
 ## Generate an SSH key
 
-On the Git page in Accounts, choose **Push with an SSH key…**.
+On the Git page in Accounts, choose **Push with an SSH key**.
 
-1. Choose **Make a new key**. Devpit suggests a file named after the GitHub account, for example `%USERPROFILE%\.ssh\id_ed25519_devpit_work`. To use a key you already have, choose **Use a key I already have…** and type the path of its private key.
+1. Choose **Make a new key**. Devpit suggests a file named after the GitHub account, for example `%USERPROFILE%\.ssh\id_ed25519_devpit_work`. To use a key you already have, choose **Use a key I already have** and type the path of its private key.
 2. Devpit creates an **ed25519** key with `ssh-keygen`, which comes with the OpenSSH client that is part of Windows. The comment in the key is usually the account's email.
 3. If a key is already at that path, Devpit says so and creates nothing: "Devpit never replaces a key: one that is in use somewhere would stop working." You can use that key, or go back and pick another path.
 4. You see the **public key**. Press <kbd>c</kbd> to copy it.

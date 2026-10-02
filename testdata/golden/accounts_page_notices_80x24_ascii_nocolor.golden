@@ -14,7 +14,7 @@
     Supabase     - not installed
     Cloudflare   + default (not checked yet)    everywhere - beta
 
-
-
-
+ Folder rule: an account you chose for a folder and every folder inside it.
+ Not checked yet: Devpit has not asked the tool who is signed in. Press v to
+   check.
 [keys] v verify  ·  b folders  ·  f folder  ·  u undo

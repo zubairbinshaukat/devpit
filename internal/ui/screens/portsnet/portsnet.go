@@ -52,8 +52,8 @@ func New() Model {
 // Items returns the two entries, in the order the menu draws them.
 func Items() []menu.Item {
 	return []menu.Item{
-		{ID: ItemPorts, Title: "Fix stuck ports & apps", Desc: "Kill whatever holds a port, stop stuck Node processes"},
-		{ID: ItemNetwork, Title: "Network tools", Desc: "Your IP addresses, a ping check and a DNS flush"},
+		{ID: ItemPorts, Title: "Fix stuck ports & apps", Desc: "Close what is using a port, or stop stuck Node programs"},
+		{ID: ItemNetwork, Title: "Network tools", Desc: "See your IP addresses, test your connection, clear the DNS cache"},
 	}
 }
 

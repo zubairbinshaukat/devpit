@@ -1,17 +1,17 @@
- DEVPIT  vdev  ·  Ports & Network › Network tools                node …   git …
+ DEVPIT  dev  ·  Ports & Network › Network tools                 node …   git …
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings     tab ⇄ · 1–6
 ──────────────────────━━━━━━━━━━━━━─────────────────────────────────────────────
 IP, connectivity and DNS helpers.
 
 ▌ ▸ My IP addresses
-▌   Local interfaces and your public IP
+▌   This PC's addresses on your network and on the internet
 
     Ping a host
-    Check connectivity, default 1.1.1.1
+    Check that an address answers (1.1.1.1 unless you type one)
 
     Flush DNS cache
-    Clear the resolver cache
+    Clear Windows' saved web addresses; fixes some sites that will not load
 
 
 

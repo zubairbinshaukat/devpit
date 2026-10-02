@@ -212,3 +212,13 @@ func TestRuleUnderlinesTheOpenTab(t *testing.T) {
 		t.Errorf("underline is wider than the tab: %q", lines[header.Rows-1])
 	}
 }
+
+// A development build reads "dev", never a lone "v"; a release reads "v0.4.0"
+// whether or not it was given with its "v".
+func TestVersionLabel(t *testing.T) {
+	for in, want := range map[string]string{"": "dev", " ": "dev", "dev": "dev", "0.4.0": "v0.4.0", "v0.4.0": "v0.4.0"} {
+		if got := header.VersionLabel(in); got != want {
+			t.Errorf("VersionLabel(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

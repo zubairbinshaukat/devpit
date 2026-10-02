@@ -1,26 +1,26 @@
- Convex                                                                  in C:\Projects\quiz-slayer
+  Right now --------------------------------------------------------- in C:\Projects\quiz-slayer
+    Project       quiz-slayer
+    Why this one  set by this project's .env.local
 
- Project       quiz-slayer
- Comes from    set by this project's .env.local
-
-| > Use another account…                                                                   show only
-
- Convex picks the account per project. Devpit shows it but does not switch it.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[keys] ↑↓ move  ·  enter select
+  Change the account --------------------------  |  Use another account here
+| > Use another account here   not available     |
+                                                 |  Pick which Convex account this folder uses.
+                                                 |
+                                                 |  ! Not available now: Convex picks the account
+                                                 |  per project. Devpit shows it but does not
+                                                 |  switch it.
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+                                                 |
+[keys] ↑↓ move  ·  enter open  ·  v check who is signed in
