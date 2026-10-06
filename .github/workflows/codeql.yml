@@ -2,12 +2,7 @@ name: CodeQL
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    # Weekly, so a new query set finds old code without waiting for a push.
-    - cron: "17 6 * * 1"
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
