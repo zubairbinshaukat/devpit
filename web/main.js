@@ -552,7 +552,7 @@ self.onmessage = (e) => {
   /* ----- Devpit TUI pieces ----- */
   // The v0.4.0 home menu: six entries, Accounts first, Settings last (keys 1–6).
   const MENU = [
-    ["◉", "Accounts", "Use the right account in every folder"],
+    ["◉", "Multiple Accounts", "Manage multiple Claude Code, Git, GitHub accounts"],
     ["◧", "Free Up Disk Space", "Scan and clean dev junk, caches and temp files"],
     ["⊘", "Ports & Network", "Free a busy port, check your connection"],
     ["↻", "Install & Update", "Install dev apps, update everything"],
