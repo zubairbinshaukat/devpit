@@ -125,7 +125,7 @@ func Items(ic icons.Set) []menu.Item {
 		return menu.Item{ID: id, Title: title, Desc: desc, Icon: ic.Section(id), Hue: id}
 	}
 	return []menu.Item{
-		item(SectionAccounts, "Accounts", "Use the right account in every folder"),
+		item(SectionAccounts, "Multiple Accounts", "Manage multiple Claude Code, Git, GitHub accounts"),
 		item(SectionClean, "Free Up Disk Space", "Scan and clean dev junk, caches and temp files"),
 		item(SectionPortsNet, "Ports & Network", "Free a busy port, check your connection"),
 		item(SectionApps, "Install & Update", "Install dev apps, update everything"),

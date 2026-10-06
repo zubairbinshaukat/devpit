@@ -9,7 +9,7 @@
   },
   {
     "name": "home-menu",
-    "alt": "Devpit main menu with the block-letter DEVPIT logo and six sections: Accounts, Free Up Disk Space, Ports & Network, Install & Update, Share Files and Devpit Settings",
+    "alt": "Devpit main menu with the block-letter DEVPIT logo and six sections: Multiple Accounts, Free Up Disk Space, Ports & Network, Install & Update, Share Files and Devpit Settings",
     "screen": "home",
     "state": "menu",
     "cols": 100,
