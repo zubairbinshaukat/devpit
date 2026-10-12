@@ -3,15 +3,49 @@
 // docs sidebar for its own list of posts (and on a phone the sidebar is behind
 // the menu button), so each blog page starts with "Back to docs" and, on a
 // post, "All posts".
+//
+// Every other page (not the docs home, the blog or the 404) starts with a
+// visible breadcrumb trail. It is the same trail routeData.ts writes as
+// BreadcrumbList JSON-LD: Devpit > Docs > parent section (when it is a real
+// page) > this page.
 import Default from '@astrojs/starlight/components/PageTitle.astro';
+import { getEntry } from 'astro:content';
 
 import { BASE } from '../../site.config.mjs';
+import { hrefFor } from '../lib/href';
 
-const id = Astro.locals.starlightRoute.id;
+const { id, entry } = Astro.locals.starlightRoute;
 const isBlog = id === 'blog' || id.startsWith('blog/');
 const isPost = isBlog && !/^blog(\/(\d+|tags\/.+|authors\/.+))?$/.test(id);
+
+// The docs home has an empty id at render time but is content id "index".
+const contentId = entry.id === '' ? 'index' : entry.id;
+const crumbs: { label: string; href?: string }[] = [];
+if (!isBlog && contentId !== 'index' && contentId !== '404') {
+  crumbs.push({ label: 'Devpit', href: '/' }, { label: 'Docs', href: BASE });
+  const parts = contentId.replace(/\/index$/, '').split('/');
+  for (let i = 1; i < parts.length; i++) {
+    const parentId = parts.slice(0, i).join('/');
+    const parent = await getEntry('docs', parentId);
+    if (parent) crumbs.push({ label: String(parent.data.title), href: hrefFor(parentId) });
+  }
+  crumbs.push({ label: String(entry.data.title) });
+}
 ---
 
+{
+  crumbs.length > 0 && (
+    <nav class="dp-crumbs" aria-label="Breadcrumb">
+      <ol>
+        {crumbs.map((c) => (
+          <li aria-current={c.href ? undefined : 'page'}>
+            {c.href ? <a href={c.href}>{c.label}</a> : <span>{c.label}</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
 {
   isBlog && (
     <nav class="dp-back" aria-label="Back">
@@ -32,6 +66,44 @@ const isPost = isBlog && !/^blog(\/(\d+|tags\/.+|authors\/.+))?$/.test(id);
 <Default {...Astro.props} />
 
 <style>
+  .dp-crumbs {
+    margin-bottom: 0.75rem;
+    font-size: var(--sl-text-sm);
+  }
+  .dp-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .dp-crumbs li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    color: var(--sl-color-gray-2);
+  }
+  .dp-crumbs li + li::before {
+    content: '/';
+    color: var(--sl-color-gray-3);
+  }
+  .dp-crumbs a {
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+  }
+  .dp-crumbs a:hover {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+  }
+  .dp-crumbs li[aria-current='page'] span {
+    max-width: min(32rem, 100%);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .dp-back {
     display: flex;
     flex-wrap: wrap;
