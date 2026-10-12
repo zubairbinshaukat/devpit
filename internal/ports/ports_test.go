@@ -4,6 +4,12 @@ import (
 	"testing"
 )
 
+// noSuchPID is a PID no Windows process can have (PIDs are multiples of 4 and
+// far below this). Protected asks the OS for the session of the PID it is
+// given, so a test that expects "not protected" must not use a small number
+// such as 5555: on some machines that is a real service in session 0.
+const noSuchPID uint32 = 0xFFFFFFF1
+
 func TestDefaultDevPorts(t *testing.T) {
 	ports := DefaultDevPorts()
 	want := map[uint16]bool{
@@ -105,7 +111,7 @@ func TestProtectedRefusesKnownServiceHosts(t *testing.T) {
 func TestProtectedAllowsOrdinaryUserProcess(t *testing.T) {
 	t.Setenv("WINDIR", `C:\Windows`)
 	protected, reason := Protected(Process{
-		PID: 5555, Name: "node.exe", Exe: `C:\Users\dev\AppData\Local\nvm\node.exe`,
+		PID: noSuchPID, Name: "node.exe", Exe: `C:\Users\dev\AppData\Local\nvm\node.exe`,
 	})
 	if protected {
 		t.Errorf("Protected() = true for an ordinary user process, reason: %q", reason)
@@ -116,7 +122,7 @@ func TestProtectedExemptsShellHostsUnderSystem32(t *testing.T) {
 	t.Setenv("WINDIR", `C:\Windows`)
 	for _, name := range []string{"cmd.exe", "powershell.exe", "conhost.exe"} {
 		protected, reason := Protected(Process{
-			PID: 4321, Name: name, Exe: `C:\Windows\System32\` + name,
+			PID: noSuchPID, Name: name, Exe: `C:\Windows\System32\` + name,
 		})
 		if protected {
 			t.Errorf("Protected(%q under System32) = true (%q), want false: OffersTree lists it as a killable process-tree root", name, reason)
@@ -129,7 +135,7 @@ func TestProtectedDoesNotFalsePositiveOnSimilarPaths(t *testing.T) {
 	// A directory that merely starts with "System32" as a substring, not a
 	// path segment, must not be treated as being under System32.
 	protected, _ := Protected(Process{
-		PID: 5555, Name: "x.exe", Exe: `C:\Windows\System32Extra\x.exe`,
+		PID: noSuchPID, Name: "x.exe", Exe: `C:\Windows\System32Extra\x.exe`,
 	})
 	if protected {
 		t.Error("Protected() = true for a look-alike path outside System32, want false")
