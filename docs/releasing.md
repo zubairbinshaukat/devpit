@@ -144,8 +144,10 @@ Vercel dashboard beyond the root directory.
 - `installCommand` installs the docs dependencies (`npm ci --prefix docs-site`).
 - `buildCommand` runs `node scripts/build.mjs`, which builds the Astro docs
   (`web/docs-site`, base `/docs`) and assembles `web/dist`: the landing page
-  files exactly as they are in `web/`, the docs under `dist/docs`, one merged
-  `sitemap.xml`, and a fresh `llms.txt` and `llms-full.txt`.
+  files exactly as they are in `web/` (the page itself is `web/home.html`,
+  served at `/home`; `/` is a permanent redirect to it in `vercel.json`), the
+  docs under `dist/docs`, one merged `sitemap.xml`, and a fresh `llms.txt` and
+  `llms-full.txt`.
 - `outputDirectory` is `dist`. Only that folder is public, so the docs sources,
   `node_modules` and the scripts are never served. The serverless functions in
   `web/api` are built by Vercel from `web/api` as before.

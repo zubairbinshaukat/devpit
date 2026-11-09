@@ -26,7 +26,9 @@ type HeadEntry = { tag: string; attrs?: Record<string, string | boolean | undefi
 type Json = Record<string, unknown>;
 
 const PERSON_ID = 'https://zubyr.dev/#person';
-const APP_ID = `${SITE}/#app`;
+/** The landing page lives at /home (vercel.json redirects / to it). */
+const HOME = `${SITE}/home`;
+const APP_ID = `${HOME}#app`;
 const DEFAULT_OG = `${SITE}/og-image.png`;
 /** Pages starlight-blog injects; they are not content entries, so they get the default social image. */
 const BLOG_VIRTUAL = /^blog(\/(\d+|tags\/.+|authors\/.+))?$/;
@@ -288,7 +290,7 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
   const graph: Json[] = [];
 
   if (!alreadyHasBreadcrumb) {
-    const items: Json[] = [crumb(1, 'Devpit', `${SITE}/`), crumb(2, 'Docs', `${SITE}${BASE}`)];
+    const items: Json[] = [crumb(1, 'Devpit', HOME), crumb(2, 'Docs', `${SITE}${BASE}`)];
     if (!isHome) {
       const parts = id.replace(/\/index$/, '').split('/');
       // Parent sections only when they are real pages (features, troubleshooting, blog).
@@ -310,7 +312,7 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
       '@id': APP_ID,
       name: 'Devpit',
       alternateName: 'Devpit CLI',
-      url: `${SITE}/`,
+      url: HOME,
       description:
         'Free, open-source toolkit (CLI) for developers on Windows: the right account in every folder for Claude Code, Git, GitHub and more, plus disk space cleanup, stuck ports, installs and updates, and big-folder transfers between PCs, from one terminal menu.',
       applicationCategory: 'DeveloperApplication',

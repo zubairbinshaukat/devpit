@@ -343,7 +343,7 @@ function resolveSiteUrl(dist, url) {
   const u = new URL(url);
   let p = decodeURIComponent(u.pathname);
   if (p === '/install') p = '/install.ps1';
-  const candidates = p === '/' ? ['/index.html'] : [p, `${p}.html`, `${p}/index.html`];
+  const candidates = [p, `${p}.html`, `${p}/index.html`];
   for (const c of candidates) {
     const f = path.join(dist, c);
     if (fs.existsSync(f) && fs.statSync(f).isFile()) return f;

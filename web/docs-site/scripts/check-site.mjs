@@ -11,8 +11,10 @@ import { BASE, Report, SITE, WEB, builtPages } from './lib/dist.mjs';
 const r = new Report('check-site');
 const dist = path.join(WEB, 'dist');
 const read = (f) => (fs.existsSync(path.join(dist, f)) ? fs.readFileSync(path.join(dist, f), 'utf8') : null);
+/** The landing page's canonical URL (web/home.html, served at /home). */
+const LANDING = `${SITE}/home`;
 
-if (!fs.existsSync(path.join(dist, 'index.html'))) {
+if (!fs.existsSync(path.join(dist, 'home.html'))) {
   console.error('web/dist is missing. Run `node web/scripts/build.mjs` first.');
   process.exit(2);
 }
@@ -21,14 +23,15 @@ if (!fs.existsSync(path.join(dist, 'index.html'))) {
 const sitemap = read('sitemap.xml') ?? '';
 const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 if (new Set(locs).size !== locs.length) r.error('sitemap.xml', 'has duplicate URLs');
-if (!locs.includes(`${SITE}/`)) r.error('sitemap.xml', 'is missing the landing page');
-for (const l of locs) if (l.endsWith('.html') || (l.endsWith('/') && l !== `${SITE}/`)) r.error('sitemap.xml', `unclean URL ${l}`);
+if (!locs.includes(LANDING)) r.error('sitemap.xml', 'is missing the landing page (/home)');
+if (locs.includes(`${SITE}/`)) r.error('sitemap.xml', 'lists / which redirects to /home; list /home only');
+for (const l of locs) if (l.endsWith('.html') || l.endsWith('/')) r.error('sitemap.xml', `unclean URL ${l}`);
 // noindex pages (tag, author and page-number archives of the blog) are not listed.
 const built = builtPages()
   .filter((p) => p.rel !== '404.html' && !/noindex/i.test(p.root.querySelector('meta[name="robots"]')?.getAttribute('content') ?? ''))
   .map((p) => `${SITE}${p.urlPath}`);
 for (const u of built) if (!locs.includes(u)) r.error('sitemap.xml', `is missing ${u}`);
-for (const l of locs) if (l !== `${SITE}/` && !built.includes(l)) r.error('sitemap.xml', `lists ${l} which is not a built page`);
+for (const l of locs) if (l !== LANDING && !built.includes(l)) r.error('sitemap.xml', `lists ${l} which is not a built page`);
 if (locs.length > 50000) r.error('sitemap.xml', 'over 50,000 URLs: switch to a sitemap index');
 if (/sitemap-(index|\d+)\.xml/.test(sitemap)) r.error('sitemap.xml', 'must be a plain urlset');
 for (const f of fs.readdirSync(path.join(dist, 'docs'))) {
@@ -40,11 +43,23 @@ const robots = read('robots.txt') ?? '';
 if (!new RegExp(`^Sitemap:\\s*${SITE}/sitemap\\.xml\\s*$`, 'm').test(robots)) r.error('robots.txt', 'must contain the Sitemap line');
 if (/^Disallow:\s*\/(docs)?\/?\s*$/m.test(robots)) r.error('robots.txt', 'must not disallow the docs');
 
-// Landing page is intact.
-const landing = read('index.html') ?? '';
-const original = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-if (landing !== original) r.error('index.html', 'dist copy differs from web/index.html');
-if (!/href="\/docs"/.test(original)) r.warn('index.html', 'has no link to /docs');
+if (/^Disallow:\s*\/home\/?\s*$/m.test(robots)) r.error('robots.txt', 'must not disallow /home');
+
+// Landing page is intact and lives at /home only (vercel.json redirects / to it).
+const landing = read('home.html') ?? '';
+const original = fs.readFileSync(path.join(WEB, 'home.html'), 'utf8');
+if (landing !== original) r.error('home.html', 'dist copy differs from web/home.html');
+if (!/href="\/docs"/.test(original)) r.warn('home.html', 'has no link to /docs');
+if (fs.existsSync(path.join(dist, 'index.html'))) r.error('index.html', 'must not exist: the landing page is /home');
+const canonical = /<link rel="canonical" href="([^"]+)"/.exec(original)?.[1];
+if (canonical !== LANDING) r.error('home.html', `canonical is ${canonical}, expected ${LANDING}`);
+if (/(og:url" content|"url": |"@id": )"https:\/\/devpit\.zubyr\.dev\/(#[^"]*)?"/.test(original)) {
+  r.error('home.html', 'og:url or JSON-LD still points at / (use /home)');
+}
+if (/<meta name="robots" content="[^"]*noindex/i.test(original)) r.error('home.html', 'is noindex');
+const redirects = JSON.parse(fs.readFileSync(path.join(WEB, 'vercel.json'), 'utf8')).redirects ?? [];
+const root = redirects.find((x) => x.source === '/');
+if (!root || root.destination !== '/home' || !root.permanent) r.error('vercel.json', 'must permanently redirect / to /home');
 
 // llms.txt: committed copy is fresh, and every docs page is listed in the
 // built one by its Markdown twin (the docs home is /docs/index.md).

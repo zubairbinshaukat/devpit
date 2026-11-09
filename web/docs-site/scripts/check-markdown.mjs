@@ -18,7 +18,7 @@ import { loadPages } from './lib/pages.mjs';
 
 const r = new Report('check-markdown');
 const dist = path.join(WEB, 'dist');
-if (!fs.existsSync(path.join(dist, 'index.html'))) {
+if (!fs.existsSync(path.join(dist, 'home.html'))) {
   console.error('web/dist is missing. Run `node web/scripts/build.mjs` first.');
   process.exit(2);
 }

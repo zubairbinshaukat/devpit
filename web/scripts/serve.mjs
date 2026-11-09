@@ -1,7 +1,7 @@
 // A tiny static server that behaves like Vercel for this site, so the built
 // output can be checked locally (and by Lighthouse) without the Vercel CLI:
-// cleanUrls, trailingSlash false redirects, the /install rewrite and the
-// headers from web/vercel.json.
+// cleanUrls, trailingSlash false redirects, the exact-path redirects (such as
+// / to /home), the /install rewrite and the headers from web/vercel.json.
 //
 //   node scripts/serve.mjs [port]      serves web/dist (default port 4400)
 import fs from 'node:fs';
@@ -63,6 +63,12 @@ http
   .createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     let pathname = url.pathname;
+    // vercel.json redirects (exact source paths only; none here uses a pattern).
+    const redirect = (config.redirects ?? []).find((r) => r.source === pathname);
+    if (redirect) {
+      res.writeHead(redirect.permanent ? 308 : 307, { Location: redirect.destination + url.search });
+      return res.end();
+    }
     // trailingSlash false: /docs/ -> /docs
     if (config.trailingSlash === false && pathname.length > 1 && pathname.endsWith('/')) {
       res.writeHead(308, { Location: pathname.slice(0, -1) + url.search });

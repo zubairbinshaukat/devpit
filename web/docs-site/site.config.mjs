@@ -42,6 +42,8 @@ export const sidebar = [
       },
       'features/share-files',
       'features/settings',
+      // Planned for v0.5.0, not released yet. The page says so at the top and in its sidebar badge.
+      'features/pc-specs',
     ],
   },
   {

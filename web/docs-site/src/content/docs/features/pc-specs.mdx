@@ -1,0 +1,129 @@
+---
+title: "PC specs: coming in Devpit v0.5.0"
+description: What the planned Settings › PC specs page in Devpit v0.5.0 will show about a Windows PC, what it will not show, and how it stays private.
+sidebar:
+  label: PC specs
+  order: 12
+  badge:
+    text: v0.5.0
+    variant: caution
+published: 2026-11-10
+related:
+  - features/settings
+  - safety-and-privacy
+  - whats-new
+faq:
+  - question: "Can I use PC specs today?"
+    answer: "No. PC specs is planned for Devpit v0.5.0 and is not in the current release. This page describes the plan, and the plan can change before the release."
+  - question: "Will PC specs show CPU or GPU temperature?"
+    answer: "No. Windows does not expose temperature or fan speed reliably without a driver, so Devpit does not guess. It shows what Windows can report."
+  - question: "Does PC specs send my serial number anywhere?"
+    answer: "No. Nothing is sent anywhere. Serial numbers and MAC addresses are copied or saved only after you answer Yes, and the default answer is No."
+  - question: "Does PC specs show my Windows product key?"
+    answer: "No. The Windows key stored by the PC maker is never read out. The page only says whether Windows is activated."
+---
+
+:::caution[Coming in Devpit v0.5.0]
+PC specs is **not in the current release**.
+Nothing on this page works yet.
+It describes what is planned for Devpit v0.5.0, and the plan can change before that release.
+For what works today, see [All features](/docs/features) and [What's new](/docs/whats-new).
+:::
+
+PC specs is a planned page that tells you what is inside a Windows PC.
+You will open it from **Settings › PC specs**.
+It is one read-only page that scrolls.
+It only reads. It does not change anything on the PC.
+
+The main use is checking a used laptop before you pay for it.
+It can also answer "how much memory do I have, and can I add more?" on your own PC.
+
+## Buyer's check
+
+The top of the page is a short **Buyer's check**.
+It lists plain-language flags for things worth asking about.
+Examples of what it is planned to flag:
+
+- The battery holds less than 80% of the charge it was designed for.
+- A drive reports a warning.
+- There is a single memory stick, so one memory slot is left free.
+- Windows is not activated.
+- The PC is still managed by an organisation, such as a school or a company.
+
+These are rules of thumb, not verdicts.
+A flag means "look closer", not "do not buy".
+If Windows or the PC maker does not report something, Devpit leaves it out and **never flags missing data**.
+
+## What the page will show
+
+Below the Buyer's check, each part of the PC has its own section.
+
+| Section | What you will see |
+| --- | --- |
+| Battery health | Design capacity next to current capacity, and the cycle count when the laptop reports it |
+| Memory slots | Which slots are filled, the size of each stick, the DDR type, the speed, and whether the memory is soldered or in a socket |
+| Storage | The model, SSD or HDD, health, and used and free space. Wear and power-on hours show only after one optional admin prompt |
+| Processor | The processor name and its basic details |
+| Graphics | The graphics adapters Windows reports |
+| Display | Resolution, refresh rate, size and whether it is a touch screen |
+| Windows | Edition, activation, Secure Boot and TPM |
+| System | Maker, model, BIOS and serial number |
+| Network adapters | The network adapters on the PC |
+
+### Battery health
+
+A laptop battery wears out with use.
+The page will show the capacity it was designed for next to the capacity it can hold now.
+If the laptop reports a cycle count, you will see that too.
+
+### Memory slots
+
+You will see which memory slots are filled and what is in them.
+Each stick shows its size, its DDR type and its speed.
+The page also says whether the memory is **soldered** to the board or in a **socket**.
+Soldered memory cannot be upgraded. Socketed memory usually can.
+
+### Storage
+
+Each drive shows its model, whether it is an SSD or an HDD, its health, and how much space is used and free.
+Wear and power-on hours need more access than a normal read.
+Devpit will ask for them with **one optional admin prompt**.
+If you say no, you still get the rest of the page.
+
+### Windows
+
+This section shows the Windows edition, whether Windows is activated, and whether Secure Boot and TPM are on.
+
+## What it does not show
+
+- **CPU or GPU temperature, and fan speed.** Windows does not expose them reliably without a driver, so Devpit does not guess.
+- **Live usage graphs.** This is a page about what the PC is, not a monitor of what it is doing right now.
+- **Benchmarks.** There are no speed scores.
+- **Product keys.** The Windows key stored by the PC maker is never read out.
+
+## Privacy
+
+- PC specs is **read-only**.
+- **Nothing is sent anywhere.** The page is built on your PC and stays there.
+- **Serial numbers and MAC addresses** are copied or saved only after you answer **Yes**. The default answer is **No**.
+- The **OEM Windows key** is never read out.
+
+See [Safety and privacy](/docs/safety-and-privacy) for the rules that apply to all of Devpit.
+
+## Buying a used laptop
+
+This is general advice. It is not a promise about what PC specs will find.
+
+1. Ask the seller to let you check the laptop before you pay, in a public place.
+2. Look at the battery numbers. A battery that holds much less than it was designed for will not last through a day away from the charger.
+3. Check that Windows is activated, and that the PC is not still managed by a school or a company. A managed PC can be controlled or locked by that organisation.
+4. Look at the drive health. A drive that reports a warning is a reason to walk away or to ask for a lower price.
+5. Check the memory. One stick in a two-slot laptop leaves room to add more. Soldered memory cannot be upgraded.
+6. Check that the model and serial number match the sticker on the laptop and the box.
+7. Test the screen, keyboard, touchpad, ports, speakers, webcam and charger yourself.
+8. Remember that a clean report is not a guarantee. Ask for a receipt and a way to reach the seller afterwards.
+
+## Where to find it
+
+When v0.5.0 is released, the page will be under **Settings › PC specs**.
+Until then, the [Settings guide](/docs/features/settings) describes everything Settings does today.
