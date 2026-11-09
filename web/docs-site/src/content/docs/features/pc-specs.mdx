@@ -1,129 +1,209 @@
 ---
-title: "PC specs: coming in Devpit v0.5.0"
-description: What the planned Settings › PC specs page in Devpit v0.5.0 will show about a Windows PC, what it will not show, and how it stays private.
+title: "PC specs: see what is inside a Windows PC"
+description: Settings › PC specs shows the battery, memory, drives, screen and Windows of a PC on one read-only page, with a Buyer's check for used laptops.
 sidebar:
   label: PC specs
   order: 12
-  badge:
-    text: v0.5.0
-    variant: caution
 published: 2026-11-10
 related:
   - features/settings
   - safety-and-privacy
+  - keyboard-and-mouse
   - whats-new
 faq:
-  - question: "Can I use PC specs today?"
-    answer: "No. PC specs is planned for Devpit v0.5.0 and is not in the current release. This page describes the plan, and the plan can change before the release."
+  - question: "Does PC specs need admin rights?"
+    answer: "No. Reading the page needs no admin rights. The one exception is optional: pressing e reads the drive's wear and power-on hours, and Windows asks for permission once. If you say no, you still get the rest of the page."
+  - question: "Can I save the report?"
+    answer: "Yes. Press c to copy the report to the clipboard, or s to save it as a Markdown file on your Desktop. A save never overwrites a file: a second save is named with (2). Both ask first whether to include serial numbers and MAC addresses, and the default answer is No."
   - question: "Will PC specs show CPU or GPU temperature?"
     answer: "No. Windows does not expose temperature or fan speed reliably without a driver, so Devpit does not guess. It shows what Windows can report."
   - question: "Does PC specs send my serial number anywhere?"
-    answer: "No. Nothing is sent anywhere. Serial numbers and MAC addresses are copied or saved only after you answer Yes, and the default answer is No."
+    answer: "No. Nothing is sent anywhere. Serial numbers and MAC addresses are visible on screen, but they go into a copied or saved report only after you answer Yes. The default answer is No."
   - question: "Does PC specs show my Windows product key?"
-    answer: "No. The Windows key stored by the PC maker is never read out. The page only says whether Windows is activated."
+    answer: "No. The Windows key stored by the PC maker is never read out. The page only says whether Windows is activated and which kind of licence it uses."
 ---
 
-:::caution[Coming in Devpit v0.5.0]
-PC specs is **not in the current release**.
-Nothing on this page works yet.
-It describes what is planned for Devpit v0.5.0, and the plan can change before that release.
-For what works today, see [All features](/docs/features) and [What's new](/docs/whats-new).
-:::
-
-PC specs is a planned page that tells you what is inside a Windows PC.
-You will open it from **Settings › PC specs**.
+PC specs tells you what is inside a Windows PC.
+Open it from **Settings › PC specs**, the first row of Settings.
 It is one read-only page that scrolls.
 It only reads. It does not change anything on the PC.
 
 The main use is checking a used laptop before you pay for it.
 It can also answer "how much memory do I have, and can I add more?" on your own PC.
 
+PC specs was added in Devpit v0.5.0.
+It works on Windows 10 and 11.
+What you see depends on what the PC reports.
+Anything the PC does not report is shown as **not reported by this PC**.
+
+## The top of the page
+
+The first line names the PC: the maker, the model, the kind of PC (such as laptop or desktop), the Windows edition, and the time it was read.
+
+Reading takes about a second on a typical laptop.
+The drive health and activation parts take a few seconds more.
+The page fills in as each part arrives, so you can start reading at once.
+
 ## Buyer's check
 
-The top of the page is a short **Buyer's check**.
+Under the title is a short **Buyer's check**.
 It lists plain-language flags for things worth asking about.
-Examples of what it is planned to flag:
+Each flag has a status badge, a word and a reason, so you never have to go by colour alone.
+A flag that is a rule of thumb says **(rule of thumb)**.
 
-- The battery holds less than 80% of the charge it was designed for.
-- A drive reports a warning.
-- There is a single memory stick, so one memory slot is left free.
-- Windows is not activated.
-- The PC is still managed by an organisation, such as a school or a company.
-
-These are rules of thumb, not verdicts.
 A flag means "look closer", not "do not buy".
-If Windows or the PC maker does not report something, Devpit leaves it out and **never flags missing data**.
+If Windows or the PC maker does not report something, Devpit leaves it out. It **never flags missing data**.
 
-## What the page will show
+It can flag:
 
-Below the Buyer's check, each part of the PC has its own section.
+- **Battery.** The battery holds under 80% of its design charge (worn), or under 60% (very worn). Or a laptop has no battery found.
+- **Drive health.** A drive that Windows reports as warning or unhealthy.
+- **Drive wear.** High wear, only when the wear was read.
+- **Spinning hard disk.** Windows is installed on a spinning hard disk.
+- **Memory.** One memory stick with a free slot (the memory then runs single-channel). Sticks that do not match. Less than 8 GB of memory.
+- **Windows not activated.**
+- **Company licence.** A volume (company) licence on a PC that is not in a company domain. Ask how Windows was activated.
+- **Managed by an organisation.** The PC is joined to a domain, Entra, device management or Autopilot. Autopilot registration lives in the cloud and cannot always be seen from the PC.
+- **Windows 10.** It no longer gets security updates.
+- **No TPM 2.0.**
+- **Serial number.** A branded PC with a placeholder serial number.
 
-| Section | What you will see |
+Some things are shown as plain notes, not flags: Secure Boot off, the BIOS date, memory running below its rated speed, soldered memory that cannot be upgraded, and whether virtualization is on.
+
+## At a glance
+
+Next comes a short summary, one line each for **Processor**, **Memory**, **Storage**, **Graphics**, **Display**, **Battery** and **Windows**.
+
+## What the page shows
+
+Below that, each part of the PC has its own section.
+
+| Section | What you see |
 | --- | --- |
-| Battery health | Design capacity next to current capacity, and the cycle count when the laptop reports it |
-| Memory slots | Which slots are filled, the size of each stick, the DDR type, the speed, and whether the memory is soldered or in a socket |
-| Storage | The model, SSD or HDD, health, and used and free space. Wear and power-on hours show only after one optional admin prompt |
-| Processor | The processor name and its basic details |
-| Graphics | The graphics adapters Windows reports |
-| Display | Resolution, refresh rate, size and whether it is a touch screen |
-| Windows | Edition, activation, Secure Boot and TPM |
-| System | Maker, model, BIOS and serial number |
-| Network adapters | The network adapters on the PC |
+| Battery | Health, charge now and when new, cycle count, charge state |
+| Memory | Slots, size of each stick, type, speed, form factor, maker, part number, memory in use |
+| Storage | Each drive: model, kind, size, health, volumes, used and free space |
+| Processor | Name, cores and threads, cache, base clock |
+| Graphics | Name, memory, driver version and date |
+| Display | Built-in or external, resolution, refresh rate, size, HDR, touch |
+| Windows & security | Edition, version, activation, licence, Secure Boot, TPM, management |
+| System & firmware | Maker, model, serial number, BIOS version and date, uptime |
+| Network adapters | Physical adapters and built-in devices |
 
-### Battery health
+### Battery
 
 A laptop battery wears out with use.
-The page will show the capacity it was designed for next to the capacity it can hold now.
-If the laptop reports a cycle count, you will see that too.
+The page shows **health** as the full-charge capacity now divided by the capacity it was designed for.
+It shows the watt-hours now next to the watt-hours when new.
+If the laptop reports a cycle count, you see that too.
+You also see the charge state, and the maker and chemistry.
 
-### Memory slots
+### Memory
 
-You will see which memory slots are filled and what is in them.
-Each stick shows its size, its DDR type and its speed.
-The page also says whether the memory is **soldered** to the board or in a **socket**.
-Soldered memory cannot be upgraded. Socketed memory usually can.
+The slots are drawn as filled and empty boxes, so you can see at a glance whether there is a free slot.
+Each stick shows its size, its DDR or LPDDR type, its rated speed and its form factor: **SODIMM**, **DIMM** or **soldered**.
+It also shows the maker and part number, and how much memory is in use now.
+Soldered memory cannot be upgraded.
+PC specs never claims the memory is dual-channel.
 
 ### Storage
 
-Each drive shows its model, whether it is an SSD or an HDD, its health, and how much space is used and free.
-Wear and power-on hours need more access than a normal read.
-Devpit will ask for them with **one optional admin prompt**.
+Each drive shows its model, whether it is NVMe, SATA or USB, whether it is an SSD or an HDD, its size, and the health Windows reports.
+The size is the one Windows shows.
+It also lists which volumes the drive holds and their used and free space, and the BitLocker state when Windows reports it.
+
+**Wear, power-on hours and temperature of the drive** need more access than a normal read.
+When that data is missing, the page offers it: press <kbd>e</kbd> and accept the one Windows admin prompt.
 If you say no, you still get the rest of the page.
 
-### Windows
+### Processor
 
-This section shows the Windows edition, whether Windows is activated, and whether Secure Boot and TPM are on.
+The name, the number of cores and threads, the cache and the base clock.
+On a processor with performance and efficiency cores, it shows that split.
+The boost clock is not shown.
+
+### Graphics
+
+The name of each graphics adapter, its memory, and the driver version and date.
+Built-in graphics are shown as sharing system memory.
+
+### Display
+
+Each screen shows whether it is built-in or external, its resolution, its refresh rate now and the highest rate available, whether HDR is on, and whether it is a touch screen.
+The size comes from the screen's own data, when it reports it.
+
+### Windows & security
+
+The edition and version, whether Windows is activated and which licence channel it uses, Secure Boot, the TPM version, and whether an organisation manages the PC.
+It also says whether the PC maker stored a Windows licence in the firmware.
+The key itself is never read out.
+
+### System & firmware, network and built-in devices
+
+The maker, model and serial number, the BIOS version and date, and how long the PC has been on.
+The network section lists physical adapters only: name, type, link speed and MAC address.
+It also lists built-in devices such as Bluetooth, a camera and a fingerprint reader.
+
+## Keys
+
+| Key | What it does |
+| --- | --- |
+| <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>j</kbd> <kbd>k</kbd> | Scroll |
+| <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Scroll by a page, or to the top or bottom |
+| <kbd>←</kbd> <kbd>→</kbd> or <kbd>[</kbd> <kbd>]</kbd> | Jump to the previous or next section |
+| <kbd>r</kbd> | Read the PC again |
+| <kbd>c</kbd> | Copy the report to the clipboard |
+| <kbd>s</kbd> | Save the report as a Markdown file on your Desktop |
+| <kbd>e</kbd> | Read drive wear and hours, with one admin prompt. Only offered when that data is missing |
+| <kbd>?</kbd> | Show the keys for this screen |
+| <kbd>Esc</kbd> | Go back |
+
+With the mouse, the wheel scrolls, and a click on a section name jumps there.
+
+## Copy or save the report
+
+<kbd>c</kbd> and <kbd>s</kbd> both ask first: **Include serial numbers and MAC addresses?**
+The default answer is **No**.
+Say Yes only if the person who will read the report should have them.
+
+A save never overwrites a file.
+If the name is taken, the new file is named with **(2)**, then **(3)**, and so on.
 
 ## What it does not show
 
-- **CPU or GPU temperature, and fan speed.** Windows does not expose them reliably without a driver, so Devpit does not guess.
+- **CPU or GPU temperature, and fan speed.** Windows does not expose them reliably without a driver, and Devpit never collects temperatures.
+- **Boost clock.**
 - **Live usage graphs.** This is a page about what the PC is, not a monitor of what it is doing right now.
 - **Benchmarks.** There are no speed scores.
 - **Product keys.** The Windows key stored by the PC maker is never read out.
+- **IP addresses.** Those are in [Ports & Network](/docs/features/network-tools).
 
 ## Privacy
 
 - PC specs is **read-only**.
-- **Nothing is sent anywhere.** The page is built on your PC and stays there.
-- **Serial numbers and MAC addresses** are copied or saved only after you answer **Yes**. The default answer is **No**.
+- **Nothing is sent anywhere.**
+- **Serial numbers and MAC addresses** are visible on screen. They go into a copied or saved report only after you answer **Yes**. The default answer is **No**.
 - The **OEM Windows key** is never read out.
+- The only extra privilege is the optional admin prompt for drive wear. It runs one fixed read and nothing else.
 
-See [Safety and privacy](/docs/safety-and-privacy) for the rules that apply to all of Devpit.
+See [Safety and privacy](/docs/safety-and-privacy#this-pc-pc-specs) for the rules that apply, and the [safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md) (numbers 56 to 61) for the test that pins each one.
 
 ## Buying a used laptop
 
-This is general advice. It is not a promise about what PC specs will find.
+This is general advice. A clean report is not a guarantee.
 
-1. Ask the seller to let you check the laptop before you pay, in a public place.
-2. Look at the battery numbers. A battery that holds much less than it was designed for will not last through a day away from the charger.
-3. Check that Windows is activated, and that the PC is not still managed by a school or a company. A managed PC can be controlled or locked by that organisation.
+1. Ask to check the laptop before you pay, in a public place.
+2. Look at the battery health. A battery that holds much less than it was designed for will not last a day away from the charger.
+3. Check that Windows is activated, and that the PC is not still managed by a school or a company. An organisation can control or lock a managed PC.
 4. Look at the drive health. A drive that reports a warning is a reason to walk away or to ask for a lower price.
-5. Check the memory. One stick in a two-slot laptop leaves room to add more. Soldered memory cannot be upgraded.
+5. Check the memory. Soldered memory cannot be upgraded. One stick in a two-slot laptop leaves room to add more.
 6. Check that the model and serial number match the sticker on the laptop and the box.
 7. Test the screen, keyboard, touchpad, ports, speakers, webcam and charger yourself.
-8. Remember that a clean report is not a guarantee. Ask for a receipt and a way to reach the seller afterwards.
+8. Ask for a receipt and a way to reach the seller afterwards.
 
 ## Where to find it
 
-When v0.5.0 is released, the page will be under **Settings › PC specs**.
-Until then, the [Settings guide](/docs/features/settings) describes everything Settings does today.
+Open **Devpit Settings** from the main menu with <kbd>6</kbd>.
+PC specs is the first row, in the **This PC** group.
+Press <kbd>Enter</kbd> to open it, and <kbd>Esc</kbd> to go back.
+The [Settings guide](/docs/features/settings) describes every other row.

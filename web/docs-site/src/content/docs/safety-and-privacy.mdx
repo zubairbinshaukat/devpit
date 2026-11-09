@@ -116,6 +116,18 @@ These rules apply to it.
 Accounts has no network code.
 The only connections are each tool's own sign-in and "who am I" check, which the tool makes itself.
 
+## This PC (PC specs)
+
+[PC specs](/docs/features/pc-specs) in Settings reads what the PC is made of.
+These rules apply to it.
+
+- **It only reads.** It changes nothing on the PC. The engine has no network code, so nothing is sent anywhere.
+- **Serial numbers and MAC addresses** are shown on screen. Copying or saving the report asks "Include serial numbers and MAC addresses?" first, and the default answer is **No**.
+- **The Windows key stored by the PC maker is never read out.** The page only says whether Windows is activated.
+- **Missing data is never judged.** A value the PC does not report never becomes a Buyer's check flag.
+- **A save never overwrites a file.** Nothing is saved without a key press and a yes.
+- **The one admin prompt is optional.** It reads the drive's wear and power-on hours, runs a fixed read with no arguments, and you can say no.
+
 ## What Devpit sends
 
 Short version: **usage stats are off until you turn them on.**

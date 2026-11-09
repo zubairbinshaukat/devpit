@@ -42,7 +42,7 @@ export const sidebar = [
       },
       'features/share-files',
       'features/settings',
-      // Planned for v0.5.0, not released yet. The page says so at the top and in its sidebar badge.
+      // Opened from Settings › PC specs, so it sits after Settings. Added in v0.5.0.
       'features/pc-specs',
     ],
   },

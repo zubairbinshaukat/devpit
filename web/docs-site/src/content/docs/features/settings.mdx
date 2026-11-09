@@ -28,7 +28,7 @@ import Shot from '@/components/Shot.astro';
 Open **Devpit Settings** from the main menu with <kbd>6</kbd>.
 Changes save as soon as you make them, and the row says **✓ saved** for a moment.
 
-The settings are in six groups: **Look**, **Cleaning**, **Tools**, **AI agents**, **Privacy and updates** and **About**.
+The settings are in seven groups: **This PC**, **Look**, **Cleaning**, **Tools**, **AI agents**, **Privacy and updates** and **About**.
 Each row shows its name on the left and its current value on the right.
 The row you are on is explained in plain words: under the list, or in a pane on the right when the window is at least 100 columns wide.
 
@@ -41,6 +41,15 @@ There are three kinds of rows:
 <Shot name="settings-list" />
 
 ## The settings
+
+### This PC
+
+| Setting | What it does | How it changes |
+| --- | --- | --- |
+| **PC specs** | A read-only page about this PC: battery health, memory slots, drives, screen, Windows and more, with a Buyer's check at the top. It changes nothing on the PC. | Opens a screen |
+
+PC specs is the first row of Settings.
+See [PC specs](/docs/features/pc-specs) for what it shows, its keys and what it keeps private.
 
 ### Look
 
@@ -217,6 +226,8 @@ Your old file stays so you can look at it.
 | <kbd>i</kbd> | Install or update the skill (AI agent skill) |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reset dev ports to the default |
 | <kbd>Esc</kbd> | Go back |
+
+PC specs has its own keys: see [PC specs](/docs/features/pc-specs#keys).
 
 With the mouse: pointing at a row selects it and shows its description, a click on a row's value changes it (or opens its screen), and the wheel moves through the list.
 
