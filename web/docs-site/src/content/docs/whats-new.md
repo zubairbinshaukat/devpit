@@ -14,6 +14,35 @@ Every release is listed here, newest first. The same notes are on the [GitHub re
 
 To upgrade, see [Getting started](/docs/getting-started#update-devpit).
 
+## v0.5.0
+
+Released 9 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.5.0)
+
+### Features
+- PC specs in Settings
+- Redesign the PC specs screen
+
+## v0.4.3
+
+Released 9 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.4.3)
+
+### Fixes
+- 6-digit share password and progress on the sharing PC
+- Let the receive screen's address field take typing on first open
+- Serve the landing page at /home, redirect / to it, add the PC specs docs page
+
+## v0.4.2
+
+Released 6 October 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.4.2)
+
+This release has no written notes. See the [release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.4.2) for the files and checksums.
+
+## v0.3.2
+
+Released 30 September 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.3.2)
+
+This release has no written notes. See the [release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.3.2) for the files and checksums.
+
 ## v0.2.0
 
 Released 23 September 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.2.0)

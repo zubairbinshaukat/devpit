@@ -12,6 +12,7 @@
 // honest sentence and a link, because a list of "fix" commits helps nobody.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { REPO } from '../site.config.mjs';
 import { CONTENT_DIR } from './lib/pages.mjs';
@@ -39,11 +40,27 @@ export function cleanBody(body) {
   text = text.replace(/\n##\s+Verifying this release[\s\S]*$/, '');
   // Drop the "install or upgrade" block: the Getting started page owns it.
   text = text.replace(/\n###\s+Install or upgrade[\s\S]*$/, '');
-  // A changelog that is only commit hashes is noise.
-  const withoutCommits = text
-    .split('\n')
-    .filter((l) => !/^\*\s+[0-9a-f]{40}:/.test(l) && !/^##\s+Changelog\s*$/.test(l) && !/^###\s+Other\s*$/.test(l))
-    .join('\n')
+  // A changelog that is only commit hashes is noise. A commit written as a
+  // release note ("feat: ...", "fix: ...", "docs: ...", "web: ...") is kept as a
+  // plain bullet, without the hash, the prefix or the author. Any group heading
+  // left with nothing under it is dropped.
+  const COMMIT = /^\*\s+[0-9a-f]{40}:\s*(.*)$/;
+  const NOTABLE = /^(?:feat|fix|perf|docs|web)(?:\([^)]*\))?!?:\s*(.+?)(?:\s+\(@[\w-]+\))?$/;
+  const kept = [];
+  for (const l of text.split('\n')) {
+    if (/^##\s+Changelog\s*$/.test(l) || /^###\s+Other\s*$/.test(l)) continue;
+    const c = COMMIT.exec(l);
+    if (!c) {
+      kept.push(l);
+      continue;
+    }
+    const n = NOTABLE.exec(c[1].trim());
+    if (n) kept.push(`- ${n[1].charAt(0).toUpperCase()}${n[1].slice(1)}`);
+  }
+  const blocks = kept.join('\n').split(/^(?=###\s)/m);
+  const withoutCommits = blocks
+    .filter((b) => !/^###\s/.test(b) || b.split('\n').slice(1).join('').trim() !== '')
+    .join('')
     .trim();
   if (!withoutCommits) return '';
   // Under "## vX" our sections are ### already. Make sure none is shallower.
@@ -86,7 +103,7 @@ export function render(releases) {
   return out.join('\n');
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const file = process.argv[2];
   const releases = file ? JSON.parse(fs.readFileSync(file, 'utf8')) : await fetchReleases();
   fs.writeFileSync(OUT, render(releases));
