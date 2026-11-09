@@ -52,6 +52,13 @@ type Hoster interface {
 	Active() bool
 }
 
+// Progresser is optional: an engine that can say how much a running share has
+// sent. The screen checks for it with a type assertion, so a Hoster without it
+// (a fake, or an older engine) simply shows no progress.
+type Progresser interface {
+	Progress() host.Progress
+}
+
 // Receiver is the receiving engine as the screen uses it. *recv.Session is
 // the real one.
 type Receiver interface {

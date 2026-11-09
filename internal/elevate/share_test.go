@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 	"unicode/utf16"
@@ -32,6 +33,7 @@ type shareFake struct {
 	v2Out     []string // the share script's FW= lines (24H2's second SMB rule)
 	failed    bool
 	deleted   []string
+	createErr error // returned by CreateUser, to play a NetUserAdd failure
 }
 
 func newShareFake() *shareFake {
@@ -97,6 +99,9 @@ func (f *shareFake) Remove(context.Context, string) error { return nil }
 func (f *shareFake) CreateUser(name, password string, _ time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.createErr != nil {
+		return f.createErr
+	}
 	f.users[name] = password
 	f.sids[name] = "S-1-5-21-1-2-3-1004"
 	return nil
@@ -172,7 +177,7 @@ func run(t *testing.T, s *shareSession, r ShareRequest) ([]string, error) {
 	return lines, err
 }
 
-const goodPassword = "Ab3dEf7hJk9mNp2q"
+const goodPassword = "407193"
 
 func TestShareValidate(t *testing.T) {
 	shareEnv(t)
@@ -222,8 +227,16 @@ func TestShareValidateOtherOps(t *testing.T) {
 		{Op: ShareOpProfile, Index: 5, Category: "DomainAuthenticated", Original: "Public"},
 		{Op: ShareOpProfile, Index: 5, Category: "Private", Original: "Private; calc"},
 		{Op: ShareOpAccount, User: "devpit-abcd", Password: "short"},
-		{Op: ShareOpAccount, User: "devpit-abcd", Password: "has space 1234567"},
-		{Op: ShareOpAccount, User: "devpit-abcd", Password: "quote'quote'12345"},
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: ""},
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "40719"},    // 5 digits
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "4071930"},  // 7 digits
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "40719a"},   // a letter
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "abcdef"},   // letters only
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "407 93"},   // a space
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "4071'3"},   // a quote
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: `4071"3`},   // a double quote
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "407193\n"}, // a trailing newline
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "٤٠٧١٩٣"},   // non-ASCII digits
 		{Op: ShareOpCleanup, User: "root"},
 		{Op: ShareOpCleanup, Rules: []string{"Allow-Everything"}},
 		{Op: ShareOpCleanup, Rules: []string{"FPS-x; calc"}},
@@ -238,6 +251,7 @@ func TestShareValidateOtherOps(t *testing.T) {
 	good := []ShareRequest{
 		{Op: ShareOpProfile, Index: 5, Category: "Private", Original: "Public"},
 		{Op: ShareOpAccount, User: "devpit-abcd", Password: goodPassword},
+		{Op: ShareOpAccount, User: "devpit-abcd", Password: "000000"},
 		{Op: ShareOpStop},
 		{Op: ShareOpFirewall},
 		{Op: ShareOpCleanup},
@@ -474,6 +488,40 @@ func TestAccountOperationsAreRefusedWithoutAUserManager(t *testing.T) {
 	_, err := run(t, s, ShareRequest{Op: ShareOpAccount, User: "devpit-abcd", Password: goodPassword})
 	if err == nil {
 		t.Error("an account was created with no user manager")
+	}
+}
+
+func TestAPasswordPolicyRefusalSaysWhatToChangeAndNeverHoldsThePassword(t *testing.T) {
+	for _, code := range []syscall.Errno{2244, 2245, 2704, 2705} {
+		shareEnv(t)
+		f := newShareFake()
+		f.createErr = code
+		_, err := run(t, newSession(f), ShareRequest{Op: ShareOpAccount, User: "devpit-abcd", Password: goodPassword})
+		if err == nil {
+			t.Fatalf("error %d: the account was created", code)
+		}
+		msg := err.Error()
+		for _, want := range []string{"6-digit", "Password Policy", "Minimum password length", "complexity", "Windows error " + strconv.Itoa(int(code))} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("error %d: message lacks %q:\n%s", code, want, msg)
+			}
+		}
+		if strings.Contains(msg, goodPassword) {
+			t.Errorf("error %d: the message holds the password:\n%s", code, msg)
+		}
+	}
+}
+
+func TestAnotherAccountFailureKeepsItsOwnText(t *testing.T) {
+	shareEnv(t)
+	f := newShareFake()
+	f.createErr = syscall.Errno(2224) // NERR_UserExists
+	_, err := run(t, newSession(f), ShareRequest{Op: ShareOpAccount, User: "devpit-abcd", Password: goodPassword})
+	if err == nil || !strings.Contains(err.Error(), "creating the account") || strings.Contains(err.Error(), "Password Policy") {
+		t.Errorf("err = %v", err)
+	}
+	if err != nil && strings.Contains(err.Error(), goodPassword) {
+		t.Error("the message holds the password")
 	}
 }
 

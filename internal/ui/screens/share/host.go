@@ -102,6 +102,11 @@ type hostScreen struct {
 	stopErr error
 	frame   int
 	private bool
+
+	// prog is the newest reading of what this PC has sent, and pollGen tells
+	// the poll chain of this share from an earlier one.
+	prog    host.Progress
+	pollGen int
 }
 
 // newHostScreen returns the sharing screen.
@@ -223,7 +228,12 @@ func (m hostScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 			return m, nil
 		}
 		m.stage, m.card = hostCard, msg.card
-		return m, nil
+		m.endPoll()
+		return m, m.pollCmd()
+	case trafficTickMsg:
+		return m.onTrafficTick(msg)
+	case trafficMsg:
+		return m.onTraffic(msg)
 	case hostStoppedMsg:
 		if msg.err != nil {
 			m.stage, m.stopErr = hostFailed, msg.err
@@ -318,6 +328,7 @@ func (m hostScreen) onCategory(msg hostCategoryMsg) (uictx.Screen, tea.Cmd) {
 // begin starts the setup on its own goroutine, reporting each step.
 func (m hostScreen) begin(makePrivate bool) (uictx.Screen, tea.Cmd) {
 	m.private = makePrivate
+	m.endPoll()
 	m.stage = hostSetup
 	m.steps, m.stepAt, m.err = nil, 0, nil
 	st := &hostStream{steps: make(chan host.Step, 16), result: make(chan hostStartedMsg, 1)}
@@ -362,6 +373,7 @@ func (m hostScreen) onAnswer(msg confirm.AnsweredMsg) (uictx.Screen, tea.Cmd) {
 
 // stopNow takes the share down.
 func (m hostScreen) stopNow() (uictx.Screen, tea.Cmd) {
+	m.endPoll()
 	m.stage = hostStopping
 	mgr := m.mgr
 	return m, tea.Batch(func() tea.Msg {
@@ -539,7 +551,8 @@ func (m hostScreen) cardView(ctx uictx.Context) string {
 	if ctx.Width > 6 {
 		card = card.Width(ctx.Width - 2)
 	}
-	return card.Render(body.String())
+	rendered := card.Render(body.String())
+	return rendered + m.trafficBlock(ctx, strings.Count(rendered, "\n")+1)
 }
 
 // failedView explains a failure, or an unfinished teardown.

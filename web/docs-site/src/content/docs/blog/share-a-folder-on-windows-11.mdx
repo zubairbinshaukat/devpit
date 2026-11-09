@@ -141,7 +141,7 @@ On PC A, open the folder's **Properties**, **Sharing**, **Advanced Sharing**, an
 
 - asks before it switches a Public network to Private,
 - turns on only the firewall rule for SMB, and only if it is off,
-- creates a temporary login with a new password, which expires by itself after 48 hours,
+- creates a temporary login with a new random 6-digit code as its password (short on purpose, for people you trust on your own network), which expires by itself after 48 hours,
 - shares the folder **read-only** to that login only, gives it read access to the folder, and checks that nobody else has access,
 - shows a card with the IP, share name, user name, password, and a `net use` and a `robocopy` line for a PC without Devpit.
 

@@ -103,11 +103,30 @@ var table = []Entry{
 		Source: winerror + ", ERROR_ACCOUNT_RESTRICTION",
 	},
 	{
+		// Sender side: NetUserAdd refuses the share's 6-digit code when this
+		// PC's local password policy asks for more. The codes are from
+		// lmerr.h: NERR_PasswordHistConflict (2100+144), NERR_PasswordTooShort
+		// (2100+145, whose message names length, complexity and history),
+		// NERR_PasswordNotComplexEnough (2100+604) and NERR_PasswordFilterError
+		// (2100+605). The message never holds the code itself.
+		ID: "password-policy", Codes: []int{2244, 2245, 2704, 2705},
+		Title: "This PC's password rules do not allow a 6-digit code",
+		Why: "Sharing makes a temporary login with a 6-digit code. " +
+			"The rules on this PC ask for a longer or more complex password.",
+		Steps: []string{
+			"Open Local Security Policy, then Account Policies, then Password Policy.",
+			"Set Minimum password length to 6 or less, and turn off Password must meet complexity requirements.",
+			"Then start sharing again. You can put the rules back after you stop sharing.",
+		},
+		Source: "Microsoft: lmerr.h, NERR_PasswordTooShort, NERR_PasswordHistConflict, " +
+			"NERR_PasswordNotComplexEnough and NERR_PasswordFilterError, returned by NetUserAdd",
+	},
+	{
 		ID: "wrong-password", Codes: []int{86, 1326},
 		Title: "The user name or password is wrong",
 		Why:   "The other PC did not accept the sign-in.",
 		Steps: []string{
-			"Check the user name and the password. Letters can be upper or lower case.",
+			"Check the user name and the 6-digit password on the sharing PC's card.",
 			"Copy them from the Devpit card on the other PC if you can.",
 		},
 		Source: winerror + ", ERROR_INVALID_PASSWORD and ERROR_LOGON_FAILURE",
@@ -336,6 +355,22 @@ func Explain(err error, phase Phase, user string) (Entry, bool) {
 		return ByID("microsoft-account")
 	}
 	return Lookup(code, phase)
+}
+
+// PasswordPolicyMessage reports whether err is Windows refusing the share's
+// temporary login because of this PC's password policy, and if so returns one
+// plain sentence block saying what to change. It reads the error number only,
+// so the message cannot hold the password.
+func PasswordPolicyMessage(err error) (string, bool) {
+	code, ok := CodeOf(err)
+	if !ok {
+		return "", false
+	}
+	e, ok := Lookup(code, PhaseConnect)
+	if !ok || e.ID != "password-policy" {
+		return "", false
+	}
+	return e.Title + ". " + e.Why + " " + strings.Join(e.Steps, " ") + " (Windows error " + strconv.Itoa(code) + ")", true
 }
 
 // LooksLikeMicrosoftAccount reports whether user is an e-mail with no domain

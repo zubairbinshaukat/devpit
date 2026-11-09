@@ -169,10 +169,10 @@ doing the stubs are the list of what has to be written.
 | `network` | Ping, DNS flush, local/public IP | `Ping`, `FlushDNS`, `LocalIPs`, `PublicIP` | `dns_test.go`'s Windows path (`ipconfig /flushdns`) |
 | `gitssh` | SSH keygen with overwrite protection, git config read/write, OSC 52 clipboard | `Keygen`, `GitConfig`, `SetGitConfig`, `Copy` | `clipboard_windows.go` |
 | `elevate` | The elevated worker: wire protocol, client, server loop, remove-path whitelist, typed share operations | `Launch`, `Serve`, `Client.Exec`, `Client.Remove`, `Client.Share` | `launch_windows.go` (`ShellExecuteExW`), `pipe_windows.go`, `serve_windows.go`, `shellexecute_windows.go`, `iselevated_windows.go` |
-| `share/host` | Pick an adapter, set up a read-only share with a temporary login through the worker, show the card, take everything down on Stop, quit, crash and next launch | `Manager.Start`, `Manager.Stop`, `ShutdownAll`, `Leftover`, `CleanUp` | `alive_windows.go` |
+| `share/host` | Pick an adapter, set up a read-only share with a temporary login through the worker, show the card, take everything down on Stop, quit, crash and next launch; estimate sender-side progress from the adapter's out counter plus a one-time folder size scan (read-only, no admin) | `Manager.Start`, `Manager.Stop`, `Manager.Progress`, `MeasureFolder`, `ShutdownAll`, `Leftover`, `CleanUp` | `alive_windows.go` |
 | `share/recv` | List another PC's shares, sign in, dry-run size and free-space check, copy with retry and resume | `Session.List`, `Preflight`, `Run` | none, the Win32 calls are in `winapi` |
 | `share/robocopy` | Command lines, log tailing, language-independent parsing, exit-code bits | `CopyArgs`, `DryRunArgs`, `ParseLine`, `ParseSummary`, `DecodeExit`, `Tool.Copy` | `exec_windows.go` (no console window) |
-| `share/netstat` | Address check, `net view` parsing, sign-in, adapter byte counters, reachability probe | `ParseHost`, `ParseNetView`, `SignIn`, `Meter`, `WaitReachable` | `oem_windows.go` (OEM code page) |
+| `share/netstat` | Address check, `net view` parsing, sign-in, adapter byte counters, reachability probe | `ParseHost`, `ParseNetView`, `SignIn`, `Meter` (`NewMeter` reads in, `NewSendMeter` reads out, `NewByteMeter` any counter), `WaitReachable` | `oem_windows.go` (OEM code page) |
 | `share/errmap` | One table of known sharing errors, in plain words, keyed by Win32 number | `Lookup`, `Explain`, `Entries` | none |
 | `share/job`, `share/store` | The resume record and atomic JSON files | `job.Save`, `job.Load`, `store.WriteJSON` | none |
 
@@ -251,8 +251,12 @@ share is up, so Stop needs no second prompt. It sends the worker six typed
 operations (`profile`, `firewall`, `account`, `grant`, `share`, `stop`),
 never a command line. The worker validates each one against a tight pattern
 (safety.md rule 25), keeps in memory what it has set up, and undoes all of it
-on `stop` and on its own when the pipe closes. The password reaches the worker
-in the `account` request and is handed to `NetUserAdd` in memory. The TUI
+on `stop` and on its own when the pipe closes. The password is a random 6-digit
+code, short on purpose so it is easy to read out (about 20 bits; safety.md
+rule 24 states the trade-off). It reaches the worker in the `account` request
+and is handed to `NetUserAdd` in memory; if this PC's password policy refuses
+a 6-digit password, `errmap.PasswordPolicyMessage` turns the error into a
+message that names the setting to change. The TUI
 writes a manifest of the names (no password) before it creates anything, so
 a crash of both processes is finished by the next launch.
 

@@ -131,6 +131,37 @@ func TestExplainWithoutANumber(t *testing.T) {
 	}
 }
 
+func TestPasswordPolicyErrorsAreExplainedForTheSender(t *testing.T) {
+	for _, code := range []int{2244, 2245, 2704, 2705} {
+		err := fmt.Errorf("creating the account: %w", syscall.Errno(code))
+		msg, ok := errmap.PasswordPolicyMessage(err)
+		if !ok {
+			t.Fatalf("error %d was not recognised", code)
+		}
+		for _, want := range []string{"6-digit", "Local Security Policy", "Password Policy", "Minimum password length", "complexity"} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("error %d: message lacks %q:\n%s", code, want, msg)
+			}
+		}
+		if e, ok := errmap.Lookup(code, errmap.PhaseConnect); !ok || e.ID != "password-policy" {
+			t.Errorf("Lookup(%d) = %q, %v", code, e.ID, ok)
+		}
+	}
+}
+
+func TestOtherErrorsAreNotPasswordPolicyErrors(t *testing.T) {
+	for _, err := range []error{
+		errors.New("plain"),
+		syscall.Errno(5),    // access denied
+		syscall.Errno(1326), // wrong password on sign-in
+		syscall.Errno(2224), // user exists
+	} {
+		if msg, ok := errmap.PasswordPolicyMessage(err); ok {
+			t.Errorf("%v was taken for a policy error: %q", err, msg)
+		}
+	}
+}
+
 func TestCodeFromTextIgnoresTheLanguage(t *testing.T) {
 	for text, want := range map[string]int{
 		"System error 53 has occurred.\n\nThe network path was not found.": 53,

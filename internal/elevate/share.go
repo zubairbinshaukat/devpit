@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/zubairbinshaukat/devpit/internal/share/errmap"
 )
 
 // KindShare is the job kind of the file sharing operations. Unlike
@@ -102,9 +104,11 @@ var (
 	// is allowed ("Bob's Games"): nothing quotes the path into a script,
 	// [psString] carries it.
 	pathPattern = regexp.MustCompile(`^[A-Za-z]:\\[^<>:"|?*\x00-\x1f]*$`)
-	// passwordPattern is the alphabet [Password] draws from, which is also
-	// what the worker accepts: no quote, no space, no shell character.
-	passwordPattern = regexp.MustCompile(`^[A-Za-z0-9]{12,64}$`)
+	// passwordPattern is what host.Password produces and all the worker
+	// accepts: exactly six digits, leading zeros allowed. No quote, no space
+	// and no shell character can get through. The code is short on purpose
+	// (about 20 bits, easy to read out); see host.PasswordLength.
+	passwordPattern = regexp.MustCompile(`^[0-9]{6}$`)
 )
 
 // categories are the network categories a profile operation may name.
@@ -142,7 +146,7 @@ func (r ShareRequest) Validate() error {
 			return err
 		}
 		if !passwordPattern.MatchString(r.Password) {
-			return errors.New("refused: the password is not in the allowed form")
+			return errors.New("refused: the password is not in the allowed form (6 digits)")
 		}
 	case ShareOpGrant:
 		if err := needUser(); err != nil {
@@ -198,6 +202,18 @@ func (r ShareRequest) validateCleanup(needUser, needName, needPath func() error)
 		}
 	}
 	return nil
+}
+
+// accountError words a failure of the account creation. A refusal by this
+// PC's password policy (the share's code is only 6 digits) becomes a message
+// that says what to change; anything else keeps its own text. The error
+// reaches the TUI as text, so the number is put into the message here. Neither
+// form can hold the password: the error number is all that is read.
+func accountError(err error) error {
+	if msg, ok := errmap.PasswordPolicyMessage(err); ok {
+		return errors.New("creating the account: " + msg)
+	}
+	return fmt.Errorf("creating the account: %w", err)
 }
 
 // winPath normalises a Windows path for comparison: forward slashes become

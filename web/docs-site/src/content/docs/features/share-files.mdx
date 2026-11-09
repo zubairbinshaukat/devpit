@@ -141,12 +141,14 @@ If the same files keep failing for three rounds in a row and nothing new is copi
 - For the fastest, steadiest link, connect the two PCs with a cable. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
 - It works in any Windows language.
 - It works whether or not the other PC has Devpit.
+- If this PC has strict password rules, Windows can refuse a 6-digit code and Devpit says so. Open Local Security Policy, then Account Policies, then Password Policy. Set the minimum password length to 6 or less and turn off the complexity rule, then share again.
 - Both PCs must be on the same network. Sending over the internet is not part of this feature. For phones, Macs or other ways to move files, see [transfer files between two PCs over Wi-Fi](/docs/blog/transfer-files-between-two-pcs-over-wifi) and [LocalSend vs Quick Share vs Syncthing](/docs/blog/localsend-vs-quick-share-vs-syncthing).
 
 ## Safety
 
 - The share is **read-only**. The other PC cannot change or delete your files.
-- The sharing PC uses a temporary login named like `devpit-x7k2`, created for this share only. It can only read the shared folder. Its password is new every time and is never your own.
+- The sharing PC uses a temporary login named like `devpit-x7k2`, created for this share only. It can only read the shared folder. Its password is a new random 6-digit code every time and is never your own.
+- The code is short on purpose, so it is easy to read out and type. That makes it weak: it is meant for people you trust on your own network, and the login is removed when you stop sharing. Do not share on a network with people you do not trust.
 - The login expires after 48 hours even if nothing removes it.
 - Devpit turns on only the firewall rule `FPS-SMB-In-TCP`, and only if it was off. When you stop, it turns off only what it turned on. If Windows names that rule differently, Devpit turns on the File and Printer Sharing group instead.
 - **Stop sharing** removes the share, the login, the firewall rule and the network change. Quitting Devpit does the same.
