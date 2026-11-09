@@ -2,7 +2,7 @@
 
 > Devpit (also written "Devpit CLI") is a free, open-source toolkit for developers on Windows by Zubair bin Shaukat (zubyr). One terminal menu picks the right account per folder for Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (Convex is shown, not switched), frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and copies big folders between two Windows PCs on the same network.
 
-Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is https://devpit.zubyr.dev and the documentation is at https://devpit.zubyr.dev/docs.
+Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is https://devpit.zubyr.dev/home and the documentation is at https://devpit.zubyr.dev/docs.
 
 Every docs page is also plain Markdown: add `.md` to its URL (the docs home is https://devpit.zubyr.dev/docs/index.md). The links below point at those Markdown pages; each one ends with the URL of its HTML page.
 
@@ -73,6 +73,7 @@ Rules for agents: read with --json first; ask the user before any change and onl
 - [Free up disk space and delete node_modules on Windows](https://devpit.zubyr.dev/docs/features/free-up-disk-space.md): Find and delete node_modules, build folders, caches and other developer junk safely, with a preview, risk labels and a confirmation before anything goes.
 - [Install developer apps on Windows with Devpit](https://devpit.zubyr.dev/docs/features/install-developer-apps.md): Pick developer tools from a short list and let Devpit install them through Scoop, winget or Chocolatey, one at a time, with live progress.
 - [Check your IP, ping a host and flush DNS on Windows](https://devpit.zubyr.dev/docs/features/network-tools.md): See your local and public IP address, ping a host to test your connection, and clear the Windows DNS cache from one Devpit menu.
+- [PC specs: coming in Devpit v0.5.0](https://devpit.zubyr.dev/docs/features/pc-specs.md): What the planned Settings › PC specs page in Devpit v0.5.0 will show about a Windows PC, what it will not show, and how it stays private.
 - [Devpit settings, themes, icons and the never-touch list](https://devpit.zubyr.dev/docs/features/settings.md): Every Devpit setting explained, from themes and icons to usage stats, the never-touch list, dev ports and the icon font, and where the settings file lives.
 - [Copy big folders between two PCs on your network](https://devpit.zubyr.dev/docs/features/share-files.md): Move large folders such as a game between two Windows PCs on the same Wi-Fi or office network, with live progress, automatic retry and resume.
 - [Update all your Windows apps and dev tools at once](https://devpit.zubyr.dev/docs/features/update-everything.md): Update your apps and developer tools through winget, Scoop, Chocolatey and npm in one pass, choose what to skip, and see plain reasons when one fails.
@@ -127,7 +128,7 @@ Rules for agents: read with --json first; ask the user before any change and onl
 
 ## Links
 
-- [Website](https://devpit.zubyr.dev/): landing page with an animated demo and FAQ
+- [Website](https://devpit.zubyr.dev/home): landing page with an animated demo and FAQ
 - [Source code](https://github.com/zubairbinshaukat/devpit): Go source, issues and releases
 - [Releases](https://github.com/zubairbinshaukat/devpit/releases): what changed in each version
 - [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md): every rule and the test that pins it

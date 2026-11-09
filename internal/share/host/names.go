@@ -10,7 +10,6 @@ package host
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -18,55 +17,33 @@ import (
 	"strings"
 )
 
-// The alphabet of the password. It has upper case, lower case and digits, so
-// it meets Windows' complexity rule of three of four classes, and it has no
-// symbol, so the password is safe in a `net use` line typed into cmd or
-// PowerShell. The look-alike letters (I, l, O, 0, 1) are left out because
-// people read the password off a screen and type it on another PC.
-const (
-	upper  = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-	lower  = "abcdefghijkmnopqrstuvwxyz"
-	digits = "23456789"
-)
+// PasswordLength is 6 digits. This is a deliberate trade-off for a code that
+// is easy to read out and type on another PC: 10^6 possibilities is about 20
+// bits, which is weak. It is acceptable only because the login is short-lived
+// (the account is removed when sharing stops and expires on its own), read-only
+// and meant for people you trust on your own network. Windows' account lockout
+// is the only throttle on guesses, and someone on the same network who captures
+// a sign-in handshake could try all one million codes offline.
+const PasswordLength = 6
 
-// PasswordLength is 16 characters, about 92 bits.
-const PasswordLength = 16
+// digitSet is what the password is made of.
+const digitSet = "0123456789"
 
-// Password returns a random password from crypto/rand, with at least two of
-// each class and never containing the user name. It is never the user's own
-// Windows password, and it is made fresh for every share.
-func Password(r io.Reader, user string) (string, error) {
-	all := upper + lower + digits
-	for range 20 {
-		out := make([]byte, 0, PasswordLength)
-		for _, set := range []string{upper, upper, lower, lower, digits, digits} {
-			c, err := pick(r, set)
-			if err != nil {
-				return "", err
-			}
-			out = append(out, c)
+// Password returns PasswordLength random digits from r (crypto/rand in
+// production), each drawn uniformly with no modulo bias. Leading zeros are
+// allowed. It is never the user's own Windows password and is made fresh for
+// every share. The user name is not needed to build it; the parameter is kept
+// so callers need not change.
+func Password(r io.Reader, _ string) (string, error) {
+	out := make([]byte, PasswordLength)
+	for i := range out {
+		c, err := pick(r, digitSet)
+		if err != nil {
+			return "", err
 		}
-		for len(out) < PasswordLength {
-			c, err := pick(r, all)
-			if err != nil {
-				return "", err
-			}
-			out = append(out, c)
-		}
-		// Shuffle so the guaranteed characters are not always first.
-		for i := len(out) - 1; i > 0; i-- {
-			j, err := index(r, i+1)
-			if err != nil {
-				return "", err
-			}
-			out[i], out[j] = out[j], out[i]
-		}
-		pw := string(out)
-		if !strings.Contains(strings.ToLower(pw), strings.ToLower(user)) {
-			return pw, nil
-		}
+		out[i] = c
 	}
-	return "", errors.New("could not make a password")
+	return string(out), nil
 }
 
 // pick returns one random byte of set.

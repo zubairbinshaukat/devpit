@@ -367,7 +367,7 @@ func (s *shareSession) opAccount(req ShareRequest, emit onLine) error {
 	}
 	emit("info", "Creating a temporary login")
 	if err := s.users.CreateUser(req.User, req.Password, s.now().Add(AccountLifetime)); err != nil {
-		return fmt.Errorf("creating the account: %w", err)
+		return accountError(err)
 	}
 	s.state.user = req.User
 	if sid, err := s.users.UserSID(req.User); err == nil && sidPattern.MatchString(sid) {

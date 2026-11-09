@@ -13,7 +13,7 @@ type Counters func() (in, out uint64, err error)
 //
 // A Meter is used from one goroutine.
 type Meter struct {
-	read Counters
+	read func() (uint64, error)
 	now  func() time.Time
 
 	started  bool
@@ -23,8 +23,26 @@ type Meter struct {
 	rate     float64
 }
 
-// NewMeter starts a meter over read, using now as its clock.
+// NewMeter starts a meter over the received bytes of read, using now as its
+// clock.
 func NewMeter(read Counters, now func() time.Time) *Meter {
+	return NewByteMeter(func() (uint64, error) {
+		in, _, err := read()
+		return in, err
+	}, now)
+}
+
+// NewSendMeter starts a meter over the sent bytes of read: the same speed and
+// "so far" as [NewMeter], for the PC that is sending.
+func NewSendMeter(read Counters, now func() time.Time) *Meter {
+	return NewByteMeter(func() (uint64, error) {
+		_, out, err := read()
+		return out, err
+	}, now)
+}
+
+// NewByteMeter starts a meter over any single byte counter that only goes up.
+func NewByteMeter(read func() (uint64, error), now func() time.Time) *Meter {
 	return &Meter{read: read, now: now}
 }
 
@@ -38,7 +56,7 @@ const smoothing = 0.25
 // counter that went backwards because the adapter reset, keeps the last
 // value and tries again next time.
 func (m *Meter) Sample() (rate float64, received uint64) {
-	in, _, err := m.read()
+	in, err := m.read()
 	now := m.now()
 	if err != nil {
 		return m.rate, m.lastIn - m.baseIn

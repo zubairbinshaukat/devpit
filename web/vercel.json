@@ -7,6 +7,16 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/",
+      "destination": "/home",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/home",
+      "permanent": true
+    },
+    {
       "source": "/docs/features/git-and-ssh",
       "destination": "/docs/features/accounts-git-and-github",
       "permanent": true

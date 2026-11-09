@@ -23,12 +23,12 @@ import { buildTwins, twinUrl } from './md-twins.mjs';
 
 const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The landing-page facts. Keep in step with web/index.html and the Go source. */
+/** The landing-page facts. Keep in step with web/home.html and the Go source. */
 const HEAD = `# Devpit
 
 > Devpit (also written "Devpit CLI") is a free, open-source toolkit for developers on Windows by Zubair bin Shaukat (zubyr). One terminal menu picks the right account per folder for Claude Code, Git, GitHub, Vercel, Firebase, Supabase and Cloudflare (Convex is shown, not switched), frees disk space from developer junk (node_modules, build folders, package caches, Docker leftovers, old Scoop versions, Windows temp), fixes stuck ports such as 3000, installs and updates developer tools through winget, Scoop, Chocolatey and npm, and copies big folders between two Windows PCs on the same network.
 
-Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is ${SITE} and the documentation is at ${SITE}/docs.
+Devpit is written in Go with Bubble Tea and ships as a single executable with no runtime to install. It runs on Windows 10 and 11 (x64 and ARM64). It is MIT licensed. The source is at https://github.com/zubairbinshaukat/devpit, the website is ${SITE}/home and the documentation is at ${SITE}/docs.
 
 Every docs page is also plain Markdown: add \`.md\` to its URL (the docs home is ${SITE}/docs/index.md). The links below point at those Markdown pages; each one ends with the URL of its HTML page.
 
@@ -120,7 +120,7 @@ export function buildLlms() {
   out.push(
     '## Links',
     '',
-    `- [Website](${SITE}/): landing page with an animated demo and FAQ`,
+    `- [Website](${SITE}/home): landing page with an animated demo and FAQ`,
     '- [Source code](https://github.com/zubairbinshaukat/devpit): Go source, issues and releases',
     '- [Releases](https://github.com/zubairbinshaukat/devpit/releases): what changed in each version',
     '- [Safety rules](https://github.com/zubairbinshaukat/devpit/blob/main/docs/safety.md): every rule and the test that pins it',

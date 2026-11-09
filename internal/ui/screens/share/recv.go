@@ -102,8 +102,9 @@ type recvScreen struct {
 	run  *runHandle
 	ctx  context.Context
 
-	stage recvStage
-	frame int
+	stage   recvStage
+	frame   int
+	initCmd tea.Cmd // the address field's focus command, returned by Init
 
 	ip     textinput.Model
 	host   string
@@ -149,18 +150,18 @@ func newRecvScreen(deps Deps, cfg config.Config, saved *job.Job) recvScreen {
 	if saved != nil {
 		m.stage, m.job = recvResumeAsk, *saved
 		m.host, m.share, m.dest = saved.Host, saved.Share, saved.Dest
+	} else {
+		// Focus here, not in Init: Init has a value receiver, so a Focus call
+		// there would change a copy and the field the screen keeps would stay
+		// unfocused and ignore every key until a retry focused it again.
+		m.initCmd = m.ip.Focus()
 	}
 	return m
 }
 
-// Init implements uictx.Screen.
-func (m recvScreen) Init() tea.Cmd {
-	if m.stage == recvIP {
-		c := m.ip.Focus()
-		return c
-	}
-	return nil
-}
+// Init implements uictx.Screen. The address field is already focused (see
+// newRecvScreen); this only hands back its focus command.
+func (m recvScreen) Init() tea.Cmd { return m.initCmd }
 
 // Title implements uictx.Screen.
 func (m recvScreen) Title() string { return "Copy from a shared folder" }
@@ -268,6 +269,9 @@ func (m recvScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 
 	case tea.KeyPressMsg:
 		return m.onKey(msg)
+
+	case tea.PasteMsg:
+		return m.onPaste(msg)
 	}
 	if m.stage == recvDest {
 		if next, cmd, ok := m.picker.Pointer(ctx, msg, 0); ok {
@@ -569,6 +573,23 @@ func (m recvScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 	case recvListing, recvChecking:
 	}
 	return m, nil
+}
+
+// onPaste hands pasted text to the text field that has focus. The other
+// stages have no field to paste into.
+func (m recvScreen) onPaste(msg tea.PasteMsg) (uictx.Screen, tea.Cmd) {
+	var cmd tea.Cmd
+	switch m.stage {
+	case recvIP:
+		m.ip, cmd = m.ip.Update(msg)
+	case recvCreds:
+		if m.focus == 0 {
+			m.user, cmd = m.user.Update(msg)
+		} else {
+			m.pass, cmd = m.pass.Update(msg)
+		}
+	}
+	return m, cmd
 }
 
 // credsKey handles the sign-in form.

@@ -122,8 +122,8 @@ export default defineConfig({
           errorOnInvalidHashes: true,
           errorOnLocalLinks: true,
           // Links to landing-page files and other root-served pages
-          // (/install, /, /#faq) are outside this Astro project.
-          exclude: ['/', '/install', '/#*', '/llms.txt', '/sitemap.xml', '/robots.txt', '/og-image.png'],
+          // (/install, /home, /home#faq) are outside this Astro project.
+          exclude: ['/home', '/home#*', '/install', '/llms.txt', '/sitemap.xml', '/robots.txt', '/og-image.png'],
         }),
       ],
     }),

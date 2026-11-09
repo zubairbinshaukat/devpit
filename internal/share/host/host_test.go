@@ -13,7 +13,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"unicode"
 
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
 )
@@ -23,44 +22,69 @@ import (
 // crypto/rand; a test below checks that is the default.
 func seeded(seed int64) *mrand.Rand { return mrand.New(mrand.NewSource(seed)) } //nolint:gosec // a test source on purpose
 
-func TestPasswordMeetsWindowsComplexityAndIsSafeToTypeInACommand(t *testing.T) {
+func TestPasswordIsSixDigitsAndSafeToTypeInACommand(t *testing.T) {
+	if PasswordLength != 6 {
+		t.Fatalf("PasswordLength = %d, want 6", PasswordLength)
+	}
+	sixDigits := regexp.MustCompile(`^[0-9]{6}$`)
 	r := seeded(1)
 	seen := map[string]bool{}
-	for range 200 {
+	leadingZero := false
+	for range 2000 {
 		pw, err := Password(r, "devpit-abcd")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(pw) != PasswordLength {
-			t.Fatalf("length %d", len(pw))
+		if !sixDigits.MatchString(pw) {
+			t.Fatalf("%q is not 6 digits", pw)
 		}
-		var up, low, dig int
-		for _, c := range pw {
-			switch {
-			case unicode.IsUpper(c):
-				up++
-			case unicode.IsLower(c):
-				low++
-			case unicode.IsDigit(c):
-				dig++
-			default:
-				t.Fatalf("%q has a character that is not a letter or digit: %q", pw, c)
-			}
-		}
-		if up < 2 || low < 2 || dig < 2 {
-			t.Fatalf("%q has %d upper, %d lower, %d digits; want two of each at least", pw, up, low, dig)
-		}
-		if strings.ContainsAny(pw, "IlO01") {
-			t.Fatalf("%q has a look-alike character", pw)
-		}
-		if strings.Contains(strings.ToLower(pw), "devpit-abcd") {
-			t.Fatalf("%q contains the user name", pw)
+		if pw[0] == '0' {
+			leadingZero = true
 		}
 		seen[pw] = true
 	}
-	if len(seen) < 199 {
-		t.Errorf("only %d different passwords in 200", len(seen))
+	if !leadingZero {
+		t.Error("no code with a leading zero in 2000; digits are not uniform")
 	}
+	if len(seen) < 1900 {
+		t.Errorf("only %d different passwords in 2000", len(seen))
+	}
+}
+
+func TestPasswordDigitsAreRoughlyUniform(t *testing.T) {
+	r := seeded(7)
+	var count [10]int
+	for range 5000 {
+		pw, err := Password(r, "u")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range pw {
+			count[c-'0']++
+		}
+	}
+	// 30000 digits, 3000 expected each; a bias bug would be far outside this.
+	for d, n := range count {
+		if n < 2700 || n > 3300 {
+			t.Errorf("digit %d appeared %d times, want about 3000", d, n)
+		}
+	}
+}
+
+func TestPasswordUsesOnlyWhatTheReaderGives(t *testing.T) {
+	// A zero-filled reader gives the lowest value every time: leading zeros
+	// are kept, not trimmed as a number would be.
+	pw, err := Password(zeroReader{}, "u")
+	if err != nil || pw != "000000" {
+		t.Errorf("Password(zeros) = %q, %v; want 000000", pw, err)
+	}
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
 }
 
 func TestPasswordUsesCryptoRandWhenNothingIsInjected(t *testing.T) {

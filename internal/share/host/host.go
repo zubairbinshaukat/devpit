@@ -63,6 +63,27 @@ type Deps struct {
 	// Getenv reads the environment, for the folder check. Nil means
 	// os.Getenv.
 	Getenv func(string) string
+	// Counter opens the byte counter that [Manager.Progress] reads while
+	// sharing, for the share named share on adapter a. It returns the reader
+	// (bytes sent so far), where the count comes from, and a function that
+	// releases the counter when sharing stops. Nil means the adapter's own out
+	// counter. This is the seam for a future per-share source.
+	Counter func(share string, a Adapter) (read func() (uint64, error), src ProgressSource, closeFn func())
+	// Measure adds up the size of the shared folder, once, in the background.
+	// Its context is cancelled when sharing stops. Nil means [MeasureFolder].
+	Measure func(ctx context.Context, root string) (FolderSize, error)
+}
+
+// adapterCounter is the default [Deps.Counter]: everything the adapter has
+// sent, which is an estimate of this share's traffic, not an exact count.
+// Reading it needs no administrator rights.
+func adapterCounter(_ string, a Adapter) (func() (uint64, error), ProgressSource, func()) {
+	index := a.Index
+	read := func() (uint64, error) {
+		_, out, err := winapi.InterfaceOctets(index)
+		return out, err
+	}
+	return read, SourceAdapter, func() {}
 }
 
 // withDefaults fills in what a caller left out.
@@ -87,6 +108,12 @@ func (d Deps) withDefaults() Deps {
 	}
 	if d.Getenv == nil {
 		d.Getenv = os.Getenv
+	}
+	if d.Counter == nil {
+		d.Counter = adapterCounter
+	}
+	if d.Measure == nil {
+		d.Measure = MeasureFolder
 	}
 	return d
 }
@@ -178,6 +205,13 @@ type Manager struct {
 	card    Card
 	up      bool
 	release func()
+
+	// Progress: the byte counter, the one folder measure running in the
+	// background, and what releases the counter. All are set when the share
+	// comes up and cleared by Stop.
+	traffic        *traffic
+	measureCancel  context.CancelFunc
+	releaseCounter func()
 }
 
 // NewManager returns a manager over deps and registers it, so a quit or a
@@ -373,10 +407,44 @@ func (m *Manager) Start(ctx context.Context, opts Options, onStep func(Step)) (C
 	if aerr != nil {
 		rel = func() {}
 	}
+	// Progress is read from the sending adapter's counter, not from the
+	// worker: it needs no admin and adds no operation. The first reading is
+	// the baseline, so what the PC sent before sharing is not counted.
+	read, src, closeCounter := m.deps.Counter(share, opts.Adapter)
+	if read == nil {
+		read = func() (uint64, error) { return 0, errors.New("no byte counter") }
+	}
+	if closeCounter == nil {
+		closeCounter = func() {}
+	}
+	tr := newTraffic(read, src, m.deps.Now)
+	tr.sample()
+	// The folder is measured once, in the background, on its own context: the
+	// caller's ctx ends when Start returns, and Stop cancels this one.
+	mctx, mcancel := context.WithCancel(context.Background())
+	go func() {
+		if size, merr := m.deps.Measure(mctx, opts.Path); merr == nil {
+			tr.setTotal(size)
+		}
+	}()
 	m.mu.Lock()
 	m.card, m.up, m.release = card, true, rel
+	m.traffic, m.measureCancel, m.releaseCounter = tr, mcancel, closeCounter
 	m.mu.Unlock()
 	return card, nil
+}
+
+// Progress returns what the running share has sent so far, or the zero value
+// when no share is up. It only reads a counter: it needs no admin, asks the
+// worker for nothing, and is safe from any goroutine.
+func (m *Manager) Progress() Progress {
+	m.mu.Lock()
+	up, tr := m.up, m.traffic
+	m.mu.Unlock()
+	if !up || tr == nil {
+		return Progress{}
+	}
+	return tr.sample()
 }
 
 // update changes the in-memory manifest under the lock.
@@ -413,6 +481,10 @@ func (m *Manager) Stop(ctx context.Context) error {
 	if admin == nil {
 		return nil
 	}
+	// Progress ends first, on every path out of Stop, including a stop that
+	// fails and is tried again: the folder measure is cancelled and the counter
+	// released, so nothing keeps reading once sharing is being taken down.
+	m.endProgress()
 	if err := admin.Share(ctx, elevate.ShareRequest{Op: elevate.ShareOpStop}, nil); err != nil {
 		return fmt.Errorf("stopping the share: %w", err)
 	}
@@ -430,6 +502,21 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.admin, m.release, m.up, m.card = nil, nil, false, Card{}
 	m.mu.Unlock()
 	return nil
+}
+
+// endProgress cancels the folder measure, releases the byte counter and drops
+// the traffic. It is safe to call when none is running.
+func (m *Manager) endProgress() {
+	m.mu.Lock()
+	cancel, release := m.measureCancel, m.releaseCounter
+	m.traffic, m.measureCancel, m.releaseCounter = nil, nil, nil
+	m.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if release != nil {
+		release()
+	}
 }
 
 // lastElement returns the last part of a Windows path, whatever separator it

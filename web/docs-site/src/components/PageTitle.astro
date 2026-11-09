@@ -22,7 +22,7 @@ const isPost = isBlog && !/^blog(\/(\d+|tags\/.+|authors\/.+))?$/.test(id);
 const contentId = entry.id === '' ? 'index' : entry.id;
 const crumbs: { label: string; href?: string }[] = [];
 if (!isBlog && contentId !== 'index' && contentId !== '404') {
-  crumbs.push({ label: 'Devpit', href: '/' }, { label: 'Docs', href: BASE });
+  crumbs.push({ label: 'Devpit', href: '/home' }, { label: 'Docs', href: BASE });
   const parts = contentId.replace(/\/index$/, '').split('/');
   for (let i = 1; i < parts.length; i++) {
     const parentId = parts.slice(0, i).join('/');

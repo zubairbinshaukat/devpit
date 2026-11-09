@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const webDist = path.resolve(here, '..', '..', 'dist', 'index.html');
+const webDist = path.resolve(here, '..', '..', 'dist', 'home.html');
 
 const checks = ['check-meta', 'check-jsonld', 'check-assets', 'check-shots'];
 if (fs.existsSync(webDist)) checks.push('check-site', 'check-markdown');

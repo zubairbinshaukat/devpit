@@ -17,7 +17,7 @@ requireDist();
 const r = new Report('check-assets');
 
 /** Served at the site root but not present in web/ as a source file. */
-const GENERATED_ROOT = new Set(['/', '/install', '/sitemap.xml', '/llms.txt', '/llms-full.txt']);
+const GENERATED_ROOT = new Set(['/home', '/install', '/sitemap.xml', '/llms.txt', '/llms-full.txt']);
 
 function existsInDocs(p) {
   // p is like /docs/a/b: try file, .html, index.html.

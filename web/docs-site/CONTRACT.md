@@ -132,7 +132,8 @@ archive pages); the blog list and the posts are indexed.
   `[Free up disk space](/docs/features/free-up-disk-space)`. Link to a heading
   with `#heading-id`. The link validator fails the build on a broken internal
   link or anchor.
-- Links to the landing page: `/`, `/install`, `/#faq` are allowed. External
+- Links to the landing page: `/home`, `/install`, `/home#faq` are allowed (not `/`,
+  which only redirects to `/home`). External
   links use the full https URL.
 - Real GitHub repo: https://github.com/zubairbinshaukat/devpit
 - Admonitions: `:::note`, `:::tip`, `:::caution`, `:::danger` (with `:::`).
@@ -230,7 +231,7 @@ question has a non-empty answer and that the visible text is present.
   images are listed.
 - `check-site` (needs `node web/scripts/build.mjs` first): the merged
   `sitemap.xml` lists exactly the indexable pages plus the landing page, robots.txt
-  points at it, the landing page is byte-identical to `web/index.html`, and the
+  points at it, the landing page (`/home`, built from `web/home.html`) is byte-identical to the source and has no `dist/index.html`, `/` redirects to `/home` in `vercel.json`, and the
   committed `web/llms.txt` is up to date (`node web/scripts/gen-llms.mjs --write`)
   and lists every page by its Markdown twin, with the blog under "Optional".
 - `check-markdown` (needs `node web/scripts/build.mjs` first; the build runs the
@@ -266,7 +267,7 @@ see the HTML page.
 
 ## Not in your way
 
-- The landing page (`web/index.html`) and Vercel functions are untouched by
+- The landing page (`web/home.html`, served at `/home`) and Vercel functions are untouched by
   the docs build.
 - The merged `sitemap.xml`, `llms-full.txt`, the Markdown twins and the sidebar
   entries for the Troubleshooting folder and blog are generated at build time.
