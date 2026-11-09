@@ -45,6 +45,13 @@ type Entry struct {
 func Releases() []Entry {
 	return []Entry{
 		{
+			Version:  "0.5",
+			Headline: "This PC is new.",
+			Lines: []string{
+				"Settings › PC specs shows battery health, memory slots, drive health, screen, graphics and Windows on one page, with a buyer's check and a report you can copy.",
+			},
+		},
+		{
 			Version:  "0.4",
 			Headline: "Accounts is new.",
 			Lines: []string{

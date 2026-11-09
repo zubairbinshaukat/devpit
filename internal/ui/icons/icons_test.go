@@ -54,10 +54,10 @@ func TestNerdGlyphsAreBMPPrivateUse(t *testing.T) {
 	set := icons.Nerd()
 	shared := map[string]bool{set.Safe: true, set.Review: true, set.Careful: true, set.BarFull: true, set.BarEmpty: true}
 	// The spinner, the progress track, the selection bar and the version
-	// arrow are drawing primitives rather than icons: they are the same in
+	// arrow (and the memory slot squares) are drawing primitives rather than icons: they are the same in
 	// the nerd and unicode tiers, so a spinner never changes shape when the
 	// icon font is turned on.
-	for _, g := range append([]string{set.SelectBar, set.Track, set.TrackEmpty, set.Queued, set.Arrow}, set.Spinner...) {
+	for _, g := range append([]string{set.SelectBar, set.Track, set.TrackEmpty, set.Queued, set.Arrow, set.SlotFull, set.SlotEmpty}, set.Spinner...) {
 		shared[g] = true
 	}
 

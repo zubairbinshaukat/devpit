@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/specs"
 )
 
 // SkillService is the part of the Accounts engine the AI agent skill row and
@@ -42,6 +43,9 @@ type Options struct {
 	// Version is the running version for About and What's new;
 	// version.Short() when "".
 	Version string
+	// Specs is what the PC specs screen reads through. Its zero value reads
+	// this PC; nothing is read until that screen is opened.
+	Specs specs.Options
 }
 
 // skillSession is what the settings list and the skill screen know about the

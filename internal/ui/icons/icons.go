@@ -105,6 +105,10 @@ type Set struct {
 	// wrong.
 	Lock   string
 	Absent string
+	// SlotFull and SlotEmpty draw a memory slot with a stick in it and an
+	// empty one.
+	SlotFull  string
+	SlotEmpty string
 
 	// sections maps a home section id to its glyph. Unlike the tool glyphs,
 	// sections have a unicode shape too, so the menu has icons on a stock
@@ -159,6 +163,8 @@ func Nerd() Set {
 		Arrow:      "→",
 		Lock:       "", // nf-fa-lock
 		Absent:     "─",
+		SlotFull:   "■",
+		SlotEmpty:  "□",
 		sections: map[string]string{
 			"accounts": "", // nf-fa-users
 			"clean":    "", // nf-fa-trash
@@ -199,8 +205,10 @@ func Unicode() Set {
 		Arrow:      "→",
 		// A filled square from the geometric-shape block, which every
 		// console font has; a padlock is an emoji, two cells wide.
-		Lock:   "■",
-		Absent: "─",
+		Lock:      "■",
+		Absent:    "─",
+		SlotFull:  "■",
+		SlotEmpty: "□",
 		sections: map[string]string{
 			"accounts": "◐",
 			"clean":    "◧",
@@ -242,6 +250,8 @@ func ASCII() Set {
 		Arrow:      ">",
 		Lock:       "#",
 		Absent:     "-",
+		SlotFull:   "#",
+		SlotEmpty:  "_",
 	}
 }
 
@@ -319,6 +329,7 @@ func (s Set) Glyphs() []string {
 		s.Trash, s.Gear, s.Globe, s.Key, s.Update, s.Package, s.Clock,
 		s.BarFull, s.BarEmpty, s.Cursor, s.SelectBar,
 		s.Track, s.TrackEmpty, s.Queued, s.Arrow, s.Lock, s.Absent,
+		s.SlotFull, s.SlotEmpty,
 	}
 	all = append(all, s.Spinner...)
 	for _, id := range sectionOrder {

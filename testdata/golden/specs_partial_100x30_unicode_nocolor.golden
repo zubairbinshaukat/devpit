@@ -1,0 +1,30 @@
+ DEVPIT  dev  ·  PC specs                                                            node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
+ Contoso Book 14 G3 · laptop                                                             reading… ⠋
+ ▸Check Battery Memory Storage CPU Graphics Display Windows System Network
+
+ Buyer's check ───────────────────────────────────────────────────────────────────── filling in… ⠋
+ ✓ battery 92% · ✓ 32 GB memory
+ Rules of thumb are marked; missing data is never judged.
+
+ At a glance ────────────────────────────────────────────────────────────────────────────────────
+   Processor   Intel Core Ultra 7 155H, 16 cores / 22 threads
+   Memory      32 GB DDR5 5600 MT/s, 2 of 2 slots used
+   Storage     reading…
+   Graphics    Intel Arc Graphics
+   Display     14.0" 2880x1800 120 Hz built-in
+   Battery     92% health, 112 cycles, 70 Wh when new
+   Windows     reading…
+
+ Battery ────────────────────────────────────────────────────────────────────────────────────────
+   Health      ━━━━━━━━━━━━━━━━━━── 92% good
+   Capacity    64.4 Wh now · 70.0 Wh when new
+   Cycles      112 charge cycles
+   Charge      81% · on battery · about 6 h 20 min left
+   Battery     Contoso · Primary · Lithium-ion · serial BATTEST
+
+ Memory ─────────────────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

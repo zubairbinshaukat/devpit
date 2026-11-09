@@ -13,6 +13,7 @@ import (
 
 // Row identifiers.
 const (
+	rowSpecs      = "specs"
 	rowTheme      = "theme"
 	rowIcons      = "icons"
 	rowEmoji      = "emoji"
@@ -62,6 +63,13 @@ var (
 // first.
 func groups(cfg config.Config, skill *skillSession, ver string) []group {
 	return []group{
+		{Title: "This PC", Items: []row{
+			{
+				ID: rowSpecs, Label: "PC specs", Kind: kindOpen,
+				Desc: "Everything about this PC on one page: model, battery health, memory slots, drives and their health, " +
+					"screen, graphics and Windows. Read only. Handy before buying a used laptop.",
+			},
+		}},
 		{Title: "Look", Items: []row{
 			{
 				ID: rowTheme, Label: "Theme", Value: cfg.Theme, Kind: kindCycle,

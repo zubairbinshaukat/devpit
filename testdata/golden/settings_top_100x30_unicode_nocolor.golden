@@ -2,16 +2,18 @@
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
 ──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
-                                                   │
-  Look ──────────────────────────────────────────  │  Theme
-▌ ▸ Theme                 ‹ auto ›                 │
-    Icons                 ‹ unicode ›              │  The colours Devpit uses. auto follows your
-    Emoji                 ○ off                    │  terminal, light or dark; dark and light pick
-    Icon font             not installed         ›  │  one. aqua, blue and rose change the accent
-    Icon check            needs the icon font   ›  │  colour, and mono uses no colour at all, only
-  Cleaning ──────────────────────────────────────  │  shapes and words.
+                                                   │  Theme
+  This PC ───────────────────────────────────────  │
+    PC specs                                    ›  │  The colours Devpit uses. auto follows your
+  Look ──────────────────────────────────────────  │  terminal, light or dark; dark and light pick
+▌ ▸ Theme                 ‹ auto ›                 │  one. aqua, blue and rose change the accent
+    Icons                 ‹ unicode ›              │  colour, and mono uses no colour at all, only
+    Emoji                 ○ off                    │  shapes and words.
+    Icon font             not installed         ›  │
+    Icon check            needs the icon font   ›  │  [enter] next  [←→] choose
+  Cleaning ──────────────────────────────────────  │
     Projects folder       D:\work\projects      ›  │
-    Never-touch folders   2 folders             ›  │  [enter] next  [←→] choose
+    Never-touch folders   2 folders             ›  │
     Recent projects       last 7 days           ›  │
     Age filter            older than 30 days    ›  │
     Forget last scan                            ›  │
@@ -23,8 +25,6 @@
   Privacy and updates ───────────────────────────  │
     Usage stats           ○ off                    │
     Update check          ● on                     │
-  About ─────────────────────────────────────────  │
-    About Devpit          v0.4.0                ›  │
-    What's new            in 0.4                ›  │  Changes save as soon as you make them.
+  ▼ 2 more                                         │  Changes save as soon as you make them.
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 esc back  ·  ↑↓ move  ·  enter change/open  ·  ←→ choose  ·  ? help

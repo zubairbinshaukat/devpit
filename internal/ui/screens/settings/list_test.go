@@ -52,6 +52,7 @@ func step(t *testing.T, m Model, ctx uictx.Context, msg tea.Msg) (Model, tea.Cmd
 
 // order is every row the cursor can stop on, top to bottom.
 var order = []string{
+	rowSpecs,
 	rowTheme, rowIcons, rowEmoji, rowFont, rowProbe,
 	rowFolders, rowNeverT, rowActiveDays, rowOlderDays, rowRescan,
 	rowManager, rowDevPorts,
@@ -79,11 +80,11 @@ func TestKeysWalkRowsAndSkipHeadings(t *testing.T) {
 			t.Errorf("k from the last row went to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("home"))
-		if m.cursor() != rowTheme {
+		if m.cursor() != rowSpecs {
 			t.Errorf("home went to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("up"))
-		if m.cursor() != rowTheme {
+		if m.cursor() != rowSpecs {
 			t.Errorf("up at the top moved to %q", m.cursor())
 		}
 		m, _ = step(t, m, ctx, keyPress("end"))
@@ -102,7 +103,7 @@ func TestKeysWalkRowsAndSkipHeadings(t *testing.T) {
 func TestCyclingAndToggling(t *testing.T) {
 	cfg := config.Default()
 	ctx := sized(cfg, icons.Unicode(), 100, 30)
-	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
+	m := newTest(skillWith(service.AgentCreate, service.AgentCreate)).at(rowTheme)
 
 	m, cmd := step(t, m, ctx, keyPress("right"))
 	saved, ok := findConfigChanged(flattenCmd(cmd))
@@ -260,7 +261,8 @@ func TestScrollingKeepsTheCursorOnScreen(t *testing.T) {
 }
 
 // The groups keep a blank line between them when there is room and give it
-// up first when there is not.
+// up first when there is not. Since This PC joined the list, 100x30 scrolls
+// a little once the gaps have gone.
 func TestGapsGoFirst(t *testing.T) {
 	m := newTest(skillWith(service.AgentCreate, service.AgentCreate))
 	tall := m.lay(sized(config.Default(), icons.Unicode(), 120, 40))
@@ -268,8 +270,8 @@ func TestGapsGoFirst(t *testing.T) {
 	if tall.Gaps == 0 || tall.Scrolling {
 		t.Errorf("a tall terminal: %d gaps, scrolling %v", tall.Gaps, tall.Scrolling)
 	}
-	if short.Gaps != 0 || short.Scrolling {
-		t.Errorf("100x30: %d gaps, scrolling %v; the gaps should go and the list fit", short.Gaps, short.Scrolling)
+	if short.Gaps != 0 {
+		t.Errorf("100x30: %d gaps; the gaps should go before the list scrolls", short.Gaps)
 	}
 }
 

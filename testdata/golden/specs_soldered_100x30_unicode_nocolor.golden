@@ -1,0 +1,30 @@
+ DEVPIT  dev  ·  PC specs                                                            node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
+ Contoso Book 14 G3 · laptop · Windows 11 Pro                            read 14:02  [r] read again
+  Check Battery▸Memory Storage CPU Graphics Display Windows System Network
+
+ Memory ─────────────────────────────────────────────────────────────────────────────────────────
+   Slots       ▪ soldered 16 GB LPDDR5 6400 MT/s on the board, cannot be upgraded
+   Installed   16 GB installed, 15.4 GB usable
+   In use      ━━━━━━━━━━━━━─── 12.3 of 15.4 GB in use now
+   · soldered memory cannot be upgraded later.
+
+ Storage ────────────────────────────────────────────────────────────────────────────────────────
+   Disk 0      Samsung PM9A1 1TB · 1 TB NVMe SSD (Windows shows 954 GB)                    ✓ healthy
+               holds C: · Windows starts from here
+               wear and hours need admin · [e] read them (one Windows prompt)
+   C:          ━━━━──────── 611 GB free of 952 GB · NTFS · BitLocker on
+
+ Processor ──────────────────────────────────────────────────────────────────────────────────────
+   Name        Intel Core Ultra 7 155H
+   Cores       16 cores (6 performance + 10 efficient), 22 threads
+   Clock       about 1.4 GHz base; Windows does not report the boost clock
+   Cache       L2 18 MB · L3 24 MB
+   Type        x64
+   Virtualize  on, in use by Windows (Hyper-V or memory integrity)
+
+ Graphics ───────────────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

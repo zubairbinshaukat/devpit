@@ -2,7 +2,10 @@
 
 package shots
 
-import "github.com/zubairbinshaukat/devpit/internal/config"
+import (
+	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/sysinfo/sysinfofake"
+)
 
 // registry maps "screen/state", as written in the manifest, to the scene
 // that draws it. Adding a shot for a screen that exists is one line here and
@@ -57,16 +60,18 @@ var registry = map[string]scene{
 	"firstrun/theme":   firstRun(2, "Step 3"),
 	"firstrun/privacy": firstRun(3, "Step 4"),
 
-	"settings/menu":        settingsAt(0, false, "Icons"),
-	"settings/menu-stats":  settingsAt(settingsStats, false, "Usage stats"),
-	"settings/menu-font":   settingsAt(settingsFont, false, "Icon font"),
-	"settings/folders":     settingsAt(settingsFolders, true, "Projects"),
-	"settings/never-touch": settingsAt(settingsNever, true, "Never"),
-	"settings/dev-ports":   settingsAt(settingsPorts, true, "Dev ports"),
-	"settings/font":        settingsAt(settingsFont, true, "Not installed"),
-	"settings/probe":       settingsAt(settingsProbe, true, "render"),
-	"settings/about":       settingsAt(settingsAbout, true, "Version"),
-	"settings/agent-skill": settingsAt(settingsSkill, true, "AI agent skill for Claude Code"),
+	"settings/menu":                  settingsAt(0, false, "Icons"),
+	"settings/menu-stats":            settingsAt(settingsStats, false, "Usage stats"),
+	"settings/menu-font":             settingsAt(settingsFont, false, "Icon font"),
+	"settings/folders":               settingsAt(settingsFolders, true, "Projects"),
+	"settings/never-touch":           settingsAt(settingsNever, true, "Never"),
+	"settings/dev-ports":             settingsAt(settingsPorts, true, "Dev ports"),
+	"settings/font":                  settingsAt(settingsFont, true, "Not installed"),
+	"settings/probe":                 settingsAt(settingsProbe, true, "render"),
+	"settings/about":                 settingsAt(settingsAbout, true, "Version"),
+	"settings/agent-skill":           settingsAt(settingsSkill, true, "AI agent skill for Claude Code"),
+	"settings/pc-specs":              specsAt(sysinfofake.Good(), nil, "Nothing stands out"),
+	"settings/pc-specs-buyers-check": specsAt(sysinfofake.Flags(), nil, "very worn"),
 
 	"whatsnew/card": sceneWhatsNew,
 

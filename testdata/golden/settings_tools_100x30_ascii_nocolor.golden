@@ -2,15 +2,17 @@
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                       tab <-> - 1-6
 ------------------------------------------------------==========------------------------------------
-                                                   |
-  Look ------------------------------------------  |  Package manager
-    Theme                 < auto >                 |
-    Icons                 < ascii >                |  Which installer Install & Update uses for new
-    Emoji                 [ ] off                  |  apps. auto uses Scoop if you have it, then
-    Icon font             not installed         >  |  winget, then Chocolatey. Pick one to always
-    Icon check            needs the icon font   >  |  use it.
+                                                   |  Package manager
+  This PC ---------------------------------------  |
+    PC specs                                    >  |  Which installer Install & Update uses for new
+  Look ------------------------------------------  |  apps. auto uses Scoop if you have it, then
+    Theme                 < auto >                 |  winget, then Chocolatey. Pick one to always
+    Icons                 < ascii >                |  use it.
+    Emoji                 [ ] off                  |
+    Icon font             not installed         >  |  [enter] next  [left/right] choose
+    Icon check            needs the icon font   >  |
   Cleaning --------------------------------------  |
-    Projects folder       D:\work\projects      >  |  [enter] next  [left/right] choose
+    Projects folder       D:\work\projects      >  |
     Never-touch folders   2 folders             >  |
     Recent projects       last 7 days           >  |
     Age filter            older than 30 days    >  |
@@ -23,8 +25,6 @@
   Privacy and updates ---------------------------  |
     Usage stats           [ ] off                  |
     Update check          [x] on                   |
-  About -----------------------------------------  |
-    About Devpit          v0.4.0                >  |
-    What's new            in 0.4                >  |  Changes save as soon as you make them.
+  v 2 more                                         |  Changes save as soon as you make them.
 ----------------------------------------------------------------------------------------------------
 esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

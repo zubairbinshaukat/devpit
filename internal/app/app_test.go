@@ -363,8 +363,9 @@ func TestSettingsTogglePersists(t *testing.T) {
 		t.Fatalf("the settings screen did not open:\n%s", view(m))
 	}
 
-	// The second row is the icon tier. Cycling it moves unicode to ascii.
-	m = drive(m, press("down"), press("enter"))
+	// The third row (after PC specs and Theme) is the icon tier. Cycling it
+	// moves unicode to ascii.
+	m = drive(m, press("down"), press("down"), press("enter"))
 
 	saved, ok := spy.last()
 	if !ok {

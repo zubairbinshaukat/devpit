@@ -21,6 +21,7 @@ import (
 // by its label. The goldens walk to a row by finding it here, so a reorder
 // moves the cursor further or less far but never captures the wrong row.
 var settingsOrder = []string{
+	"PC specs",
 	"Theme", "Icons", "Emoji", "Icon font", "Icon check",
 	"Projects folder", "Never-touch folders", "Recent projects", "Age filter", "Forget last scan",
 	"Package manager", "Dev ports",

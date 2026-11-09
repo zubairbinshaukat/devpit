@@ -202,6 +202,10 @@ func serveConnWith(ctx context.Context, rwc io.ReadWriteCloser, exec Executor, e
 			start(req, lim.shareOpTimeout, func(jobCtx context.Context) Event {
 				return handleShare(jobCtx, lw, ss, req)
 			})
+		case KindSpecs:
+			start(req, specsTimeout, func(jobCtx context.Context) Event {
+				return handleSpecs(jobCtx, lw, exec, req)
+			})
 		case KindCancel:
 			handleCancel(lw, jobs, req)
 		default:

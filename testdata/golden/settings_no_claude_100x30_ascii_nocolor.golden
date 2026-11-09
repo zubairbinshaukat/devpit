@@ -2,15 +2,17 @@
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                       tab <-> - 1-6
 ------------------------------------------------------==========------------------------------------
-                                                   |
-  Look ------------------------------------------  |  Usage stats
-    Theme                 < auto >                 |
-    Icons                 < ascii >                |  When on, Devpit sends one small report after
-    Emoji                 [ ] off                  |  a cleanup: space freed and how many items.
-    Icon font             not installed         >  |  Never a file name, a path or anything about
-    Icon check            needs the icon font   >  |  you. Off unless you turn it on.
+                                                   |  Usage stats
+  This PC ---------------------------------------  |
+    PC specs                                    >  |  When on, Devpit sends one small report after
+  Look ------------------------------------------  |  a cleanup: space freed and how many items.
+    Theme                 < auto >                 |  Never a file name, a path or anything about
+    Icons                 < ascii >                |  you. Off unless you turn it on.
+    Emoji                 [ ] off                  |
+    Icon font             not installed         >  |  [enter] turn on
+    Icon check            needs the icon font   >  |
   Cleaning --------------------------------------  |
-    Projects folder       D:\work\projects      >  |  [enter] turn on
+    Projects folder       D:\work\projects      >  |
     Never-touch folders   2 folders             >  |
     Recent projects       last 7 days           >  |
     Age filter            older than 30 days    >  |
@@ -23,8 +25,6 @@
   Privacy and updates ---------------------------  |
 | > Usage stats           [ ] off                  |
     Update check          [x] on                   |
-  About -----------------------------------------  |
-    About Devpit          v0.4.0                >  |
-    What's new            in 0.4                >  |  Changes save as soon as you make them.
+  v 2 more                                         |  Changes save as soon as you make them.
 ----------------------------------------------------------------------------------------------------
 esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

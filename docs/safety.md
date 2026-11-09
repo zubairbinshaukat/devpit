@@ -85,6 +85,21 @@ one to a child process.
 | 53 | A change that needs a shim stops before anything is written when no shim can be made (`devpit-shim.exe` missing next to `devpit.exe`), and says how to fix it; "just this once" and removing a rule still work | `service.shimGuard`, called by `Plan` and again by `Apply` | `TestMissingShimProgramStopsTheChangeBeforeWriting` in `service`; `TestShimProgramMissingThroughTheCommands` in `cmd/devpit`; `TestCheckReportsAMissingShimProgram` in `shims` |
 | 54 | Refreshing a shim never leaves a tool without one: a shim in use is renamed aside and swept up later, and if the new copy cannot take its place the old one is put back | `shims.copyExe`, `Manager.sweepOld` | `TestAFailedReplaceLeavesTheOldShimInPlace`, `TestALockedShimIsRenamedAsideAndSweptLater`, `TestShimCopiesAreRefreshedAfterAnUpdate` in `shims` |
 
+## This PC
+
+Settings › PC specs reads what the PC is made of. It changes nothing on the
+machine, and what it shows about the PC's identity stays on the screen
+unless the person says otherwise.
+
+| # | Rule | Enforced in | Pinned by |
+| --- | --- | --- | --- |
+| 56 | PC specs only reads: the one PowerShell run is a compile-time script that calls only read cmdlets, and the engine has no network or UI code | `internal/sysinfo`: `batchScript` and `reliabilityScript` are constants fed on stdin to PowerShell by its full System32 path, nothing is ever put into them; the package imports no `net`, `net/http`, Bubble Tea or `internal/ui` | `TestScriptCallsOnlyReadCmdlets`, `TestSysinfoHasNoNetworkOrUIImport` in `internal/sysinfo` |
+| 57 | Reading never blocks the screen and stops on Esc; PowerShell is limited to 20 seconds and killed when it overruns or the screen goes | each section is its own command under the screen's context and a time limit (`sysinfo.Bounded`); the screen's `Stop` cancels them and `Busy` is always false; `runProgram` runs PowerShell with `exec.CommandContext`, a 20 s limit and a hidden window | `TestStopCancelsTheReadAndUnblocks`, `TestStaleGenerationIsDropped` in `internal/ui/screens/specs`; `TestBoundedReturnsWhenTheCallHangs`, `TestPowerShellTimeoutKillsIt` in `internal/sysinfo` |
+| 58 | Serial numbers and MAC addresses leave the screen only after a yes, and the default is No; the OEM product key is never kept | copy and save first ask "Include serial numbers and MAC addresses?" with `components/confirm` (starts on No); `sysinfo.Markdown` leaves them out unless `Serials` is set; the firmware's MSDM table is read for its size only and zeroed, and no field of the report can hold a key | `TestExportAsksAndDefaultsToNo` in `internal/ui/screens/specs`; `TestReportOmitsSerialsAndMACsByDefault`, `TestReportNeverHoldsTheProductKey` in `internal/sysinfo` |
+| 59 | The admin read of the drives' counters is a typed request with no arguments, and the worker runs only the compiled-in read | `elevate.KindSpecs` carries only its ID; `validateSpecs` refuses one with a command, a path, a share request, a target or a timeout before anything runs; the worker calls `sysinfo.ReadReliability` and sends back one size-capped JSON line | `TestSpecsRequestCarriesNoArguments`, `TestWorkerRunsOnlyTheFixedHealthRead` in `internal/elevate` |
+| 60 | Missing data is never judged: a section that did not arrive, or a value the PC does not report, never produces a Buyer's check flag | `sysinfo.Assess` reads only sections that arrived and values that are known (`Tri` is unknown by default, a zero cycle count is "not reported"); rules of thumb are marked as such | `TestMissingDataIsNeverAFlag`, `TestAssessEachRuleAtItsBoundary` in `internal/sysinfo`; `TestEveryFlagHasAWordNotOnlyColour` in `internal/ui/screens/specs` |
+| 61 | Nothing is saved without a key press, and a save never overwrites a file | the report is written only after `s` and the question; `sysinfo.SaveNew` claims the name exclusively, writes a temporary file beside it and renames it over the claim, and a taken name becomes "(2)", "(3)"; nothing about the PC is cached or persisted | `TestSaveNeverOverwrites` in `internal/ui/screens/specs` |
+
 ## Two rules that are about behaviour, not code paths
 
 **Nothing fails silently.** A locked folder, an access-denied directory, a

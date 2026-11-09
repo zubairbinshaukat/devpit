@@ -1,7 +1,8 @@
 // Package settings is the preferences screen.
 //
-// The settings sit in short groups under headings, most used first: Look,
-// Cleaning, Tools, AI agents, Privacy and updates, About. Each row is a
+// The settings sit in short groups under headings: This PC (the PC specs
+// page), then the most used first: Look, Cleaning, Tools, AI agents,
+// Privacy and updates, About. Each row is a
 // label and its current value in a column of its own; one place, beside
 // the list on a wide terminal and under it on a narrow one, says in plain
 // words what the focused setting does and what its values mean.
@@ -30,6 +31,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/choices"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/specs"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/version"
@@ -193,6 +195,12 @@ func (m Model) View(ctx uictx.Context) string { return m.list.View(ctx, m.spec(c
 // subScreen builds the private sub-screen a row pushes, if it has one.
 func (m Model) subScreen(id string, cfg config.Config) (uictx.Screen, bool) {
 	switch id {
+	case rowSpecs:
+		o := m.opts.Specs
+		if o.Version == "" {
+			o.Version = m.opts.Version
+		}
+		return specs.New(o), true
 	case rowFolders:
 		return newFolderScreen(cfg), true
 	case rowNeverT:

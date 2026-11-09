@@ -14,13 +14,17 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
 	"github.com/zubairbinshaukat/devpit/internal/app"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/elevate"
 	"github.com/zubairbinshaukat/devpit/internal/fonts"
 	"github.com/zubairbinshaukat/devpit/internal/network"
 	"github.com/zubairbinshaukat/devpit/internal/ports"
+	"github.com/zubairbinshaukat/devpit/internal/sysinfo"
+	"github.com/zubairbinshaukat/devpit/internal/sysinfo/sysinfofake"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
 	networkui "github.com/zubairbinshaukat/devpit/internal/ui/screens/network"
 	portsui "github.com/zubairbinshaukat/devpit/internal/ui/screens/ports"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/specs"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/whatsnew"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/wt"
@@ -52,24 +56,39 @@ func firstRun(n int, want string) scene {
 // --- Settings -------------------------------------------------------------
 
 // settingsRows are the indexes of the settings list rows a scene walks to.
+// PC specs is row 0, in the This PC group above Look.
 const (
-	settingsFont    = 3
-	settingsProbe   = 4
-	settingsFolders = 5
-	settingsNever   = 6
-	settingsPorts   = 11
-	settingsSkill   = 12
-	settingsStats   = 13
-	settingsAbout   = 15
+	settingsSpecs   = 0
+	settingsFont    = 4
+	settingsProbe   = 5
+	settingsFolders = 6
+	settingsNever   = 7
+	settingsPorts   = 12
+	settingsSkill   = 13
+	settingsStats   = 14
+	settingsAbout   = 16
 )
 
 // settingsScreen returns the settings section over demo hooks: the font is
 // not installed, Windows Terminal is nowhere to be found and the AI agent
 // skill is answered from memory, so opening any of it touches nothing.
-func settingsScreen() uictx.Screen {
+func settingsScreen() uictx.Screen { return settingsOver(sysinfofake.Good()) }
+
+// settingsOver is settingsScreen with the PC specs page over a made-up PC,
+// so no screenshot ever reads the machine it is rendered on.
+func settingsOver(pc sysinfo.Report) uictx.Screen {
+	src := sysinfofake.New(pc)
 	return settings.NewWith(settings.Options{
 		Skill: func() (settings.SkillService, error) { return demoSkill{}, nil },
 		Tick:  func(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil },
+		Specs: specs.Options{
+			Source:   func() sysinfo.Source { return src },
+			Elevated: func(context.Context) ([]sysinfo.Reliability, error) { return nil, &elevate.DeclinedError{} },
+			Copy:     func(string) tea.Cmd { return nil },
+			Save:     func(string, []byte) (string, error) { return "", errors.New("screenshots never save") },
+			Now:      func() time.Time { return time.Date(2026, 11, 10, 14, 2, 0, 0, time.UTC) },
+			Tick:     func(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil },
+		},
 	}).WithHooks(settings.Hooks{
 		FontStatus:    func(fonts.Options) (fonts.State, error) { return fonts.State{}, nil },
 		FindTerminals: func(wt.FindOptions) []wt.Location { return nil },
@@ -89,6 +108,25 @@ func settingsAt(row int, open bool, want string) scene {
 		}
 		if open {
 			s.key("enter")
+		}
+		s.waitFor(want)
+		return s
+	}
+}
+
+// specsAt opens Settings › PC specs over pc, presses keys there and waits
+// for want.
+func specsAt(pc sysinfo.Report, keys []string, want string) scene {
+	return func(t *testing.T, e entry) *session {
+		s := newSession(t, e, demoConfig(), screens{home.SectionSettings: func() uictx.Screen { return settingsOver(pc) }})
+		s.key(keySettings)
+		s.waitFor("Changes save as soon as you make them")
+		for range settingsSpecs {
+			s.key("down")
+		}
+		s.key("enter")
+		for _, k := range keys {
+			s.key(k)
 		}
 		s.waitFor(want)
 		return s

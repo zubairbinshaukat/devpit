@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -344,7 +345,7 @@ func TestUpdateNoticeShowsWhereAndHow(t *testing.T) {
 	// The About screen repeats it, with the release page. About is the
 	// second to last row.
 	m = drive(m, digitFor(t, home.SectionSettings))
-	for range 15 {
+	for range slices.Index(settingsOrder, "About Devpit") {
 		m = drive(m, press("down"))
 	}
 	m = drive(m, press("enter"))

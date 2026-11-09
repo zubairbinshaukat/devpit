@@ -16,7 +16,7 @@ internal/ui/
   components/         header, footer, menu, confirm, summary, restable,
                       progress, pathpicker
   screens/            clean, firstrun, gitssh, home, install, network,
-                      ports, settings, share, update
+                      ports, settings, share, specs, update
 internal/config/       TOML settings, atomic save, corrupt-file recovery
 internal/winapi/       thin Win32 wrappers, one _windows.go per stub
 internal/version/      build identity, set by ldflags
@@ -42,6 +42,10 @@ internal/selfupdate/   once-a-day look at GitHub's latest release, cached on
                       disk; names the upgrade command for this install
 internal/about/        author, links and licence, read by every place that
                       prints them so the byline cannot drift
+internal/sysinfo/      the read-only PC specs engine: SMBIOS, EDID, battery,
+                      displays, CPU topology, one PowerShell batch, the
+                      Buyer's check (Assess) and the Markdown report;
+                      sysinfofake holds made-up PCs for tests and screenshots
 ```
 
 `internal/` because none of it is meant to be imported by anyone else. No
@@ -50,7 +54,8 @@ internal/about/        author, links and licence, read by every place that
 ## The engine/UI split
 
 Every package above `internal/ui` and `internal/app` — `scan`, `clean`,
-`ports`, `tools`, `fonts`, `wt`, `network`, `gitssh`, `elevate`, `share/...` — is an
+`ports`, `tools`, `fonts`, `wt`, `network`, `gitssh`, `elevate`, `share/...`,
+`sysinfo` — is an
 **engine package**: it does not import `github.com/charmbracelet/bubbletea`,
 does not know what a screen is, and can be unit-tested with nothing but the
 filesystem and (on Windows) real Win32 calls. `internal/elevate` is the
@@ -173,6 +178,7 @@ doing the stubs are the list of what has to be written.
 | `share/recv` | List another PC's shares, sign in, dry-run size and free-space check, copy with retry and resume | `Session.List`, `Preflight`, `Run` | none, the Win32 calls are in `winapi` |
 | `share/robocopy` | Command lines, log tailing, language-independent parsing, exit-code bits | `CopyArgs`, `DryRunArgs`, `ParseLine`, `ParseSummary`, `DecodeExit`, `Tool.Copy` | `exec_windows.go` (no console window) |
 | `share/netstat` | Address check, `net view` parsing, sign-in, adapter byte counters, reachability probe | `ParseHost`, `ParseNetView`, `SignIn`, `Meter`, `WaitReachable` | `oem_windows.go` (OEM code page) |
+| `sysinfo` | Read what the PC is made of, one section at a time, each bounded; judge it for a buyer; write the report | `NewLive` (a `Source`), `Bounded`, `Assess`, `Glance`, `Markdown`, `SaveNew`, `ReadReliability` (elevated worker only) | `live_windows.go`, `smbios_windows.go`, `battery_windows.go`, `display_windows.go`, `gpu_windows.go`, `volumes_windows.go`, `windows_windows.go`, `psbatch_windows.go`, `desktop_windows.go` |
 | `share/errmap` | One table of known sharing errors, in plain words, keyed by Win32 number | `Lookup`, `Explain`, `Entries` | none |
 | `share/job`, `share/store` | The resume record and atomic JSON files | `job.Save`, `job.Load`, `store.WriteJSON` | none |
 
@@ -194,7 +200,11 @@ TUI itself running elevated — see [safety.md](safety.md) rule 18. The shape:
    `Request.Kind` is one of `exec` (run a command, stream `stdout`/`stderr`
    back as `line` events, finish with `done` and an exit code), `remove`
    (delete a path), `cancel` (stop one running job), `share` (one of the typed
-   file sharing operations, see below) or `shutdown`.
+   file sharing operations, see below), `specs` (read the drives' wear,
+   hours-on and error counters for Settings › PC specs: the request carries
+   no arguments and is refused if it has any, the worker runs only
+   `sysinfo.ReadReliability` and answers with one size-capped JSON `line`
+   then `done`) or `shutdown`.
 4. `remove` is checked against a whitelist inside `serveConn` itself
    (`internal/elevate/whitelist.go`'s `validateRemovePath`), independent of
    whatever pre-flight the TUI side already ran: only

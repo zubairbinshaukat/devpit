@@ -1,0 +1,24 @@
+ DEVPIT  dev  ·  PC specs                                        node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings     tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────
+ Contoso Book 14 G3 · laptop · Windows 11 Pro        read 14:02  [r] read again
+  Check Battery Memory Storage CPU Graphics Display Windows▸System Network
+ System & firmware ──────────────────────────────────────────────────────────
+   Maker       Contoso
+   Model       Book 14 G3 · Book
+   SKU         CB14G3-16
+   Serial      CB0000TEST (private: left out of a report unless you say yes)
+   Board       Contoso 8A1F
+   Firmware    Contoso 1.12.0 · 4 Mar 2025 · UEFI
+   Type        laptop
+   Up for      5 h (Fast Startup counts a shutdown as sleep)
+   · firmware dated Mar 2025: check the maker's site for a newer one.
+
+ Network & devices ──────────────────────────────────────────────────────────
+   Wi-Fi       Intel(R) Wi-Fi 7 BE200 320MHz · connected 1.2 Gbps
+   Built in    Bluetooth · camera · fingerprint
+
+ End of the page. Read only: nothing on this PC was changed.
+────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

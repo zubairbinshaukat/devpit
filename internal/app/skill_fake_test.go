@@ -7,7 +7,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/accounts/service"
+	"github.com/zubairbinshaukat/devpit/internal/elevate"
+	"github.com/zubairbinshaukat/devpit/internal/sysinfo"
+	"github.com/zubairbinshaukat/devpit/internal/sysinfo/sysinfofake"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/settings"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/specs"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
@@ -76,10 +80,33 @@ func (f fakeSkill) opens() func() (settings.SkillService, error) {
 func noTick(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil }
 
 // settingsWith is Settings over the given skill, with a clock that never
-// fires.
+// fires, and a PC specs page over a made-up healthy laptop, so no golden
+// ever reads the real machine.
 func settingsWith(f fakeSkill) func() uictx.Screen {
+	return settingsWithSpecs(f, fakeSpecs(sysinfofake.New(sysinfofake.Good())))
+}
+
+// settingsWithSpecs is settingsWith with the PC specs page over o.
+func settingsWithSpecs(f fakeSkill, o specs.Options) func() uictx.Screen {
 	return func() uictx.Screen {
-		return settings.NewWith(settings.Options{Skill: f.opens(), Tick: noTick, Version: "0.4.0"})
+		return settings.NewWith(settings.Options{Skill: f.opens(), Tick: noTick, Version: "0.4.0", Specs: o})
+	}
+}
+
+// specsNow is the clock every PC specs golden reads at.
+var specsNow = time.Date(2026, 11, 10, 14, 2, 0, 0, time.UTC)
+
+// fakeSpecs is the PC specs page over src: a fixed clock, a declined admin
+// prompt, and a clipboard and a Desktop that only pretend.
+func fakeSpecs(src sysinfofake.Source) specs.Options {
+	return specs.Options{
+		Source:   func() sysinfo.Source { return src },
+		Elevated: func(context.Context) ([]sysinfo.Reliability, error) { return nil, &elevate.DeclinedError{} },
+		Copy:     func(string) tea.Cmd { return nil },
+		Save:     func(name string, _ []byte) (string, error) { return `C:\Users\you\Desktop\` + name, nil },
+		Now:      func() time.Time { return specsNow },
+		Tick:     noTick,
+		Version:  "0.5.0",
 	}
 }
 

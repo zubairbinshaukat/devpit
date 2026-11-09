@@ -2,15 +2,17 @@
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                       tab <-> - 1-6
 ------------------------------------------------------==========------------------------------------
-                                                   |
-  Look ------------------------------------------  |  Projects folder
-    Theme                 < auto >                 |
-    Icons                 < ascii >                |  The folder Free Up Disk Space looks through
-    Emoji                 [ ] off                  |  first, usually where you keep your code. It
-    Icon font             not installed         >  |  also lists the folders you scanned lately, so
-    Icon check            needs the icon font   >  |  you can remove one. Now: D:\work\projects
+                                                   |  Projects folder
+  This PC ---------------------------------------  |
+    PC specs                                    >  |  The folder Free Up Disk Space looks through
+  Look ------------------------------------------  |  first, usually where you keep your code. It
+    Theme                 < auto >                 |  also lists the folders you scanned lately, so
+    Icons                 < ascii >                |  you can remove one. Now: D:\work\projects
+    Emoji                 [ ] off                  |
+    Icon font             not installed         >  |  [enter] open
+    Icon check            needs the icon font   >  |
   Cleaning --------------------------------------  |
-| > Projects folder       D:\work\projects      >  |  [enter] open
+| > Projects folder       D:\work\projects      >  |
     Never-touch folders   2 folders             >  |
     Recent projects       last 7 days           >  |
     Age filter            older than 30 days    >  |
@@ -23,8 +25,6 @@
   Privacy and updates ---------------------------  |
     Usage stats           [ ] off                  |
     Update check          [x] on                   |
-  About -----------------------------------------  |
-    About Devpit          v0.4.0                >  |
-    What's new            in 0.4                >  |  Changes save as soon as you make them.
+  v 2 more                                         |  Changes save as soon as you make them.
 ----------------------------------------------------------------------------------------------------
 esc back  -  ^v move  -  enter change/open  -  <> choose  -  ? help

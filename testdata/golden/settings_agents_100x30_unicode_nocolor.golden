@@ -2,16 +2,18 @@
 
   Accounts    Clean    Ports & Net    Apps    Share    Settings                         tab ⇄ · 1–6
 ──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────
-                                                   │
-  Look ──────────────────────────────────────────  │  AI agent skill
-    Theme                 ‹ auto ›                 │
-    Icons                 ‹ unicode ›              │  Lets Claude Code use Devpit for you: check
-    Emoji                 ○ off                    │  which account a folder uses and explain why.
-    Icon font             not installed         ›  │  It never changes anything without your yes.
-    Icon check            needs the icon font   ›  │  Open it to see the details, then install or
-  Cleaning ──────────────────────────────────────  │  remove it.
+                                                   │  AI agent skill
+  This PC ───────────────────────────────────────  │
+    PC specs                                    ›  │  Lets Claude Code use Devpit for you: check
+  Look ──────────────────────────────────────────  │  which account a folder uses and explain why.
+    Theme                 ‹ auto ›                 │  It never changes anything without your yes.
+    Icons                 ‹ unicode ›              │  Open it to see the details, then install or
+    Emoji                 ○ off                    │  remove it.
+    Icon font             not installed         ›  │
+    Icon check            needs the icon font   ›  │  [enter] open
+  Cleaning ──────────────────────────────────────  │
     Projects folder       D:\work\projects      ›  │
-    Never-touch folders   2 folders             ›  │  [enter] open
+    Never-touch folders   2 folders             ›  │
     Recent projects       last 7 days           ›  │
     Age filter            older than 30 days    ›  │
     Forget last scan                            ›  │
@@ -23,8 +25,6 @@
   Privacy and updates ───────────────────────────  │
     Usage stats           ○ off                    │
     Update check          ● on                     │
-  About ─────────────────────────────────────────  │
-    About Devpit          v0.4.0                ›  │
-    What's new            in 0.4                ›  │  Changes save as soon as you make them.
+  ▼ 2 more                                         │  Changes save as soon as you make them.
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 esc back  ·  ↑↓ move  ·  enter change/open  ·  ←→ choose  ·  ? help
