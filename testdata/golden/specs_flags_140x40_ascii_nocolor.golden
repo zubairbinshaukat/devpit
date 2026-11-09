@@ -1,0 +1,40 @@
+ DEVPIT  dev  -  PC specs                                                                                                node ...   git ...
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                                                               tab <-> - 1-6
+------------------------------------------------------==========----------------------------------------------------------------------------
+ Contoso Book 14 G3 - laptop - Windows 11 Pro                                                                    read 14:02  [r] read again
+  Check    Battery    Memory    Storage    CPU    Graphics    Display    Windows    System    Network
+-=======------------------------------------------------------------------------------------------------------------------------------------
+ +- Buyer's check ------------------------------------------------------------------------------------------------------------------------+
+ |  X 6 things to look at   -  3 fine                                                                                                     |
+ |                                                                                                                                        |
+ | X  Battery    holds 54% of its design charge: very worn, plan on a replacement.                                          rule of thumb |
+ | X  Storage    Disk 0 (ST1000LM035-1RK172): Windows warns about the drive's health. Back up first.                                      |
+ | X  Windows    managed by an organisation (device management, Autopilot): ask the seller for proof it was released; it may lock again   |
+ |               after a reset.                                                                                                           |
+ | !  Storage    Windows is on a spinning hard disk: an SSD would be much faster.                                                         |
+ | !  Memory     one stick and a free slot: memory runs single-channel, which is slower.                                                  |
+ |               +1 more, each in its section below                                                                                       |
+ | +  Fine       8 GB memory - TPM 2.0 - Secure Boot                                                                                      |
+ +- Rules of thumb are marked; missing data is never judged. -----------------------------------------------------------------------------+
+
+ At a glance -------------------------------------------------------    Battery ----------------------------------------------- X very worn
+   Processor   Intel Core Ultra 7 155H, 16 cores / 22 threads             Health      [################--------------]  54% very worn
+   Memory      8 GB DDR4 3200 MT/s, 1 of 2 slots used                     Capacity    37.8 Wh now - 70.0 Wh when new
+   Storage     1 TB SATA hard disk                                        Cycles      913 charge cycles
+   Graphics    Intel Arc Graphics                                         Charge      81% - on battery - about 6 h 20 min left
+   Display     14.0" 2880x1800 120 Hz built-in                            Pack        Contoso - Primary - Lithium-ion - serial BATTEST
+   Battery     54% health, 913 cycles, 70 Wh when new                     X  holds 54% of its design charge: very worn, plan  rule of thumb
+   Windows     Windows 11 Pro 24H2, not activated                            on a replacement.
+
+ Memory ------------------------------------------------------- 8 GB    Storage ------------------------------------------------- X warning
+   Slots       # _  1 of 2 used - 8 GB installed, 7.7 GB usable           Disk 0      ST1000LM035-1RK172                          X warning
+   SLOT  SIZE  TYPE  SPEED                 FORM    MAKER                              1 TB SATA hard disk - Windows shows 932 GB
+   # 1   8 GB  DDR4  3200 MT/s, runs 2666  SODIMM  SK hynix                           holds C: - Windows starts from here
+   _ 2   empty, room for one more stick                                               needs admin - [e] read them (one Windows prompt)
+   In use      [##################---------]  5.1 of 7.7 GB in us...      C:          [###-----]  611 GB free of 952 GB - NTFS - BitLock...
+   !  one stick and a free slot: memory runs single-channel, which        X  Disk 0 (ST1000LM035-1RK172): Windows warns about the drive's
+      is slower.                                                             health. Back up first.
+  v 40 more lines below
+--------------------------------------------------------------------------------------------------------------------------------------------
+esc back  -  ^v scroll  -  <> section  -  c copy  -  s save  -  ? help

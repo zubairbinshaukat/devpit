@@ -1,7 +1,6 @@
 package specs
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -12,12 +11,47 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
-// stripNames are the section strip's entries, in page order.
-func stripNames() []string {
-	return []string{"Check", "Battery", "Memory", "Storage", "CPU", "Graphics", "Display", "Windows", "System", "Network"}
+// stripNames are the section strip's entries, in page order. A narrow
+// terminal says "GPU" for Graphics so the strip fits on one line.
+func stripNames(short bool) []string {
+	g := "Graphics"
+	if short {
+		g = "GPU"
+	}
+	return []string{"Check", "Battery", "Memory", "Storage", "CPU", g, "Display", "Windows", "System", "Network"}
 }
 
-// page is the laid-out screen: two fixed lines, then the scrolling body,
+// stripCount is how many entries the strip has.
+const stripCount = 10
+
+// stripPad is the blank column before the first strip entry.
+const stripPad = 1
+
+// stripSpec is the strip's names and the air between two entries: the
+// widest layout that fits the page. Each entry is drawn as " name ", like
+// the tabs of the header.
+func stripSpec(ctx uictx.Context) ([]string, int) {
+	w := width(ctx)
+	for _, try := range []struct {
+		short bool
+		gap   int
+	}{{false, 2}, {false, 1}, {false, 0}, {true, 0}} {
+		names := stripNames(try.short)
+		n := stripPad
+		for i, s := range names {
+			if i > 0 {
+				n += try.gap
+			}
+			n += ansi.StringWidth(s) + 2
+		}
+		if n <= w {
+			return names, try.gap
+		}
+	}
+	return stripNames(true), 0
+}
+
+// page is the laid-out screen: the fixed lines, then the scrolling body,
 // with the body line each strip entry starts at.
 type page struct {
 	head    []string
@@ -25,8 +59,9 @@ type page struct {
 	anchors []int
 }
 
-// headLines is the fixed part above the body.
-const headLines = 2
+// headLines is the fixed part above the body: the title, the strip and the
+// rule under it.
+const headLines = 3
 
 // viewHeight is the rows the body scrolls in.
 func (m Model) viewHeight(ctx uictx.Context) int {
@@ -40,17 +75,30 @@ func (m Model) viewHeight(ctx uictx.Context) int {
 // confirmRows is the room the export question takes.
 const confirmRows = 7
 
-// width is the body width: the terminal, up to 100 columns.
-func width(ctx uictx.Context) int { return max(40, min(ctx.Width, 100)) }
+// wideMin is the page width from which the details sit two by two.
+const wideMin = 140
+
+// colGap is the air between the two columns of a wide page.
+const colGap = 2
+
+// width is the page width: the whole terminal, up to 200 columns.
+func width(ctx uictx.Context) int { return max(40, min(ctx.Width, 200)) }
+
+// wide reports whether the details sit side by side.
+func wide(ctx uictx.Context) bool { return width(ctx) >= wideMin }
 
 // clamp keeps the scroll inside the page.
 func (m Model) clamp(ctx uictx.Context) Model {
 	p := m.layout(ctx)
-	m.scroll = min(max(0, m.scroll), max(0, len(p.body)-m.viewHeight(ctx)))
+	m.scroll = min(max(0, m.scroll), maxScroll(p, m.viewHeight(ctx)))
 	return m
 }
 
-// current is the strip entry the top of the view is in.
+// maxScroll is the furthest the page scrolls.
+func maxScroll(p page, vh int) int { return max(0, len(p.body)-vh) }
+
+// current is the strip entry the top of the view is in: the last one that
+// starts at or above it.
 func current(p page, scroll int) int {
 	cur := 0
 	for i, a := range p.anchors {
@@ -61,12 +109,39 @@ func current(p page, scroll int) int {
 	return cur
 }
 
-// jump is the scroll for the next or previous section.
+// active is every strip entry that starts where the current one does: on a
+// wide page two sections share a row, and both are lit.
+func active(p page, scroll int) map[int]bool {
+	at := p.anchors[current(p, scroll)]
+	out := map[int]bool{}
+	for i, a := range p.anchors {
+		if a == at {
+			out[i] = true
+		}
+	}
+	return out
+}
+
+// jump is the scroll for the next or previous section start.
 func (m Model) jump(ctx uictx.Context, dir int) int {
 	p := m.layout(ctx)
-	i := current(p, m.scroll) + dir
-	i = min(max(0, i), len(p.anchors)-1)
-	return p.anchors[i]
+	s := min(max(0, m.scroll), maxScroll(p, m.viewHeight(ctx)))
+	best := -1
+	for _, a := range p.anchors {
+		switch {
+		case dir > 0 && a > s && (best < 0 || a < best):
+			best = a
+		case dir < 0 && a < s && a > best:
+			best = a
+		}
+	}
+	if best < 0 {
+		if dir < 0 {
+			return 0
+		}
+		return m.scroll
+	}
+	return best
 }
 
 // onClick jumps when a strip entry is clicked.
@@ -96,15 +171,20 @@ func (m Model) onClick(msg tea.MouseClickMsg, ctx uictx.Context) (uictx.Screen, 
 	return m, nil
 }
 
-// stripAt maps a column on the strip to an entry.
+// stripAt maps a column on the strip to an entry, walking the widths
+// stripLine draws.
 func stripAt(ctx uictx.Context, x int) (int, bool) {
-	col := 2
-	for i, n := range stripNames() {
-		w := ansi.StringWidth(n)
-		if x >= col-1 && x < col+w {
+	names, g := stripSpec(ctx)
+	col := stripPad
+	for i, n := range names {
+		if i > 0 {
+			col += g
+		}
+		w := ansi.StringWidth(n) + 2
+		if x >= col && x < col+w {
 			return i, true
 		}
-		col += w + 1
+		col += w
 	}
 	return 0, false
 }
@@ -116,7 +196,11 @@ func (m Model) View(ctx uictx.Context) string {
 	out := append([]string(nil), p.head...)
 	vh := m.viewHeight(ctx)
 	end := min(len(p.body), m.scroll+vh)
-	out = append(out, p.body[m.scroll:end]...)
+	rows := append([]string(nil), p.body[m.scroll:end]...)
+	if end < len(p.body) && len(rows) > 1 {
+		rows[len(rows)-1] = moreLine(ctx, len(p.body)-end+1)
+	}
+	out = append(out, rows...)
 	if m.asking {
 		for len(out) < ctx.BodyHeight-confirmRows {
 			out = append(out, "")
@@ -149,40 +233,89 @@ func (m Model) View(ctx uictx.Context) string {
 	return strings.Join(out, "\n")
 }
 
+// moreLine says how much of the page is below the view.
+func moreLine(ctx uictx.Context, n int) string {
+	arrow := "▼"
+	if ascii(ctx) {
+		arrow = "v"
+	}
+	return "  " + ctx.Theme.Muted.Render(arrow+" "+strconv.Itoa(n)+" more lines below")
+}
+
+// block is one part of the page: the strip entry it belongs to (-1 for
+// none) and what draws it.
+type block struct {
+	strip int
+	draw  func(b *builder)
+}
+
 // layout builds every line of the page.
 func (m Model) layout(ctx uictx.Context) page {
 	var p page
-	p.head = []string{m.titleLine(ctx), ""}
-	b := &builder{ctx: ctx, m: m, w: width(ctx)}
+	w := width(ctx)
 	findings := sysinfo.Assess(m.rep, m.opts.Now())
+	p.anchors = make([]int, stripCount)
 
-	p.anchors = make([]int, len(stripNames()))
-	mark := func(i int) { p.anchors[i] = len(b.lines) }
+	draw := func(cw int, f func(b *builder)) []string {
+		b := &builder{ctx: ctx, m: m, w: cw}
+		f(b)
+		return b.lines
+	}
 
-	mark(0)
-	b.check(findings)
-	b.glance()
-	mark(1)
-	b.battery(findings)
-	mark(2)
-	b.memory(findings)
-	mark(3)
-	b.storage(findings)
-	mark(4)
-	b.processor(findings)
-	mark(5)
-	b.graphics()
-	mark(6)
-	b.displays()
-	mark(7)
-	b.windows(findings)
-	mark(8)
-	b.system(findings)
-	mark(9)
-	b.network()
-	b.add("", " "+ctx.Theme.Muted.Render(fit(ctx, "End of the page. Read only: nothing on this PC was changed.", b.w-2)))
-	p.body = b.lines
-	p.head[1] = m.stripLine(ctx, current(p, min(m.scroll, max(0, len(p.body)-m.viewHeight(ctx)))))
+	// The Buyer's check always spans the page.
+	p.body = draw(w, func(b *builder) { b.check(findings) })
+	blocks := []block{
+		{-1, func(b *builder) { b.glance() }},
+		{1, func(b *builder) { b.battery(findings) }},
+		{2, func(b *builder) { b.memory(findings) }},
+		{3, func(b *builder) { b.storage(findings) }},
+		{4, func(b *builder) { b.processor(findings) }},
+		{5, func(b *builder) { b.graphics() }},
+		{6, func(b *builder) { b.displays() }},
+		{7, func(b *builder) { b.windows(findings) }},
+		{8, func(b *builder) { b.system(findings) }},
+		{9, func(b *builder) { b.network() }},
+	}
+	if wide(ctx) {
+		cw := (w - colGap) / 2
+		for i := 0; i < len(blocks); i += 2 {
+			left := draw(cw, blocks[i].draw)
+			var right []string
+			p.body = append(p.body, "")
+			start := len(p.body)
+			if blocks[i].strip >= 0 {
+				p.anchors[blocks[i].strip] = start
+			}
+			if i+1 < len(blocks) {
+				right = draw(w-cw-colGap, blocks[i+1].draw)
+				if blocks[i+1].strip >= 0 {
+					p.anchors[blocks[i+1].strip] = start
+				}
+			}
+			for r := range max(len(left), len(right)) {
+				line := ""
+				if r < len(left) {
+					line = left[r]
+				}
+				if r < len(right) {
+					line = pad(line, cw+colGap) + right[r]
+				}
+				p.body = append(p.body, line)
+			}
+		}
+	} else {
+		for _, bl := range blocks {
+			p.body = append(p.body, "")
+			if bl.strip >= 0 {
+				p.anchors[bl.strip] = len(p.body)
+			}
+			p.body = append(p.body, draw(w, bl.draw)...)
+		}
+	}
+	p.body = append(p.body, "", " "+ctx.Theme.Muted.Render(fit(ctx, "End of the page. Read only: nothing on this PC was changed.", w-2)))
+
+	lit := active(p, min(m.scroll, maxScroll(p, m.viewHeight(ctx))))
+	p.head = []string{m.titleLine(ctx), stripLine(ctx, lit), stripRule(ctx, lit)}
 	return p
 }
 
@@ -216,423 +349,57 @@ func (m Model) titleLine(ctx uictx.Context) string {
 	if s := strings.Join(sub, " · "); s != "" && room-ansi.StringWidth(t) > 6 {
 		left += th.Muted.Render(" · " + fit(ctx, s, room-ansi.StringWidth(t)-3))
 	}
-	gap := max(1, w-ansi.StringWidth(left)-ansi.StringWidth(right)-1)
-	return left + strings.Repeat(" ", gap) + right
+	g := max(1, w-ansi.StringWidth(left)-ansi.StringWidth(right)-1)
+	return left + strings.Repeat(" ", g) + right
 }
 
-// stripLine is the section strip with the current entry marked.
-func (m Model) stripLine(ctx uictx.Context, cur int) string {
+// stripLine is the section strip, drawn like the header's tabs: the
+// current entry on the selection band in the accent, the rest muted.
+func stripLine(ctx uictx.Context, lit map[int]bool) string {
 	th := ctx.Theme
+	names, g := stripSpec(ctx)
 	var b strings.Builder
-	b.WriteString(" ")
-	for i, n := range stripNames() {
-		if i == cur {
-			b.WriteString(th.Accent.Render(ctx.Icons.Cursor) + th.Selected.Render(n))
+	b.WriteString(strings.Repeat(" ", stripPad))
+	for i, n := range names {
+		if i > 0 {
+			b.WriteString(strings.Repeat(" ", g))
+		}
+		if lit[i] {
+			b.WriteString(th.TabActive.Render(" " + n + " "))
 		} else {
-			b.WriteString(" " + th.Muted.Render(n))
+			b.WriteString(th.TabIdle.Render(" " + n + " "))
 		}
 	}
 	return b.String()
 }
 
-// ell is the tier's ellipsis.
-func ell(ctx uictx.Context) string {
-	if ascii(ctx) {
-		return "..."
-	}
-	return "…"
-}
-
-// builder collects the body lines.
-type builder struct {
-	ctx   uictx.Context
-	m     Model
-	w     int
-	lines []string
-}
-
-func (b *builder) add(ls ...string) { b.lines = append(b.lines, ls...) }
-
-// heading is "Battery ─────── right".
-func (b *builder) heading(title, right string) {
-	th := b.ctx.Theme
-	rw := ansi.StringWidth(right)
-	n := max(3, b.w-2-ansi.StringWidth(title)-1-rw-2)
-	line := " " + th.Subtitle.Render(title) + " " + th.Rule.Render(strings.Repeat(b.ctx.Icons.TrackEmpty, n))
-	if right != "" {
-		line += " " + right
-	}
-	b.add("", line)
-}
-
-// state handles a section that is still reading or failed. It reports
-// whether the section's own lines should follow.
-func (b *builder) state(title string, secs ...sysinfo.Section) bool {
-	th := b.ctx.Theme
-	for _, s := range secs {
-		if !b.m.rep.Have[s] {
-			b.heading(title, th.Muted.Render("reading"+ell(b.ctx)+" ")+th.Accent.Render(b.ctx.SpinnerFrame(b.m.spin)))
-			return false
+// stripRule is the line under the strip: a heavy accent stroke under each
+// lit entry, so the current section reads without colour too.
+func stripRule(ctx uictx.Context, lit map[int]bool) string {
+	th := ctx.Theme
+	names, g := stripSpec(ctx)
+	w := width(ctx)
+	var b strings.Builder
+	col := 0
+	light := func(n int) {
+		if n > 0 {
+			b.WriteString(th.Rule.Render(strings.Repeat(ctx.Icons.TrackEmpty, n)))
+			col += n
 		}
 	}
-	b.heading(title, "")
-	for _, s := range secs {
-		if e := b.m.rep.Errs[s]; e != "" && len(secs) == 1 {
-			for _, l := range wrap(b.ctx, "Could not read this: "+e+".", b.w-4, 2) {
-				b.add("   " + th.Warning.Render(l))
-			}
-			return false
+	at := stripPad
+	for i, n := range names {
+		if i > 0 {
+			at += g
 		}
-	}
-	return true
-}
-
-// valW is the room for a value after the label.
-func (b *builder) valW() int { return b.w - 3 - labelW - 1 }
-
-// kv is one labelled row; value is already styled and fits valW.
-func (b *builder) kv(label, value string) {
-	b.add("   " + b.ctx.Theme.Muted.Render(pad(fit(b.ctx, label, labelW), labelW)) + " " + value)
-}
-
-// text is one labelled row of plain text, cut to fit, or "not reported".
-func (b *builder) text(label, value string) {
-	if strings.TrimSpace(value) == "" {
-		b.kv(label, b.nr())
-		return
-	}
-	b.kv(label, b.ctx.Theme.Base.Render(fit(b.ctx, value, b.valW())))
-}
-
-// nr is the muted "not reported by this PC".
-func (b *builder) nr() string {
-	return b.ctx.Theme.Muted.Render(fit(b.ctx, sysinfo.NotReported, b.valW()))
-}
-
-// note is a muted line under the rows, wrapped.
-func (b *builder) note(s string) {
-	for _, l := range wrap(b.ctx, s, b.w-4, 3) {
-		b.add("   " + b.ctx.Theme.Muted.Render(l))
-	}
-}
-
-// flag is one finding: glyph, word and text, wrapped with a hanging indent.
-func (b *builder) flag(f sysinfo.Finding, indent int, area bool, maxLines int) {
-	th := b.ctx.Theme
-	st := levelStyle(b.ctx, f.Level)
-	text := f.Text
-	if f.Thumb {
-		text += " (rule of thumb)"
-	}
-	lead := strings.Repeat(" ", indent) + st.Render(levelGlyph(b.ctx, f.Level)) + " "
-	leadW := indent + 2
-	if area {
-		lead += th.Base.Render(pad(f.Area, 10))
-		leadW += 10
-	}
-	ls := wrap(b.ctx, text, b.w-leadW-1, maxLines)
-	for i, l := range ls {
-		if i == 0 {
-			b.add(lead + th.Base.Render(l))
-			continue
+		nw := ansi.StringWidth(n) + 2
+		if lit[i] {
+			light(at - col)
+			b.WriteString(th.Accent.Render(strings.Repeat(ctx.Icons.Track, nw)))
+			col = at + nw
 		}
-		b.add(strings.Repeat(" ", leadW) + th.Base.Render(l))
+		at += nw
 	}
-}
-
-// areaFindings shows a section's own flags and notes at its end.
-func (b *builder) areaFindings(fs []sysinfo.Finding, area string) {
-	for _, f := range fs {
-		if f.Area == area && f.Level != sysinfo.Good {
-			b.flag(f, 3, false, 3)
-		}
-	}
-}
-
-// check is the Buyer's check.
-func (b *builder) check(fs []sysinfo.Finding) {
-	th, ctx := b.ctx.Theme, b.ctx
-	look, fine := sysinfo.Counts(fs)
-	right := th.Muted.Render(fmt.Sprintf("%d to look at · %d fine", look, fine))
-	if b.m.reading() {
-		right = th.Muted.Render("filling in"+ell(ctx)+" ") + th.Accent.Render(ctx.SpinnerFrame(b.m.spin))
-	}
-	b.heading("Buyer's check", right)
-	limit := 2
-	if ctx.Height >= 30 {
-		limit = 3
-	}
-	shown := 0
-	for _, f := range fs {
-		if f.Level < sysinfo.Warn {
-			continue
-		}
-		if shown == limit {
-			b.add("   " + th.Muted.Render(fit(ctx, fmt.Sprintf("+%d more, each in its section below", look-shown), b.w-4)))
-			break
-		}
-		b.flag(f, 1, true, 2)
-		shown++
-	}
-	if look == 0 && !b.m.reading() {
-		b.add(" " + th.Success.Render(ctx.Icons.Tick) + " " + th.Base.Render(fit(ctx, "Nothing stands out. The details are below.", b.w-4)))
-	}
-	// One line of ticks.
-	var chips []string
-	for _, f := range fs {
-		if f.Level == sysinfo.Good && f.Chip != "" {
-			chips = append(chips, f.Chip)
-		}
-	}
-	if len(chips) > 0 {
-		line, used := " ", 1
-		for i, c := range chips {
-			piece := ctx.Icons.Tick + " " + c
-			sep := 0
-			if i > 0 {
-				sep = 3
-			}
-			more := fmt.Sprintf(" +%d", len(chips)-i)
-			if used+sep+ansi.StringWidth(tierText(piece, ascii(ctx)))+len(more) > b.w-1 && i < len(chips) {
-				line += th.Muted.Render(more)
-				break
-			}
-			if i > 0 {
-				line += th.Muted.Render(" · ")
-			}
-			line += th.Success.Render(ctx.Icons.Tick) + " " + th.Base.Render(c)
-			used += sep + ansi.StringWidth(tierText(piece, ascii(ctx)))
-		}
-		b.add(line)
-	}
-	b.add(" " + th.Muted.Render(fit(ctx, "Rules of thumb are marked; missing data is never judged.", b.w-2)))
-}
-
-// glance is the at-a-glance list.
-func (b *builder) glance() {
-	th := b.ctx.Theme
-	b.heading("At a glance", "")
-	got := map[string]string{}
-	for _, l := range sysinfo.Glance(b.m.rep) {
-		got[l.Label] = l.Value
-	}
-	for _, row := range []struct {
-		label string
-		sec   sysinfo.Section
-	}{
-		{"Processor", sysinfo.SecCPU},
-		{"Memory", sysinfo.SecMemory},
-		{"Storage", sysinfo.SecDisks},
-		{"Graphics", sysinfo.SecGraphics},
-		{"Display", sysinfo.SecDisplays},
-		{"Battery", sysinfo.SecBattery},
-		{"Windows", sysinfo.SecWindows},
-	} {
-		switch {
-		case !b.m.rep.Have[row.sec]:
-			b.kv(row.label, th.Muted.Render("reading"+ell(b.ctx)))
-		case b.m.rep.Errs[row.sec] != "" && got[row.label] == sysinfo.NotReported:
-			b.kv(row.label, th.Muted.Render(fit(b.ctx, "could not read", b.valW())))
-		default:
-			b.text(row.label, got[row.label])
-		}
-	}
-}
-
-// battery is the Battery section.
-func (b *builder) battery(fs []sysinfo.Finding) {
-	th, ctx := b.ctx.Theme, b.ctx
-	if !b.state("Battery", sysinfo.SecBattery) {
-		return
-	}
-	bt := b.m.rep.Battery
-	switch bt.Present {
-	case sysinfo.TriNo:
-		if b.m.rep.System.Chassis.Portable() {
-			b.flag(sysinfo.Finding{Level: sysinfo.Bad, Text: "No battery found, though this is a " + b.m.rep.System.Chassis.String() + "."}, 3, false, 2)
-		} else {
-			b.add("   " + th.Base.Render(fit(ctx, "No battery: this looks like a desktop.", b.w-4)))
-		}
-		return
-	case sysinfo.TriUnknown:
-		b.text("Battery", "")
-		return
-	}
-	if pct, ok := bt.Health(); ok {
-		word, lvl := healthWord(pct)
-		gw := min(20, b.valW()-16)
-		b.kv("Health", meter(ctx, float64(pct)/100, gw, lvl, word))
-	} else {
-		b.text("Health", "")
-	}
-	design, full, rel := bt.Totals()
-	switch {
-	case rel:
-		b.text("Capacity", "shown as a share only: this battery does not report watt-hours")
-	case design > 0:
-		b.text("Capacity", fmt.Sprintf("%.1f Wh now · %.1f Wh when new", float64(full)/1000, float64(design)/1000))
-	}
-	if n, ok := bt.Cycles(); ok {
-		b.text("Cycles", commas(int64(n))+" charge cycles")
-	} else {
-		b.text("Cycles", "")
-	}
-	b.text("Charge", chargeText(bt))
-	for i, p := range bt.Packs {
-		label := "Battery"
-		if len(bt.Packs) > 1 {
-			label = "Battery " + strconv.Itoa(i+1)
-		}
-		desc := strings.TrimSpace(strings.Join(nonEmpty(p.Maker, p.Name, p.Chemistry), " · "))
-		if ctx.Width >= 100 && p.Serial != "" {
-			desc += " · serial " + p.Serial
-		}
-		b.text(label, desc)
-	}
-	b.areaFindings(fs, "Battery")
-}
-
-// chargeText is "94% · on AC, charging · full in 40 min".
-func chargeText(bt sysinfo.Battery) string {
-	var p []string
-	if bt.ChargePct >= 0 {
-		p = append(p, strconv.Itoa(bt.ChargePct)+"%")
-	}
-	switch {
-	case bt.Charging == sysinfo.TriYes:
-		p = append(p, "charging")
-	case bt.OnAC == sysinfo.TriYes:
-		p = append(p, "plugged in")
-	case bt.OnAC == sysinfo.TriNo:
-		p = append(p, "on battery")
-	}
-	if bt.TimeToFull > 0 {
-		p = append(p, "full in "+sysinfo.Duration(bt.TimeToFull))
-	}
-	if bt.TimeLeft > 0 {
-		p = append(p, "about "+sysinfo.Duration(bt.TimeLeft)+" left")
-	}
-	return strings.Join(p, " · ")
-}
-
-// nonEmpty drops empty strings.
-func nonEmpty(ss ...string) []string {
-	var out []string
-	for _, s := range ss {
-		if strings.TrimSpace(s) != "" {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// memory is the Memory section: the slots as shapes, one row per slot, and
-// what is in use.
-func (b *builder) memory(fs []sysinfo.Finding) {
-	th, ctx := b.ctx.Theme, b.ctx
-	if !b.state("Memory", sysinfo.SecMemory) {
-		return
-	}
-	m := b.m.rep.Memory
-	fitted, free, soldered := m.Fitted()
-	totals := strings.Join(nonEmpty(installed(m.InstalledB), usable(m.UsableB)), ", ")
-	switch {
-	case len(m.Slots) == 0:
-		b.kv("Slots", b.nr())
-		if totals != "" {
-			b.text("Installed", totals)
-		}
-	case soldered && fitted+free == 0:
-		s := m.Slots[0]
-		v := th.Accent.Render(slotGlyph(ctx, true)) + " " + th.Base.Render(fit(ctx, "soldered "+s.ModuleText()+" on the board, cannot be upgraded", b.valW()-2))
-		b.kv("Slots", v)
-		if totals != "" {
-			b.text("Installed", totals)
-		}
-	default:
-		var shapes []string
-		for _, s := range m.Slots {
-			if s.Soldered {
-				continue
-			}
-			if s.Empty {
-				shapes = append(shapes, th.Muted.Render(ctx.Icons.SlotEmpty))
-			} else {
-				shapes = append(shapes, th.Accent.Render(ctx.Icons.SlotFull))
-			}
-		}
-		lead := strings.Join(shapes, " ")
-		leadW := 2*len(shapes) - 1
-		summary := fmt.Sprintf("%d of %d used", fitted, fitted+free)
-		if totals != "" {
-			summary += " · " + totals
-		}
-		b.kv("Slots", lead+"  "+th.Base.Render(fit(ctx, summary, b.valW()-leadW-2)))
-		n := 0
-		for _, s := range m.Slots {
-			n++
-			label := "Slot " + strconv.Itoa(n)
-			if s.Soldered {
-				label = "On board"
-				n--
-			}
-			b.slotRow(label, s)
-		}
-	}
-	if m.UsableB > 0 && m.InUseB > 0 {
-		bw := min(16, b.valW()-24)
-		v := bar(ctx, float64(m.InUseB)/float64(m.UsableB), bw) + " " + th.Base.Render(fit(ctx, inUse(m), b.valW()-barW(ctx, bw)-1))
-		b.kv("In use", v)
-	}
-	b.areaFindings(fs, "Memory")
-}
-
-// slotRow is one slot.
-func (b *builder) slotRow(label string, s sysinfo.Module) {
-	th, ctx := b.ctx.Theme, b.ctx
-	if s.Empty {
-		b.kv(label, th.Muted.Render(ctx.Icons.SlotEmpty)+" "+th.Muted.Render(fit(ctx, "empty, room for one more stick", b.valW()-2)))
-		return
-	}
-	desc := s.ModuleText()
-	if s.Soldered {
-		desc += " soldered"
-	}
-	extra := strings.Join(nonEmpty(s.Maker, s.Part), " ")
-	if s.ConfiguredMTs > 0 && s.SpeedMTs > 0 && s.ConfiguredMTs < s.SpeedMTs {
-		desc += " (runs at " + strconv.Itoa(s.ConfiguredMTs) + ")"
-	}
-	if extra != "" {
-		desc += " · " + extra
-	}
-	b.kv(label, th.Accent.Render(slotGlyph(ctx, s.Soldered))+" "+th.Base.Render(fit(ctx, desc, b.valW()-2)))
-}
-
-// slotGlyph is the shape of a fitted slot; soldered memory gets a small
-// square.
-func slotGlyph(ctx uictx.Context, soldered bool) string {
-	if soldered && !ascii(ctx) {
-		return "▪"
-	}
-	return ctx.Icons.SlotFull
-}
-
-func installed(b uint64) string {
-	if b == 0 {
-		return ""
-	}
-	return sysinfo.RAMSize(b) + " installed"
-}
-
-func usable(b uint64) string {
-	if b == 0 {
-		return ""
-	}
-	return sysinfo.RAMSize(b) + " usable"
-}
-
-// inUse is "9.8 of 15.7 GB in use now".
-func inUse(m sysinfo.Memory) string {
-	g := func(v uint64) string { return strconv.FormatFloat(float64(v)/(1<<30), 'f', 1, 64) }
-	return g(m.InUseB) + " of " + g(m.UsableB) + " GB in use now"
+	light(w - col)
+	return b.String()
 }

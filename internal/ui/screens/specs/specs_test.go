@@ -139,8 +139,8 @@ func states(t *testing.T, ctx uictx.Context) map[string]Model {
 }
 
 func TestNoLineWiderThanTheTerminal(t *testing.T) {
-	for _, w := range []int{80, 90, 100, 140} {
-		for _, h := range []int{24, 30} {
+	for _, w := range []int{80, 90, 100, 140, 160, 200} {
+		for _, h := range []int{24, 30, 40} {
 			for _, set := range []icons.Set{icons.Nerd(), icons.Unicode(), icons.ASCII()} {
 				ctx := testCtx(w, h, set)
 				for name, m := range states(t, ctx) {
@@ -171,6 +171,107 @@ func TestNoLineWiderThanTheTerminal(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// The top of the page is the verdict: title, strip, the Buyer's check and
+// its headline, with a hint that there is more below.
+func TestTopOfThePageShowsTheVerdict(t *testing.T) {
+	for _, sz := range [][2]int{{80, 24}, {100, 30}, {160, 40}} {
+		for _, set := range []icons.Set{icons.Unicode(), icons.ASCII()} {
+			ctx := testCtx(sz[0], sz[1], set)
+			for name, want := range map[string]string{"good": "Nothing stands out", "flags": "6 things to look at"} {
+				m := loaded(t, map[string]sysinfo.Report{"good": sysinfofake.Good(), "flags": sysinfofake.Flags()}[name], ctx, nil)
+				lines := strings.Split(ansi.Strip(m.View(ctx)), "\n")
+				if len(lines) != ctx.BodyHeight {
+					t.Fatalf("%dx%d %s: %d lines for %d rows", sz[0], sz[1], name, len(lines), ctx.BodyHeight)
+				}
+				if !strings.Contains(lines[0], "Contoso Book 14 G3") || !strings.Contains(lines[1], "Check") ||
+					!strings.Contains(lines[3], "Buyer's check") || !strings.Contains(lines[4], want) {
+					t.Errorf("%dx%d %s %s: the top of the page is\n%s", sz[0], sz[1], set.Tier, name, strings.Join(lines[:6], "\n"))
+				}
+				if !strings.Contains(lines[len(lines)-1], "more lines below") {
+					t.Errorf("%dx%d %s %s: no scroll hint on %q", sz[0], sz[1], set.Tier, name, lines[len(lines)-1])
+				}
+			}
+		}
+	}
+}
+
+// Every status glyph has air after it: one space, two for Nerd Font icons,
+// which draw wider than their cell.
+func TestGlyphsAreNeverGluedToAWord(t *testing.T) {
+	for _, set := range []icons.Set{icons.Unicode(), icons.Nerd()} {
+		need := " "
+		if set.Tier == icons.TierNerd {
+			need = "  "
+		}
+		for _, w := range []int{80, 160} {
+			ctx := testCtx(w, 40, set)
+			for name, r := range map[string]sysinfo.Report{"good": sysinfofake.Good(), "flags": sysinfofake.Flags(), "desktop": sysinfofake.Desktop()} {
+				text := fullText(loaded(t, r, ctx, nil), ctx)
+				for _, g := range []string{set.Tick, set.Fail, set.Warn} {
+					for i := 0; ; {
+						j := strings.Index(text[i:], g)
+						if j < 0 {
+							break
+						}
+						at := i + j + len(g)
+						if !strings.HasPrefix(text[at:], need) {
+							t.Errorf("%s %d %s: %q is glued: %q", set.Tier, w, name, g, text[i+j:min(len(text), at+12)])
+						}
+						i = at
+					}
+				}
+			}
+		}
+	}
+}
+
+// A wide terminal puts two sections side by side: both are lit on the strip
+// and the arrows move a row of two at a time.
+func TestWidePageSitsTwoByTwo(t *testing.T) {
+	ctx := testCtx(160, 24, icons.Unicode())
+	m := loaded(t, sysinfofake.Good(), ctx, nil)
+	p := m.layout(ctx)
+	if p.anchors[2] != p.anchors[3] || p.anchors[1] == p.anchors[2] {
+		t.Fatalf("memory and storage should share a row: %v", p.anchors)
+	}
+	row := ansi.Strip(p.body[p.anchors[2]])
+	if !strings.Contains(row, "Memory") || !strings.Contains(row, "Storage") || strings.Index(row, "Storage") < 70 {
+		t.Fatalf("not side by side: %q", row)
+	}
+	m.scroll = p.anchors[2]
+	if lit := active(m.layout(ctx), m.scroll); !lit[2] || !lit[3] || lit[1] || lit[4] {
+		t.Fatalf("lit = %v", lit)
+	}
+	m = press(t, m, ctx, "right")
+	if m.scroll != p.anchors[4] {
+		t.Fatalf("right went to %d, want %d", m.scroll, p.anchors[4])
+	}
+	m = press(t, m, ctx, "left")
+	if m.scroll != p.anchors[2] {
+		t.Fatalf("left went to %d, want %d", m.scroll, p.anchors[2])
+	}
+	// The same page on 100 columns is one column.
+	n := testCtx(100, 30, icons.Unicode())
+	if q := loaded(t, sysinfofake.Good(), n, nil).layout(n); q.anchors[2] == q.anchors[3] {
+		t.Fatal("a 100-column page should be one column")
+	}
+}
+
+// The battery's own row is "Pack", never a second "Battery" label.
+func TestBatteryPackIsNotLabelledBatteryAgain(t *testing.T) {
+	ctx := testCtx(100, 30, icons.Unicode())
+	m := loaded(t, sysinfofake.Good(), ctx, nil)
+	p := m.layout(ctx)
+	for _, l := range p.body[p.anchors[1]+1 : p.anchors[2]] {
+		if strings.HasPrefix(strings.TrimSpace(ansi.Strip(l)), "Battery ") {
+			t.Fatalf("battery section repeats its name as a label: %q", ansi.Strip(l))
+		}
+	}
+	if !strings.Contains(fullText(m, ctx), "Pack        Contoso · Primary · Lithium-ion") {
+		t.Fatal("the pack row is missing")
 	}
 }
 
@@ -365,8 +466,8 @@ func TestWheelScrollsAndStripClickJumps(t *testing.T) {
 	if m.scroll != p.anchors[3] {
 		t.Fatalf("click on Storage scrolled to %d, want %d", m.scroll, p.anchors[3])
 	}
-	if !strings.Contains(ansi.Strip(p.body[m.scroll+1]), "Storage") {
-		t.Fatalf("Storage is not at the top: %q", ansi.Strip(p.body[m.scroll+1]))
+	if !strings.Contains(ansi.Strip(p.body[m.scroll]), "Storage") {
+		t.Fatalf("Storage is not at the top: %q", ansi.Strip(p.body[m.scroll]))
 	}
 	m = press(t, m, ctx, "right")
 	if m.scroll != p.anchors[4] {

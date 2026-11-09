@@ -165,7 +165,7 @@ func TestPlaceholderSerialsAreNotSet(t *testing.T) {
 			t.Errorf("%q should be a placeholder", s)
 		}
 	}
-	for _, s := range []string{"5CD1234XYZ", "PF3ABCDE", "M471A2K43EB1-CWE", "Samsung"} {
+	for _, s := range []string{"5CD1234XYZ", "PF3ABCDE", "M471A2K43EB1-CWE", "Samsung", "Primary", "Lithium-ion", "联想", "SN5CD1234"} {
 		if isPlaceholder(s) {
 			t.Errorf("%q is a real value", s)
 		}
@@ -179,6 +179,27 @@ func TestPlaceholderSerialsAreNotSet(t *testing.T) {
 	s := systemFrom(tb)
 	if s.Serial != "" || !s.SerialPlaceholder || s.Maker != "Dell Inc." {
 		t.Fatalf("system = %+v", s)
+	}
+}
+
+// A battery or firmware field that holds the field's own name, however it
+// is spelt, is a placeholder: an HP battery reported "SerialNumber" and the
+// page showed it as the serial.
+func TestFieldNamesSpeltAnyWayAreNotSet(t *testing.T) {
+	for _, s := range []string{
+		"SerialNumber", "Serial Number", "serial_number", "SERIAL-NUMBER", "SerialNumber0", "Serial",
+		"SN", "To Be Filled By O.E.M", "TOBEFILLEDBYOEM", "DefaultString", "Not Defined", "OEM_Define1",
+		"System SKU", "Asset Tag", "Unique ID", "Battery Serial Number", "N.A.", "?", "--",
+	} {
+		if !isPlaceholder(s) {
+			t.Errorf("%q should be a placeholder", s)
+		}
+		if got := clean(s); got != "" {
+			t.Errorf("clean(%q) = %q, want it dropped", s, got)
+		}
+	}
+	if got := clean("  5CD1234XYZ\x00"); got != "5CD1234XYZ" {
+		t.Errorf("a real serial was changed: %q", got)
 	}
 }
 

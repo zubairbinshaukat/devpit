@@ -1,0 +1,40 @@
+ DEVPIT  dev  ·  PC specs                                                                                                                        node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                                                                                     tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────────────────────────────────────────────────────────────────
+ Contoso Book 14 G3 · laptop · Windows 11 Pro                                                                                        read 14:02  [r] read again
+  Check    Battery    Memory    Storage    CPU    Graphics    Display    Windows    System    Network
+──────────────────────────────────────────━━━━━──━━━━━━━━━━─────────────────────────────────────────────────────────────────────────────────────────────────────
+   Name        Intel Core Ultra 7 155H                                              GPU         Intel Arc Graphics
+   Cores       16 cores (6 performance + 10 efficient), 22 threads                              built in · shares system memory · driver 32.0.101.6078
+   Clock       about 1.4 GHz base; Windows does not report the boost clock                      (9-12-2026)
+   Cache       L2 18 MB · L3 24 MB                                                  Built in or dedicated is a rule of thumb from the maker and the name.
+   Type        x64
+   Virtualize  ✓ on, in use by Windows (Hyper-V or memory integrity)
+
+ Display ─────────────────────────────────────────────────────────────────────    Windows & security ────────────────────────────────────────── ! not activated
+   Screen      14.0 inch · built in · panel by BOE                                  Windows     Windows 11 Pro 24H2 (build 26100.2314)
+               2880×1800 · 120 Hz now · HDR capable, off                            Installed   9 Jan 2026 (installed or last reset)
+   Input       no touch                                                             Activation  ! not activated · a retail licence
+                                                                                    OEM key     a Windows key is stored in the firmware (not read)
+                                                                                    Secure Boot ✓ on
+                                                                                    TPM         ✓ TPM 2.0
+                                                                                    Managed     ✗ yes: device management (MDM), Autopilot for fabrikam.example
+                                                                                    ✗  managed by an organisation (device management, Autopilot): ask the
+                                                                                       seller for proof it was released; it may lock again after a reset.
+                                                                                    !  Windows is not activated.
+
+ System & firmware ───────────────────────────────────────────────────────────    Network & devices ───────────────────────────────────────────────────────────
+   Maker       Contoso                                                              Wi-Fi       ✓ Intel(R) Wi-Fi 7 BE200 320MHz · connected 1.2 Gbps · MAC
+   Model       Book 14 G3 · Book                                                                  00-11-22-33-44-55
+   SKU         CB14G3-16                                                            Built in    Bluetooth · camera · fingerprint
+   Serial      CB0000TEST (private: left out of a report unless you say yes)
+   Board       Contoso 8A1F
+   Firmware    Contoso 1.12.0 · 4 Mar 2025 · UEFI
+   Type        laptop
+   Up for      5 h (Fast Startup counts a shutdown as sleep)
+   ·  firmware dated Mar 2025: check the maker's site for a newer one.
+
+ End of the page. Read only: nothing on this PC was changed.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

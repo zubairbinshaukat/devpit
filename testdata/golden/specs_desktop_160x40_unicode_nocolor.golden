@@ -1,0 +1,40 @@
+ DEVPIT  dev  ·  PC specs                                                                                                                        node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                                                                                     tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────────────────────────────────────────────────────────────────
+ Fabrikam Studio T7 · desktop · Windows 11 Pro                                                                                       read 14:02  [r] read again
+  Check    Battery    Memory    Storage    CPU    Graphics    Display    Windows    System    Network
+─━━━━━━━────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ╭─ Buyer's check ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │  ✓ Nothing stands out   The details are below.                                                                                                             │
+ │                                                                                                                                                            │
+ │ ✓  Fine       drives healthy · 32 GB memory · activated · TPM 2.0 · Secure Boot                                                                            │
+ ╰─ Rules of thumb are marked; missing data is never judged. ─────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ At a glance ─────────────────────────────────────────────────────────────────    Battery ─────────────────────────────────────────────────────────────────────
+   Processor   Intel Core Ultra 7 155H, 16 cores / 22 threads                       No battery: this looks like a desktop.
+   Memory      32 GB DDR5 6000 MT/s, 2 of 4 slots used
+   Storage     1 TB NVMe SSD
+   Graphics    NVIDIA GeForce RTX 4070 SUPER 12 GB + AMD Radeon Graphics
+   Display     27.0" 3840x2160 60 Hz on DisplayPort + 27.0" 2560x1440 165 Hz
+               on HDMI
+   Battery     none
+   Windows     Windows 11 Pro 24H2, activated
+
+ Memory ──────────────────────────────────────────────────────────────── 32 GB    Storage ─────────────────────────────────────────────────────────── ✓ healthy
+   Slots       □ ■ □ ■  2 of 4 used · 32 GB installed, 31.6 GB usable               Disk 0      Samsung PM9A1 1TB                                     ✓ healthy
+   SLOT  SIZE   TYPE  SPEED      FORM  MAKER    PART                                            1 TB NVMe SSD · Windows shows 954 GB
+   □ 1   empty, room for one more stick                                                         holds C: · Windows starts from here
+   ■ 2   16 GB  DDR5  6000 MT/s  DIMM  G.Skill  F5-6000J3038F16G                                wear and hours need admin · [e] read them (one Windows prompt)
+   □ 3   empty, room for one more stick                                             C:          ██████░░░░░░░░░░░░  611 GB free of 952 GB · NTFS · BitLocker on
+   ■ 4   16 GB  DDR5  6000 MT/s  DIMM  G.Skill  F5-6000J3038F16G
+   In use      ████████████░░░░░░░░░░░░░░░░░░  12.3 of 31.6 GB in use now
+
+ Processor ───────────────────────────────────────────── 16 cores / 22 threads    Graphics ───────────────────────────────────────────────────────── 2 adapters
+   Name        Intel Core Ultra 7 155H                                              GPU 1       NVIDIA GeForce RTX 4070 SUPER
+   Cores       16 cores (6 performance + 10 efficient), 22 threads                              dedicated · 12 GB of its own memory · driver 32.0.15.6614
+   Clock       about 1.4 GHz base; Windows does not report the boost clock                      (10-2-2026)
+   Cache       L2 18 MB · L3 24 MB                                                  GPU 2       AMD Radeon Graphics
+  ▼ 25 more lines below
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -118,13 +119,41 @@ func TestSpecsGoldens(t *testing.T) {
 		{"specs_export_ask", func(*testing.T) sysinfofake.Source { return sysinfofake.New(sysinfofake.Good()) }, []tea.Msg{press("c")}, "Include serial numbers and MAC addresses?"},
 		{"specs_elevate_declined", func(*testing.T) sysinfofake.Source { return sysinfofake.New(sysinfofake.Good()) }, []tea.Msg{press("e"), press("right"), press("right"), press("right")}, "Skipped: needs admin"},
 	} {
-		eachFrame(t, c.name, func(t *testing.T, cfg config.Config, w, h int) []byte {
+		frame := func(t *testing.T, cfg config.Config, w, h int) []byte {
 			m := specsAt(t, cfg, c.src(t), w, h, c.keys...)
 			got := []byte(ansi.Strip(m.View().Content))
 			if !bytes.Contains(got, []byte(c.sentinel)) {
 				t.Fatalf("%q is not on screen:\n%s", c.sentinel, got)
 			}
 			return got
+		}
+		eachFrame(t, c.name, frame)
+		if wideSpecs[c.name] {
+			eachWideFrame(t, c.name, frame)
+		}
+	}
+}
+
+// wideSpecs are the states also captured on a wide terminal, where the
+// details sit two by two.
+var wideSpecs = map[string]bool{"specs_good": true, "specs_flags": true, "specs_desktop": true, "specs_bottom": true}
+
+// eachWideFrame is eachFrame at 160x40 in the unicode tier and 140x40 in
+// the ascii tier: the two-column layout at its widest common size and at
+// the width it starts.
+func eachWideFrame(t *testing.T, base string, fn func(t *testing.T, cfg config.Config, w, h int) []byte) {
+	for _, f := range []struct {
+		w, h       int
+		tier, name string
+	}{{160, 40, config.IconsUnicode, "unicode"}, {140, 40, config.IconsASCII, "ascii"}} {
+		name := fmt.Sprintf("%s_%dx%d_%s_nocolor", base, f.w, f.h, f.name)
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("NO_COLOR", "1")
+			cfg := settledConfig()
+			cfg.Icons = f.tier
+			cfg.DefaultProjectsFolder = `D:\work\projects`
+			cfg.NeverTouch = []string{`D:\work\keep`, `D:\photos`}
+			requireGolden(t, name, fn(t, cfg, f.w, f.h))
 		})
 	}
 }

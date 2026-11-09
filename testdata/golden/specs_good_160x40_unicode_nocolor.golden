@@ -1,0 +1,40 @@
+ DEVPIT  dev  ·  PC specs                                                                                                                        node …   git …
+
+  Accounts    Clean    Ports & Net    Apps    Share    Settings                                                                                     tab ⇄ · 1–6
+──────────────────────────────────────────────────────━━━━━━━━━━────────────────────────────────────────────────────────────────────────────────────────────────
+ Contoso Book 14 G3 · laptop · Windows 11 Pro                                                                                        read 14:02  [r] read again
+  Check    Battery    Memory    Storage    CPU    Graphics    Display    Windows    System    Network
+─━━━━━━━────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ╭─ Buyer's check ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │  ✓ Nothing stands out   The details are below.                                                                                                             │
+ │                                                                                                                                                            │
+ │ ✓  Fine       battery 92% · drives healthy · 32 GB memory · activated · TPM 2.0 · Secure Boot                                                              │
+ ╰─ Rules of thumb are marked; missing data is never judged. ─────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ At a glance ─────────────────────────────────────────────────────────────────    Battery ────────────────────────────────────────────────────────────── ✓ good
+   Processor   Intel Core Ultra 7 155H, 16 cores / 22 threads                       Health      ████████████████████████████░░  92% good
+   Memory      32 GB DDR5 5600 MT/s, 2 of 2 slots used                              Capacity    64.4 Wh now · 70.0 Wh when new
+   Storage     1 TB NVMe SSD                                                        Cycles      112 charge cycles
+   Graphics    Intel Arc Graphics                                                   Charge      81% · on battery · about 6 h 20 min left
+   Display     14.0" 2880x1800 120 Hz built-in                                      Pack        Contoso · Primary · Lithium-ion · serial BATTEST
+   Battery     92% health, 112 cycles, 70 Wh when new
+   Windows     Windows 11 Pro 24H2, activated
+
+ Memory ──────────────────────────────────────────────────────────────── 32 GB    Storage ─────────────────────────────────────────────────────────── ✓ healthy
+   Slots       ■ ■  2 of 2 used · 32 GB installed, 31.6 GB usable                   Disk 0      Samsung PM9A1 1TB                                     ✓ healthy
+   SLOT  SIZE   TYPE  SPEED      FORM    MAKER    PART                                          1 TB NVMe SSD · Windows shows 954 GB
+   ■ 1   16 GB  DDR5  5600 MT/s  SODIMM  Samsung  M425R2GA3BB0-CWMOD                            holds C: · Windows starts from here
+   ■ 2   16 GB  DDR5  5600 MT/s  SODIMM  Samsung  M425R2GA3BB0-CWMOD                            wear and hours need admin · [e] read them (one Windows prompt)
+   In use      ████████████░░░░░░░░░░░░░░░░░░  12.3 of 31.6 GB in use now           C:          ██████░░░░░░░░░░░░  611 GB free of 952 GB · NTFS · BitLocker on
+
+ Processor ───────────────────────────────────────────── 16 cores / 22 threads    Graphics ────────────────────────────────────────────────────────────────────
+   Name        Intel Core Ultra 7 155H                                              GPU         Intel Arc Graphics
+   Cores       16 cores (6 performance + 10 efficient), 22 threads                              built in · shares system memory · driver 32.0.101.6078
+   Clock       about 1.4 GHz base; Windows does not report the boost clock                      (9-12-2026)
+   Cache       L2 18 MB · L3 24 MB                                                  Built in or dedicated is a rule of thumb from the maker and the name.
+   Type        x64
+   Virtualize  ✓ on, in use by Windows (Hyper-V or memory integrity)
+
+  ▼ 22 more lines below
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

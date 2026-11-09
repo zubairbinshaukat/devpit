@@ -3,22 +3,22 @@
   Accounts    Clean    Ports & Net    Apps    Share    Settings     tab ⇄ · 1–6
 ──────────────────────────────────────────────────────━━━━━━━━━━────────────────
  Fabrikam Studio T7 · desktop · Windows 11 Pro       read 14:02  [r] read again
- ▸Check Battery Memory Storage CPU Graphics Display Windows System Network
+  Check  Battery  Memory  Storage  CPU  GPU  Display  Windows  System  Network
+─━━━━━━━────────────────────────────────────────────────────────────────────────
+ ╭─ Buyer's check ────────────────────────────────────────────────────────────╮
+ │  ✓ Nothing stands out   The details are below.                             │
+ │ ✓  Fine       drives healthy · 32 GB memory · activated · TPM 2.0 · Secure │
+ │               Boot                                                         │
+ ╰─ Rules of thumb are marked; missing data is never judged. ─────────────────╯
 
- Buyer's check ───────────────────────────────────────── 0 to look at · 5 fine
- ✓ Nothing stands out. The details are below.
- ✓ drives healthy · ✓ 32 GB memory · ✓ activated · ✓ TPM 2.0 · ✓ Secure Boot
- Rules of thumb are marked; missing data is never judged.
-
- At a glance ────────────────────────────────────────────────────────────────
+ At a glance ──────────────────────────────────────────────────────────────────
    Processor   Intel Core Ultra 7 155H, 16 cores / 22 threads
    Memory      32 GB DDR5 6000 MT/s, 2 of 4 slots used
    Storage     1 TB NVMe SSD
    Graphics    NVIDIA GeForce RTX 4070 SUPER 12 GB + AMD Radeon Graphics
-   Display     27.0" 3840x2160 60 Hz on DisplayPort + 27.0" 2560x1440 165 Hz on…
+   Display     27.0" 3840x2160 60 Hz on DisplayPort + 27.0" 2560x1440 165 Hz on
+               HDMI
    Battery     none
-   Windows     Windows 11 Pro 24H2, activated
-
- Battery ────────────────────────────────────────────────────────────────────
+  ▼ 70 more lines below
 ────────────────────────────────────────────────────────────────────────────────
 esc back  ·  ↑↓ scroll  ·  ←→ section  ·  c copy  ·  s save  ·  ? help

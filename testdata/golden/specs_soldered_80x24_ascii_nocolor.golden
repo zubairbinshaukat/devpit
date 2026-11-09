@@ -3,22 +3,22 @@
   Accounts    Clean    Ports & Net    Apps    Share    Settings   tab <-> - 1-6
 ------------------------------------------------------==========----------------
  Contoso Book 14 G3 - laptop - Windows 11 Pro        read 14:02  [r] read again
-  Check Battery>Memory Storage CPU Graphics Display Windows System Network
-
- Memory ---------------------------------------------------------------------
-   Slots       # soldered 16 GB LPDDR5 6400 MT/s on the board, cannot be upgr...
+  Check  Battery  Memory  Storage  CPU  GPU  Display  Windows  System  Network
+-----------------========-------------------------------------------------------
+ Memory ----------------------------------------------------------------- 16 GB
+   Slots       # soldered 16 GB LPDDR5 6400 MT/s on the board, cannot be up...
    Installed   16 GB installed, 15.4 GB usable
-   In use      [=============---] 12.3 of 15.4 GB in use now
-   . soldered memory cannot be upgraded later.
+   In use      [########################------]  12.3 of 15.4 GB in use now
+   .  soldered memory cannot be upgraded later.
 
- Storage --------------------------------------------------------------------
-   Disk 0      Samsung PM9A1 1TB                                       + healthy
-               1 TB NVMe SSD (Windows shows 954 GB)
+ Storage ------------------------------------------------------------ + healthy
+   Disk 0      Samsung PM9A1 1TB                                      + healthy
+               1 TB NVMe SSD - Windows shows 954 GB
                holds C: - Windows starts from here
                wear and hours need admin - [e] read them (one Windows prompt)
-   C:          [====--------] 611 GB free of 952 GB - NTFS - BitLocker on
+   C:          [#######------------]  611 GB free of 952 GB - NTFS - BitLock...
 
- Processor ------------------------------------------------------------------
-   Name        Intel Core Ultra 7 155H
+ Processor ---------------------------------------------- 16 cores / 22 threads
+  v 43 more lines below
 --------------------------------------------------------------------------------
 esc back  -  ^v scroll  -  <> section  -  c copy  -  s save  -  ? help

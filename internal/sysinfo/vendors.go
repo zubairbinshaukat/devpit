@@ -2,6 +2,7 @@ package sysinfo
 
 import (
 	"strings"
+	"unicode"
 )
 
 // jedecMaker names the memory makers whose JEDEC ID firmware often writes
@@ -95,22 +96,40 @@ func isHex(s string) bool {
 }
 
 // placeholders are what firmware writes when the maker never filled a field
-// in. Compared case-insensitively, trimmed.
+// in. They are compared squashed (see [squash]), so "SerialNumber",
+// "Serial Number" and "serial_number" are one placeholder.
 func placeholderWords() []string {
 	return []string{
 		"to be filled by o.e.m.", "to be filled by oem", "default string", "system serial number",
 		"not specified", "not applicable", "none", "n/a", "na", "unknown", "undefined", "empty",
 		"system product name", "system manufacturer", "system version", "base board serial number",
 		"base board manufacturer", "base board product name", "chassis serial number", "invalid",
-		"0123456789", "123456789", "1234567890", "o.e.m.", "oem", "no dimm", "not available",
-		"serial number", "type1productconfigid", "sku", "default", "xxxxxxxx",
+		"0123456789", "123456789", "1234567890", "12345678", "1234567", "o.e.m.", "oem", "no dimm",
+		"not available", "serial number", "serial num", "serial", "sn", "type1productconfigid", "sku",
+		"default", "xxxxxxxx", "not defined", "not present", "none defined", "oem default",
+		"oem default string", "system sku", "system sku number", "chassis manufacturer",
+		"chassis version", "base board version", "asset tag", "battery serial number",
+		"battery serial", "battery manufacturer", "battery name", "manufacturer name",
+		"device name", "unique id",
 	}
 }
 
-// placeholderPrefixes are numbered placeholders such as "SerNum0" or
-// "Manufacturer00".
+// placeholderPrefixes are numbered placeholders such as "SerNum0",
+// "Manufacturer00" or "OEM_Define1", compared squashed.
 func placeholderPrefixes() []string {
-	return []string{"sernum", "partnum", "manufacturer", "assettagnum", "assettag", "array", "module"}
+	return []string{"sernum", "partnum", "manufacturer", "assettagnum", "assettag", "array", "module", "oemdefine", "serialnumber"}
+}
+
+// squash lower-cases s and keeps only its letters and digits, so firmware
+// spellings that differ only in spaces, dots or underscores compare equal.
+func squash(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // isPlaceholder reports whether a firmware string means "not set".
@@ -119,13 +138,17 @@ func isPlaceholder(s string) bool {
 	if t == "" {
 		return true
 	}
+	q := squash(t)
+	if q == "" {
+		return true
+	}
 	for _, p := range placeholderWords() {
-		if t == p {
+		if q == squash(p) {
 			return true
 		}
 	}
 	for _, p := range placeholderPrefixes() {
-		if rest, ok := strings.CutPrefix(t, p); ok && rest != "" && strings.Trim(rest, "0123456789") == "" {
+		if rest, ok := strings.CutPrefix(q, p); ok && rest != "" && strings.Trim(rest, "0123456789") == "" {
 			return true
 		}
 	}
