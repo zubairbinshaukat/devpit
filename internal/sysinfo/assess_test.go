@@ -250,6 +250,24 @@ func TestReportOmitsSerialsAndMACsByDefault(t *testing.T) {
 	}
 }
 
+func TestFakeAndReportCarryTheWifiStandard(t *testing.T) {
+	d := sysinfofake.Desktop()
+	if d.Network[0].WifiStandard != "Wi-Fi 7" || d.Network[1].WifiStandard != "" {
+		t.Fatalf("fake adapters: %+v", d.Network)
+	}
+	md := sysinfo.Markdown(d, sysinfo.MarkdownOptions{Now: now})
+	if !strings.Contains(md, "- Wi-Fi standard: Wi-Fi 7\n") {
+		t.Errorf("report lacks the Wi-Fi standard:\n%s", md)
+	}
+	if strings.Contains(md, "Ethernet standard") {
+		t.Error("a wired adapter has no Wi-Fi standard line")
+	}
+	d.Network[0].WifiStandard = ""
+	if md = sysinfo.Markdown(d, sysinfo.MarkdownOptions{Now: now}); strings.Contains(md, "standard") {
+		t.Error("an unknown standard must leave the line out, not say not reported")
+	}
+}
+
 func TestReportNeverHoldsTheProductKey(t *testing.T) {
 	// No field anywhere in the report may be meant for a key.
 	var walk func(reflect.Type, string)

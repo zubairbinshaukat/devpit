@@ -11,6 +11,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/zubairbinshaukat/devpit/internal/winapi"
 )
 
 // volumesLive lists the fixed and removable drive letters.
@@ -84,6 +86,9 @@ func networkLive() ([]Adapter, error) {
 			return nil, err
 		}
 	}
+	// The Wi-Fi standard is a bonus: no WLAN service or any probe error just
+	// leaves it empty.
+	wifi, _ := winapi.WifiInterfaces()
 	var out []Adapter
 	for a := (*windows.IpAdapterAddresses)(unsafe.Pointer(&buf[0])); a != nil; a = a.Next {
 		row := windows.MibIfRow2{InterfaceIndex: a.IfIndex}
@@ -97,6 +102,7 @@ func networkLive() ([]Adapter, error) {
 		switch row.Type {
 		case 71:
 			ad.Kind = "Wi-Fi"
+			ad.WifiStandard = wifiStandardFor(wifi, row.InterfaceGuid.String(), ad.Description)
 		case 6:
 			ad.Kind = "Ethernet"
 		default:

@@ -464,6 +464,9 @@ func Markdown(r Report, opts MarkdownOptions) string {
 		head("Network")
 		for _, a := range r.Network {
 			line(a.Kind, a.Description)
+			if a.WifiStandard != "" {
+				line(a.Kind+" standard", a.WifiStandard)
+			}
 			private(a.Kind+" MAC address", a.MAC)
 		}
 	}

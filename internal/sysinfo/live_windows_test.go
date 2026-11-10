@@ -129,3 +129,18 @@ func TestPowerShellTimeoutKillsIt(t *testing.T) {
 		t.Fatalf("PowerShell path = %q %v", exe, err)
 	}
 }
+
+// Read-only: the Wi-Fi adapter on this PC names its standard; a wired one
+// never does.
+func TestNetworkLiveFillsTheWifiStandard(t *testing.T) {
+	ads, err := networkLive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range ads {
+		t.Logf("%s %q: standard %q", a.Kind, a.Description, a.WifiStandard)
+		if a.Kind != "Wi-Fi" && a.WifiStandard != "" {
+			t.Errorf("%q is not Wi-Fi but has standard %q", a.Description, a.WifiStandard)
+		}
+	}
+}

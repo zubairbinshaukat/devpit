@@ -1,6 +1,11 @@
 package sysinfo
 
-import "time"
+import (
+	"strings"
+	"time"
+
+	"github.com/zubairbinshaukat/devpit/internal/winapi"
+)
 
 // Tri is a yes/no answer that may not be known.
 type Tri int8
@@ -388,6 +393,27 @@ type Adapter struct {
 	Connected bool
 	// MAC is private.
 	MAC string
+	// WifiStandard is the newest Wi-Fi generation the card supports, from the
+	// WLAN service ("Wi-Fi 7", "Wi-Fi 6", "Wi-Fi 5", "Wi-Fi 4"), or "" for a
+	// wired adapter or when Windows would not say.
+	WifiStandard string
+}
+
+// wifiStandardFor finds the WLAN card behind an IP-helper adapter, by
+// interface GUID first and by description only when no GUID matches, and
+// names its Wi-Fi standard. "" when there is no match.
+func wifiStandardFor(cards []winapi.WifiInterface, guid, description string) string {
+	for _, c := range cards {
+		if guid != "" && strings.EqualFold(c.GUID, guid) {
+			return winapi.WifiStandard(c.PHYs)
+		}
+	}
+	for _, c := range cards {
+		if description != "" && strings.EqualFold(c.Description, description) {
+			return winapi.WifiStandard(c.PHYs)
+		}
+	}
+	return ""
 }
 
 // Devices is what else is built in.

@@ -844,6 +844,11 @@ func (b *builder) network() {
 	}
 	for _, a := range b.m.rep.Network {
 		v := a.Description
+		// The driver name often names the standard already ("Wi-Fi 6
+		// AX201"); say it only when it adds something.
+		if a.WifiStandard != "" && !strings.Contains(strings.ToLower(v), strings.ToLower(a.WifiStandard)) {
+			v += " · " + a.WifiStandard
+		}
 		lvl := sysinfo.Note
 		if a.Connected {
 			lvl = sysinfo.Good

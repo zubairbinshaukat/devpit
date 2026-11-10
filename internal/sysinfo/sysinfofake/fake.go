@@ -179,7 +179,7 @@ func Good() sysinfo.Report {
 			Hypervisor: sysinfo.TriYes, DomainJoined: sysinfo.TriNo, EntraJoined: sysinfo.TriNo, MDM: sysinfo.TriNo,
 		},
 		Network: []sysinfo.Adapter{
-			{Description: "Intel(R) Wi-Fi 7 BE200 320MHz", Kind: "Wi-Fi", SpeedBps: 1_200_000_000, Connected: true, MAC: "00-11-22-33-44-55"},
+			{Description: "Intel(R) Wi-Fi 7 BE200 320MHz", Kind: "Wi-Fi", SpeedBps: 1_200_000_000, Connected: true, MAC: "00-11-22-33-44-55", WifiStandard: "Wi-Fi 7"},
 		},
 		Devices: sysinfo.Devices{Bluetooth: sysinfo.TriYes, Camera: sysinfo.TriYes, Fingerprint: sysinfo.TriYes, Touch: sysinfo.TriNo, Pen: sysinfo.TriNo},
 	})
