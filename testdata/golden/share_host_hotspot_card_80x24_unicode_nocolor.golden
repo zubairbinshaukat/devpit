@@ -1,0 +1,26 @@
+╭────────────────────────────────────────────────────────────────────────────╮
+│ ✓ Sharing D:\Games  (read-only)                                            │
+│                                                                            │
+│ 1. On the other PC, join this Wi-Fi:                                       │
+│ Hotspot   OMEN-Hotspot  5 GHz                                              │
+│ Password  sunny-day-42                                                     │
+│           This is your own hotspot password.                               │
+│                                                                            │
+│ 2. Then sign in to the shared folder:                                      │
+│ Address   192.168.137.1                                                    │
+│ Share     Games-x7k2                                                       │
+│ User      devpit-x7k2                                                      │
+│ Code      482913                                                           │
+│           If the hotspot is slow, use 192.168.1.20 over your network.      │
+│                                                                            │
+│ On a PC without Devpit, join the hotspot, then type:                       │
+│   net use \\192.168.137.1\Games-x7k2 /user:devpit-x7k2 482913              │
+│   robocopy \\192.168.137.1\Games-x7k2 ".\Games-x7k2" /E /Z /MT:16 /R:3     │
+│     /W:5 /XO                                                               │
+│ The copy lands in a new folder where that terminal is open.                │
+│                                                                            │
+│ The login is temporary and can only read this folder.                      │
+│ Devpit stops the hotspot when you stop sharing.                            │
+╰────────────────────────────────────────────────────────────────────────────╯
+
+[keys] w copy hotspot password  ·  p copy code  ·  r copy robocopy  ·  s stop sharing

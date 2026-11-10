@@ -45,6 +45,14 @@ type Entry struct {
 func Releases() []Entry {
 	return []Entry{
 		{
+			Version:  "0.5.1",
+			Headline: "Direct hotspot for Share Files is new.",
+			Lines: []string{
+				"On Wi-Fi with a Wi-Fi 6 or newer card, Share a folder can offer a direct hotspot: the other PC joins this PC's own hotspot, with no router in between. If the hotspot is not on 5 GHz, Devpit asks first: switch it to 5 GHz, use a temporary name and an 8-digit password, or keep it.",
+				"The receiving PC joins with one password and goes back to its own Wi-Fi afterwards. If the hotspot link is slower than its Wi-Fi, Devpit says so and offers to go back. The share card shows the link speed Windows reports; PC specs shows the Wi-Fi standard.",
+			},
+		},
+		{
 			Version:  "0.5",
 			Headline: "This PC is new.",
 			Lines: []string{

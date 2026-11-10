@@ -36,15 +36,20 @@ type stateMsg struct {
 	hasJob  bool
 }
 
+// joinUndoneMsg is the result of undoing a hotspot join an earlier run left
+// behind: the line to show, or "" when there was nothing to do.
+type joinUndoneMsg struct{ note string }
+
 // Model is the Share Files menu.
 type Model struct {
 	deps Deps
 	menu menu.Model
 
-	left    host.Manifest
-	hasLeft bool
-	saved   job.Job
-	hasJob  bool
+	left     host.Manifest
+	hasLeft  bool
+	saved    job.Job
+	hasJob   bool
+	joinNote string
 }
 
 // logDir is where robocopy's logs go: Devpit's cache directory.
@@ -69,6 +74,13 @@ func RealDeps() Deps {
 		SavedJob: func() (job.Job, bool) {
 			j, ok, err := job.Load(dir)
 			return j, ok && err == nil && j.Resumable()
+		},
+		UndoJoin: func() string {
+			res, err := recv.New(recv.Real(dir, logDir())).UndoLeftoverJoin()
+			if err != nil {
+				return "Devpit could not undo a Wi-Fi join left from last time. Pick your own network in Windows."
+			}
+			return res.Note
 		},
 		Copy: copyToClipboard,
 	}
@@ -112,7 +124,7 @@ func (m Model) items() []menu.Item {
 // Init implements uictx.Screen: look for leftovers and a resumable copy.
 func (m Model) Init() tea.Cmd {
 	deps := m.deps
-	return func() tea.Msg {
+	state := func() tea.Msg {
 		var s stateMsg
 		if deps.Leftover != nil {
 			s.left, s.hasLeft = deps.Leftover()
@@ -122,6 +134,12 @@ func (m Model) Init() tea.Cmd {
 		}
 		return s
 	}
+	if deps.UndoJoin == nil {
+		return state
+	}
+	// Its own command: putting the Wi-Fi back can take a few seconds, and the
+	// menu must not wait for it.
+	return tea.Batch(state, func() tea.Msg { return joinUndoneMsg{note: deps.UndoJoin()} })
 }
 
 // Title implements uictx.Screen.
@@ -147,6 +165,9 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	case stateMsg:
 		m.left, m.hasLeft, m.saved, m.hasJob = msg.left, msg.hasLeft, msg.saved, msg.hasJob
 		m.menu = m.menu.SetItems(m.items())
+		return m, nil
+	case joinUndoneMsg:
+		m.joinNote = msg.note
 		return m, nil
 	case menu.SelectedMsg:
 		return m, m.open(msg.ID, ctx.Config)
@@ -185,5 +206,8 @@ func (m Model) View(ctx uictx.Context) string {
 	b.WriteString(ctx.Theme.Muted.Render("Both PCs stay on your own network. Nothing goes to the internet."))
 	b.WriteString("\n\n")
 	b.WriteString(m.menu.View(ctx))
+	if m.joinNote != "" {
+		b.WriteString("\n\n" + ctx.Wrap(ctx.Theme.Info.Render(m.joinNote)))
+	}
 	return b.String()
 }

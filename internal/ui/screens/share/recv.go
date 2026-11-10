@@ -18,6 +18,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/pathpicker"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
+	"github.com/zubairbinshaukat/devpit/internal/winapi"
 )
 
 // recvStage is where the receiving screen is.
@@ -37,6 +38,16 @@ const (
 	recvDone
 	recvFailed
 	recvError
+	// The hotspot stages (recvhotspot.go), shown only on a PC that can join
+	// a hotspot.
+	recvWay
+	recvScanning
+	recvHotspots
+	recvHotspotPass
+	recvJoining
+	recvSlowLink
+	recvLeaving
+	recvHotspotName
 )
 
 // credsFor says which step the sign-in form belongs to.
@@ -131,6 +142,20 @@ type recvScreen struct {
 	errPhase errmap.Phase
 	retry    func(recvScreen) (recvScreen, tea.Cmd)
 	dropped  int
+
+	// The hotspot side (recvhotspot.go).
+	wayMenu    menu.Model
+	nets       []winapi.WifiNetwork
+	netMenu    menu.Model
+	ssid       string
+	netProfile string
+	hsPass     textinput.Model
+	hsName     textinput.Model
+	join       recv.JoinResult
+	joined     bool   // this PC is on the hotspot and must go back
+	resumeJoin bool   // the join is for a resumed copy
+	joinNote   string // what a failed join put back
+	ipNote     string // a line above the address field
 }
 
 // newRecvScreen returns the receiving screen. With a saved copy it opens on
@@ -143,13 +168,15 @@ func newRecvScreen(deps Deps, cfg config.Config, saved *job.Job) recvScreen {
 	pass.EchoMode = textinput.EchoPassword
 	m := recvScreen{
 		deps: deps, rcv: deps.NewRecv(), run: h, ctx: ctx,
-		stage: recvIP, ip: ip, user: user, pass: pass,
+		stage: recvIP, ip: ip, user: user, pass: pass, hsPass: newHotspotInput(), hsName: newInput(34, "Devpit-x7k2"),
 		picker: pathpicker.New(pickerConfig(cfg)).WithPrompts(
 			"Where should the files go?", "Type the folder to copy into, then press Enter."),
 	}
 	if saved != nil {
 		m.stage, m.job = recvResumeAsk, *saved
 		m.host, m.share, m.dest = saved.Host, saved.Share, saved.Dest
+	} else if _, ok := m.joiner(); ok {
+		m.stage, m.wayMenu = recvWay, wayMenu()
 	} else {
 		// Focus here, not in Init: Init has a value receiver, so a Focus call
 		// there would change a copy and the field the screen keeps would stay
@@ -167,11 +194,24 @@ func (m recvScreen) Init() tea.Cmd { return m.initCmd }
 func (m recvScreen) Title() string { return "Copy from a shared folder" }
 
 // Busy implements uictx.BusyReporter: a copy is in flight.
-func (m recvScreen) Busy() bool { return m.stage == recvCopy }
+// A join or a leave in flight counts too: it changes this PC's Wi-Fi, so Esc
+// must not drop the screen half way.
+func (m recvScreen) Busy() bool {
+	return m.stage == recvCopy || m.stage == recvJoining || m.stage == recvLeaving
+}
 
 // Stop implements uictx.Stopper. It cancels the copy, which saves it for
-// Resume.
-func (m recvScreen) Stop() { m.run.stop() }
+// Resume. A PC still on the sharing PC's hotspot outside a copy is put back
+// on its own network in the background (Stop must not block); if Devpit
+// quits first, the join record undoes it at the next open of Share Files.
+func (m recvScreen) Stop() {
+	m.run.stop()
+	if m.joined && m.stage != recvCopy {
+		if j, ok := m.rcv.(Joiner); ok {
+			go func() { _, _ = j.Leave() }()
+		}
+	}
+}
 
 // TerminalProgress implements uictx.ProgressReporter.
 func (m recvScreen) TerminalProgress() *tea.ProgressBar {
@@ -186,6 +226,13 @@ func bind(k, h string) key.Binding { return key.NewBinding(key.WithKeys(k), key.
 
 // ShortHelp implements uictx.Screen.
 func (m recvScreen) ShortHelp() []key.Binding {
+	if hints, ok := m.hotspotHelp(); ok {
+		out := make([]key.Binding, len(hints))
+		for i, h := range hints {
+			out[i] = bind(h.key, h.help)
+		}
+		return out
+	}
 	switch m.stage {
 	case recvResumeAsk:
 		return []key.Binding{bind("enter", "resume"), bind("d", "discard")}
@@ -230,12 +277,18 @@ func (m recvScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 	switch msg := msg.(type) {
 	case spinMsg:
 		switch m.stage {
-		case recvListing, recvChecking, recvCopy:
+		case recvListing, recvChecking, recvCopy, recvScanning, recvJoining, recvLeaving:
 			m.frame++
 			return m, spinCmd()
 		}
 		return m, nil
 
+	case hotspotsMsg:
+		return m.onHotspots(msg)
+	case joinedMsg:
+		return m.onJoined(msg)
+	case leftMsg:
+		return m.onLeft(msg)
 	case listMsg:
 		return m.onList(msg)
 	case signedInMsg:
@@ -484,6 +537,7 @@ func waitCopy(st *copyStream) tea.Cmd {
 // onCopyDone shows how the copy ended.
 func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 	m.stream = nil
+	m.joined = false // Run puts the PC back on its own network on every exit
 	m.out = msg.out
 	m.creds = netstat.Credentials{}
 	// The connection is closed only when the copy is finished. A failed,
@@ -496,7 +550,7 @@ func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 	switch {
 	case msg.err != nil:
 		return m.fail(msg.err, errmap.PhaseCopy, func(s recvScreen) (recvScreen, tea.Cmd) {
-			next, cmd := s.beginCopy(s.job)
+			next, cmd := s.retryCopy()
 			return next.(recvScreen), cmd
 		})
 	case msg.out.Paused:
@@ -513,11 +567,14 @@ func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 
 // onKey routes a key to whatever has focus.
 func (m recvScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
+	if next, cmd, ok := m.hotspotKey(msg); ok {
+		return next, cmd
+	}
 	switch m.stage {
 	case recvResumeAsk:
 		switch {
 		case msg.Code == tea.KeyEnter:
-			return m.startCheck()
+			return m.resumeStart()
 		case msg.Text == "d":
 			_ = m.rcv.ClearJob()
 			return m, uictx.Pop()
@@ -564,7 +621,7 @@ func (m recvScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 	case recvFailed:
 		switch {
 		case msg.Text == "r":
-			return m.beginCopy(m.job)
+			return m.retryCopy()
 		case msg.Code == tea.KeyEnter:
 			return m, uictx.Pop()
 		}
@@ -582,6 +639,10 @@ func (m recvScreen) onPaste(msg tea.PasteMsg) (uictx.Screen, tea.Cmd) {
 	switch m.stage {
 	case recvIP:
 		m.ip, cmd = m.ip.Update(msg)
+	case recvHotspotPass:
+		m.hsPass, cmd = m.hsPass.Update(msg)
+	case recvHotspotName:
+		m.hsName, cmd = m.hsName.Update(msg)
 	case recvCreds:
 		if m.focus == 0 {
 			m.user, cmd = m.user.Update(msg)
@@ -635,6 +696,9 @@ func (m recvScreen) errorKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 			}
 		}
 	case msg.Code == tea.KeyEnter:
+		if m.joined {
+			return m.backToWifi()
+		}
 		m.stage = recvIP
 		return m, m.ip.Focus()
 	}

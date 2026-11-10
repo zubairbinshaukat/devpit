@@ -180,6 +180,10 @@ func hostStates() []goldenState {
 }
 
 func recvStates() []goldenState {
+	return append(recvBaseStates(), recvHotspotStates()...)
+}
+
+func recvBaseStates() []goldenState {
 	saved := func() job.Job {
 		return job.Job{
 			Host: "192.168.1.5", Share: "Games", User: "bob", Dest: `D:\Games`, TotalBytes: 80 << 30, DoneBytes: 47 << 30,
@@ -379,6 +383,11 @@ func menuStates() []goldenState {
 			s.stage = cleanupDone
 			return s
 		}},
+		{"cleanup_done_hotspot_settings_lost", func(t *testing.T) uictx.Screen {
+			s := newCleanupScreen(Deps{}, host.Manifest{Path: `D:\Games`, Mode: host.ModeHotspot, HotspotConfig: "temp", HotspotLegacy: true})
+			s.stage = cleanupDone
+			return s
+		}},
 		{"cleanup_declined", func(t *testing.T) uictx.Screen {
 			s := newCleanupScreen(Deps{}, host.Manifest{Path: `D:\Games`})
 			s.stage, s.err = cleanupFailed, &elevate.DeclinedError{}
@@ -398,6 +407,7 @@ func TestGoldenFrames(t *testing.T) {
 	var all []goldenState
 	all = append(all, menuStates()...)
 	all = append(all, hostStates()...)
+	all = append(all, hostHotspotStates()...)
 	all = append(all, recvStates()...)
 	seen := map[string]bool{}
 	for _, st := range all {
@@ -415,10 +425,11 @@ func TestGoldenFrames(t *testing.T) {
 // TestGoldenFramesAscii pins the main states on the plain tier at 100x30, so
 // a terminal with no unicode still gets a card and a progress bar.
 func TestGoldenFramesAscii(t *testing.T) {
-	want := map[string]bool{"menu": true, "host_card": true, "recv_check_ok": true, "recv_copy": true, "recv_done": true, "recv_error_session_conflict": true}
+	want := map[string]bool{"menu": true, "host_card": true, "host_hotspot_card": true, "recv_hotspot_list": true, "recv_check_ok": true, "recv_copy": true, "recv_done": true, "recv_error_session_conflict": true}
 	var all []goldenState
 	all = append(all, menuStates()...)
 	all = append(all, hostStates()...)
+	all = append(all, hostHotspotStates()...)
 	all = append(all, recvStates()...)
 	for _, st := range all {
 		if !want[st.name] {

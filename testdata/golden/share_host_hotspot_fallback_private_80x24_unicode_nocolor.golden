@@ -1,0 +1,10 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Share over your network instead?                                             │
+│ Wi-Fi is turned off, so a hotspot cannot start. Windows blocks file sharing  │
+│ on a Public network, so Devpit would switch it to Private while you share    │
+│ and put it back when you stop.                                               │
+│                                                                              │
+│ [ No ]   [ Yes ]                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

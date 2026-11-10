@@ -29,11 +29,18 @@ func roundDuration(d time.Duration) string {
 // View implements uictx.Screen.
 func (m recvScreen) View(ctx uictx.Context) string {
 	th := ctx.Theme
+	if s, ok := m.hotspotView(ctx); ok {
+		return s
+	}
 	switch m.stage {
 	case recvResumeAsk:
 		return m.resumeView(ctx)
 	case recvIP:
-		return ctx.Wrap(th.Muted.Render("Type the IP address of the other PC. It is on the card the sharing PC shows.")) +
+		note := ""
+		if m.ipNote != "" {
+			note = ctx.Wrap(th.Info.Render(m.ipNote)) + "\n\n"
+		}
+		return note + ctx.Wrap(th.Muted.Render("Type the IP address of the other PC. It is on the card the sharing PC shows.")) +
 			"\n\n" + styleInput(m.ip, th).View()
 	case recvListing:
 		return th.Muted.Render(ctx.SpinnerFrame(m.frame) + " Talking to the other PC…")
@@ -227,6 +234,9 @@ func (m recvScreen) failedView(ctx uictx.Context) string {
 // note when that has just been done.
 func (m recvScreen) errorScreen(ctx uictx.Context) string {
 	s := errorView(ctx, m.err, m.errPhase, m.user.Value())
+	if m.joinNote != "" {
+		s += "\n\n" + ctx.Wrap(ctx.Theme.Muted.Render(m.joinNote))
+	}
 	if m.dropped > 0 {
 		s += "\n\n" + ctx.Theme.Muted.Render(fmt.Sprintf("Closed %d old connection(s).", m.dropped))
 	}

@@ -94,6 +94,10 @@ type Deps struct {
 	CleanUp func(ctx context.Context, m host.Manifest) error
 	// SavedJob returns an interrupted copy that can be resumed.
 	SavedJob func() (job.Job, bool)
+	// UndoJoin puts this PC back on its own Wi-Fi when an earlier run left it
+	// on a sharing PC's hotspot, and returns the line to show ("" for none).
+	// Nil skips it.
+	UndoJoin func() string
 	// Copy puts text on the clipboard.
 	Copy func(text string) tea.Cmd
 }

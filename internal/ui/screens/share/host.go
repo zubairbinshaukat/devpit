@@ -35,6 +35,8 @@ const (
 	hostStopping
 	hostStopped
 	hostFailed
+	// hostBand asks about the hotspot's band (hosthotspot.go).
+	hostBand
 )
 
 // Dialog identifiers.
@@ -48,6 +50,7 @@ type (
 	// hostAdaptersMsg is the list of adapters.
 	hostAdaptersMsg struct {
 		list []host.Adapter
+		sugg host.Suggestion
 		err  error
 	}
 	// hostCategoryMsg is the network category of the chosen adapter.
@@ -107,6 +110,14 @@ type hostScreen struct {
 	// the poll chain of this share from an earlier one.
 	prog    host.Progress
 	pollGen int
+
+	// The hotspot side (hosthotspot.go): the engine's suggestion, the band
+	// options, the options the share was started with, and why a hotspot
+	// that did not start fell back.
+	suggest  host.Suggestion
+	bandMenu menu.Model
+	opts     host.Options
+	fallback string
 }
 
 // newHostScreen returns the sharing screen.
@@ -161,9 +172,14 @@ func (m hostScreen) ShortHelp() []key.Binding {
 		return m.picker.Keys.ShortHelp()
 	case hostAdapters:
 		return m.adMenu.Keys.ShortHelp()
+	case hostBand:
+		return m.bandMenu.Keys.ShortHelp()
 	case hostPrivate, hostConfirmStop:
 		return m.confirm.Keys.ShortHelp()
 	case hostCard:
+		if m.card.Mode == host.ModeHotspot && m.card.HotspotPassword != "" {
+			return []key.Binding{bind("w", "copy hotspot password"), bind("p", "copy code"), bind("r", "copy robocopy"), bind("s", "stop sharing")}
+		}
 		return []key.Binding{bind("c", "copy net use"), bind("r", "copy robocopy"), bind("p", "copy password"), bind("s", "stop sharing")}
 	case hostStopped, hostFailed:
 		return []key.Binding{bind("enter", "back")}
@@ -224,6 +240,9 @@ func (m hostScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 		}
 		m.stream = nil
 		if msg.err != nil {
+			if next, cmd, ok := m.fallbackPrivate(msg.err); ok {
+				return next, cmd
+			}
 			m.stage, m.err = hostFailed, msg.err
 			return m, nil
 		}
@@ -264,7 +283,10 @@ func (m hostScreen) adaptersCmd() tea.Cmd {
 	mgr, ctx := m.mgr, m.ctx
 	return func() tea.Msg {
 		l, err := mgr.Adapters(ctx)
-		return hostAdaptersMsg{list: l, err: err}
+		if err != nil {
+			return hostAdaptersMsg{err: err}
+		}
+		return hostAdaptersMsg{list: l, sugg: suggestOf(ctx, mgr)}
 	}
 }
 
@@ -274,24 +296,17 @@ func (m hostScreen) onAdapters(msg hostAdaptersMsg) (uictx.Screen, tea.Cmd) {
 		m.stage, m.err = hostFailed, msg.err
 		return m, nil
 	}
-	if len(msg.list) == 0 {
+	m.suggest = msg.sugg
+	if len(msg.list) == 0 && !msg.sugg.Offer {
 		m.stage = hostFailed
 		m.err = errors.New("no network connection found. Connect this PC to Wi-Fi or a cable and try again")
 		return m, nil
 	}
 	m.adapters = msg.list
-	if len(msg.list) == 1 {
+	if len(msg.list) == 1 && !msg.sugg.Offer {
 		return m.chooseAdapter(msg.list[0])
 	}
-	items := make([]menu.Item, len(msg.list))
-	for i, a := range msg.list {
-		desc := "Other PCs reach this one at " + a.IP.String()
-		if a.Best {
-			desc += ". Windows uses it for the internet."
-		}
-		items[i] = menu.Item{ID: fmt.Sprint(i), Title: a.Name + "  " + a.IP.String(), Desc: desc}
-	}
-	m.adMenu = menu.New(items)
+	m.adMenu = menu.New(m.adapterItems())
 	m.stage = hostAdapters
 	return m, nil
 }
@@ -327,14 +342,18 @@ func (m hostScreen) onCategory(msg hostCategoryMsg) (uictx.Screen, tea.Cmd) {
 
 // begin starts the setup on its own goroutine, reporting each step.
 func (m hostScreen) begin(makePrivate bool) (uictx.Screen, tea.Cmd) {
-	m.private = makePrivate
+	return m.start(host.Options{Path: m.path, Adapter: m.adapter, MakePrivate: makePrivate})
+}
+
+// start runs the setup with the given options.
+func (m hostScreen) start(opts host.Options) (uictx.Screen, tea.Cmd) {
+	m.private, m.opts = opts.MakePrivate, opts
 	m.endPoll()
 	m.stage = hostSetup
 	m.steps, m.stepAt, m.err = nil, 0, nil
 	st := &hostStream{steps: make(chan host.Step, 16), result: make(chan hostStartedMsg, 1)}
 	m.stream = st
 	mgr, ctx := m.mgr, m.ctx
-	opts := host.Options{Path: m.path, Adapter: m.adapter, MakePrivate: makePrivate}
 	go func() {
 		card, err := mgr.Start(ctx, opts, func(s host.Step) { st.steps <- s })
 		st.result <- hostStartedMsg{card: card, err: err}
@@ -397,6 +416,9 @@ func (m hostScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 		next, cmd := m.adMenu.Update(msg)
 		m.adMenu = next
 		if it, ok := m.adMenu.Selected(); ok && msg.Code == tea.KeyEnter {
+			if it.ID == hotspotRowID {
+				return m.chooseHotspot()
+			}
 			var i int
 			_, _ = fmt.Sscan(it.ID, &i)
 			return m.chooseAdapter(m.adapters[i])
@@ -406,6 +428,8 @@ func (m hostScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 		next, cmd := m.confirm.Update(msg)
 		m.confirm = next
 		return m, cmd
+	case hostBand:
+		return m.onBandKey(msg)
 	case hostCard:
 		return m.onCardKey(msg)
 	case hostStopped:
@@ -439,6 +463,8 @@ func (m hostScreen) onCardKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 		return m, copyFn(m.card.Robocopy)
 	case msg.Text == "p":
 		return m, copyFn(m.card.Password)
+	case msg.Text == "w" && m.card.HotspotPassword != "":
+		return m, copyFn(m.card.HotspotPassword)
 	case msg.Text == "s", msg.Code == tea.KeyEscape:
 		m.stage = hostConfirmStop
 		m.confirm = confirm.New(stopShareID, "Stop sharing?",
@@ -456,7 +482,13 @@ func (m hostScreen) View(ctx uictx.Context) string {
 		return m.picker.View(ctx)
 	case hostLooking:
 		return th.Muted.Render(ctx.SpinnerFrame(m.frame) + " Looking at your network…")
+	case hostBand:
+		return ctx.Wrap(th.Muted.Render("Your hotspot is not set to 5 GHz, so it may be slow. What should Devpit do?")) +
+			"\n\n" + m.bandMenu.View(ctx)
 	case hostAdapters:
+		if m.suggest.Offer {
+			return th.Muted.Render("How should the other PC reach this one?") + "\n\n" + m.adMenu.View(ctx)
+		}
 		return th.Muted.Render("This PC has more than one network connection. Which one is the other PC on?") +
 			"\n\n" + m.adMenu.View(ctx)
 	case hostPrivate, hostConfirmStop:
@@ -469,7 +501,7 @@ func (m hostScreen) View(ctx uictx.Context) string {
 		return th.Muted.Render(ctx.SpinnerFrame(m.frame) + " Stopping. Removing everything Devpit set up…")
 	case hostStopped:
 		return th.Success.Render(ctx.Icons.Tick+" Sharing stopped.") + "\n\n" +
-			ctx.Wrap(th.Muted.Render("The share, the temporary login and the firewall and network changes are removed.")) +
+			ctx.Wrap(th.Muted.Render(m.stoppedText())) +
 			"\n\n" + th.Muted.Render("Press Enter to go back.")
 	default:
 		return m.failedView(ctx)
@@ -488,6 +520,9 @@ func (m hostScreen) setupView(ctx uictx.Context) string {
 	}
 	if !m.private {
 		order = order[1:]
+	}
+	if m.opts.Mode == host.ModeHotspot {
+		order = m.hotspotSteps()
 	}
 	rows := make([]activity.Row, len(order))
 	reached := -1
@@ -527,16 +562,28 @@ func (m hostScreen) cardView(ctx uictx.Context) string {
 	var body strings.Builder
 	body.WriteString(th.CardTitle.Render(ctx.Icons.Tick+" Sharing "+fit(c.Path, max(ctx.Width-24, 20))) + "  " +
 		th.Muted.Render("(read-only)") + "\n\n")
-	body.WriteString(label("Address") + th.Info.Render(c.IP) + th.Muted.Render("  on "+c.Adapter) + "\n")
-	for _, a := range m.adapters {
-		if a.IP.String() != c.IP {
-			body.WriteString(label("") + th.Muted.Render(a.IP.String()+"  on "+a.Name) + "\n")
+	hotspot := c.Mode == host.ModeHotspot
+	if hotspot {
+		m.hotspotCardBody(ctx, &body)
+		body.WriteString(th.Muted.Render("On a PC without Devpit, join the hotspot, then type:") + "\n")
+	} else {
+		if c.HotspotFallback != "" {
+			body.WriteString(ctx.Wrap(th.Warning.Render(ctx.Icons.Warn+" "+c.HotspotFallback)) + "\n\n")
 		}
+		body.WriteString(label("Address") + th.Info.Render(c.IP) + th.Muted.Render("  on "+c.Adapter) + "\n")
+		for _, a := range m.adapters {
+			if a.IP.String() != c.IP {
+				body.WriteString(label("") + th.Muted.Render(a.IP.String()+"  on "+a.Name) + "\n")
+			}
+		}
+		if l := linkHint(c.Standard, c.LinkBps); l != "" {
+			body.WriteString(label("Link") + th.Muted.Render(l+". Real copy speed is lower.") + "\n")
+		}
+		body.WriteString(label("Share") + th.Base.Render(c.Share) + "\n")
+		body.WriteString(label("User") + th.Base.Render(c.User) + "\n")
+		body.WriteString(label("Password") + th.Base.Bold(true).Render(c.Password) + "\n\n")
+		body.WriteString(th.Muted.Render("On a PC without Devpit, type these two commands:") + "\n")
 	}
-	body.WriteString(label("Share") + th.Base.Render(c.Share) + "\n")
-	body.WriteString(label("User") + th.Base.Render(c.User) + "\n")
-	body.WriteString(label("Password") + th.Base.Bold(true).Render(c.Password) + "\n\n")
-	body.WriteString(th.Muted.Render("On a PC without Devpit, type these two commands:") + "\n")
 	// The commands wrap rather than being cut: they are read off this screen
 	// and typed on the other PC, so every character has to be there.
 	room := max(ctx.Width-8, 20)
@@ -544,6 +591,9 @@ func (m hostScreen) cardView(ctx uictx.Context) string {
 	body.WriteString(th.Base.Render(activity.WrapCommand(c.Robocopy, "  ", room)) + "\n")
 	body.WriteString(th.Muted.Render("The copy lands in a new folder where that terminal is open.") + "\n\n")
 	body.WriteString(th.Muted.Render("The login is temporary and can only read this folder."))
+	if hotspot {
+		body.WriteString("\n" + th.Muted.Render("Devpit stops the hotspot when you stop sharing."))
+	}
 	if c.SwitchedNetwork {
 		body.WriteString("\n" + th.Muted.Render("The network was switched to Private. It goes back when you stop."))
 	}
@@ -573,4 +623,12 @@ func (m hostScreen) failedView(ctx uictx.Context) string {
 			ctx.Wrap(th.Muted.Render(oneLine(m.err.Error()))) + "\n\n" +
 			ctx.Wrap(th.Base.Render("Anything that was set up is removed again. Press Enter to go back."))
 	}
+}
+
+// stoppedText says what stopping removed.
+func (m hostScreen) stoppedText() string {
+	if m.card.Mode == host.ModeHotspot {
+		return "The share, the temporary login, the hotspot Devpit started and its firewall rule are removed."
+	}
+	return "The share, the temporary login and the firewall and network changes are removed."
 }

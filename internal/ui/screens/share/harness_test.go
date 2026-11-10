@@ -216,6 +216,12 @@ type fakeHoster struct {
 	stops    int
 	active   bool
 	stopped  chan struct{}
+
+	// The hotspot side: what Suggest answers, the card a hotspot start
+	// returns, and the error it fails with.
+	sugg   host.Suggestion
+	hsCard host.Card
+	hsErr  error
 }
 
 func newFakeHoster() *fakeHoster {
@@ -243,6 +249,15 @@ func (f *fakeHoster) Start(_ context.Context, o host.Options, onStep func(host.S
 	f.mu.Lock()
 	f.started = append(f.started, o)
 	f.mu.Unlock()
+	if o.Mode == host.ModeHotspot {
+		if f.hsErr != nil {
+			return host.Card{}, f.hsErr
+		}
+		f.mu.Lock()
+		f.active = true
+		f.mu.Unlock()
+		return f.hsCard, nil
+	}
 	for _, s := range f.steps {
 		onStep(s)
 	}
@@ -299,6 +314,8 @@ type fakeReceiver struct {
 	cleared    int
 	disconnect []string
 	checkCalls int
+
+	hs hotspotFake // the hotspot side, off unless a test turns it on
 }
 
 func (f *fakeReceiver) note(s string) {

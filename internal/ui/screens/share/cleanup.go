@@ -122,8 +122,13 @@ func (m cleanupScreen) View(ctx uictx.Context) string {
 	case cleanupRunning:
 		return th.Muted.Render(ctx.SpinnerFrame(0) + " Removing the old share…")
 	case cleanupDone:
-		return th.Success.Render(ctx.Icons.Tick+" The old share is gone.") + "\n\n" +
-			th.Muted.Render("Press Enter to go back.")
+		s := th.Success.Render(ctx.Icons.Tick+" The old share is gone.") + "\n\n"
+		// On older Windows a temporary hotspot overwrote the saved hotspot
+		// settings, and a crash lost what they were: say so plainly.
+		if note := m.man.HotspotNote(); note != "" {
+			s += ctx.Wrap(th.Warning.Render(ctx.Icons.Warn+" "+note)) + "\n\n"
+		}
+		return s + th.Muted.Render("Press Enter to go back.")
 	default:
 		var declined *elevate.DeclinedError
 		var b strings.Builder
