@@ -43,7 +43,7 @@ There are two sides:
 
 1. Open Devpit and choose **Share Files**, then **Share a folder**.
 2. Pick the folder to share.
-3. If the PC has more than one network connection, pick the one the other PC is on. If the PC is on Wi-Fi with a Wi-Fi 6 or newer card, the list also has **Direct hotspot (suggested)**, already selected. Press <kbd>Enter</kbd> to use it. See [Direct hotspot](#direct-hotspot) below.
+3. If the PC has more than one network connection, pick the one the other PC is on. If the PC is on Wi-Fi with a Wi-Fi 6 or newer card, the list also has **Direct hotspot (suggested)** below your network. Sharing over your network stays selected; pick the hotspot row to use it instead. See [Direct hotspot](#direct-hotspot) below.
 4. If you picked a normal connection and it is set to **Public**, Devpit asks if it may switch it to **Private**. Windows blocks file sharing on a Public network. Devpit puts it back when you stop sharing. A direct hotspot does not ask this.
 5. Approve the Windows admin prompt. Devpit asks **once**.
 6. Devpit sets up the firewall rule, a temporary login, and a **read-only** share of the folder. You see each step. With a direct hotspot there are two more: starting the hotspot, and allowing file sharing on the hotspot only.
@@ -90,7 +90,8 @@ Cleanup also removes the hotspot's firewall rule and stops a leftover hotspot wh
 
 1. Open Devpit and choose **Share Files**, then **Copy from a shared folder**. If this PC has a Wi-Fi card, Devpit asks how to reach the sharing PC. Pick **Type the other PC's address** for the steps below. If the card shows a hotspot name, see [Direct hotspot](#direct-hotspot).
 2. Type the IP address of the other PC. It is on the sharing PC's card.
-3. Pick a shared folder from the list. If the other PC wants a sign-in before it lists its folders, Devpit asks first.
+   Before it lists anything, Devpit checks that the address is not one this PC holds itself. If it is, Devpit says so and offers the same fix as in [If this PC is talking to itself](#if-this-pc-is-talking-to-itself).
+3. Pick a shared folder from the list. If the other PC wants a sign-in before it lists its folders, Devpit asks first. If the list comes back empty, Devpit also asks for the user name and code before it says there are no folders, because some PCs show nothing until you sign in.
 4. Sign in with the user name and password from the card.
 5. Choose where to save the files.
 6. Devpit measures the folder first. Nothing is copied yet. A big folder can take a minute.
@@ -125,7 +126,7 @@ It never promises a speed.
 
 ### When Devpit suggests it
 
-**Direct hotspot (suggested)** is the first row, already selected, only when all of this is true:
+**Direct hotspot (suggested)** is in the list, under your network connection, only when all of this is true:
 
 - The PC's internet connection is Wi-Fi and it is connected.
 - The Wi-Fi card is Wi-Fi 6 or newer. [PC specs](/docs/features/pc-specs) shows your card's standard.
@@ -133,7 +134,7 @@ It never promises a speed.
 - The card can run a hotspot on 5 GHz.
 - Your hotspot is not already on. Devpit never takes over a hotspot you started.
 
-If the card is older, or the PC is on a 2.4 GHz network, the row is still in the list but lower, not selected, with "May be slower than your router." On a cable, Devpit does not offer it. If anything is unclear, or the check takes too long, Devpit offers nothing and shares over your network as before. No error is shown.
+Sharing over your network is still the one selected: in testing, a hotspot between two Wi-Fi 6 PCs was slower than going through the router. If the card is older, or the PC is on a 2.4 GHz network, the row says "May be slower than your router" instead of "suggested". On a cable, Devpit does not offer it. If anything is unclear, or the check takes too long, Devpit offers nothing and shares over your network as before. No error is shown.
 
 ### Which hotspot settings it uses
 
@@ -164,10 +165,19 @@ If the hotspot cannot start, Devpit undoes what it did and shares over your norm
 1. Open **Share Files**, then **Copy from a shared folder**, then pick **Join the other PC's hotspot**.
 2. Devpit looks for Wi-Fi networks nearby. It lists `Devpit-` names first. Pick the hotspot name shown on the sharing PC's card. If Windows will not list the networks (for example when location access is off), type the name from the card instead.
 3. Type the **hotspot password** from the card. Devpit uses it once to join and does not save it. If Windows on this PC already has that network saved, Devpit uses it and asks for no password.
-4. Devpit joins, which can take half a minute, and lists the shared folders at the hotspot's address. Sign in with the user name and 6-digit code from the card. For a `Devpit-x7k2` hotspot, the user name `devpit-x7k2` is already filled in. With your own saved hotspot name, you type it.
-5. Choose where to save and start, as above.
+4. Devpit joins, which can take half a minute. It then stops at **Press Enter to check that the other PC can be reached**. Press <kbd>Enter</kbd>. Devpit checks that the other PC answers at the hotspot's address. If it does, press <kbd>Enter</kbd> again to sign in. If it does not answer yet, check that the other PC is still sharing and press <kbd>Enter</kbd> to check again. Press <kbd>b</kbd> at any time to go back to your Wi-Fi.
+5. Sign in with the user name and 6-digit code from the card. For a `Devpit-x7k2` hotspot, the user name `devpit-x7k2` is already filled in. With your own saved hotspot name, you type it. Devpit then lists the shared folders at the hotspot's address. If the list is empty, it asks for the sign-in before it says there are no folders.
+6. Choose where to save and start, as above.
 
 This PC needs a Wi-Fi card. Without one, Devpit does not offer the hotspot.
+
+#### If this PC is talking to itself
+
+If the check says **This PC is talking to itself**, this PC holds the sharing PC's hotspot address itself. A Windows hotspot uses the address `192.168.137.1`, and so does the sharing PC. If this PC once ran its own Mobile Hotspot, Windows can keep that address on one of its own virtual Wi-Fi adapters. After this PC joins the other hotspot, everything meant for the other PC stays on this PC. You see "no shared folders" or "System error 86", even though the sharing PC is fine.
+
+Press <kbd>f</kbd> to fix it. Devpit asks for the Windows admin prompt once and takes that address off this PC's own hotspot adapter, then checks again. It removes the address only from that kind of virtual adapter. It never touches your real Wi-Fi card, a cable, a VPN or any other adapter. If this PC's own Mobile Hotspot is on, Devpit leaves the address alone and tells you to turn the hotspot off first. If the address sits on an adapter Devpit does not change, it says so and <kbd>Enter</kbd> takes you back to your Wi-Fi, so you can change that address in the Windows network settings.
+
+There is nothing to undo. Windows puts the address back the next time this PC turns on its own Mobile Hotspot. If the clash comes back while a hotspot copy is running, Devpit stops the copy and shows the same check, with <kbd>f</kbd> to fix it. When the other PC answers again, <kbd>Enter</kbd> carries on the copy. Finished files are skipped.
 
 After the copy, or when you stop, Devpit puts the PC **back on its own Wi-Fi**. It deletes the Wi-Fi entry it added, and only that one, and reconnects to the network the PC was on before. A Wi-Fi network you already had saved is never deleted. Quitting Devpit does it too. If Devpit crashed, it does this the next time you open Share Files and says so in one line.
 
@@ -184,9 +194,19 @@ Join the hotspot from the Windows Wi-Fi list, with the name and password on the 
 Then type the `net use` and `robocopy` lines from the card, as in normal sharing.
 When you are done, switch that PC back to its own Wi-Fi yourself.
 
+#### If you copy without Devpit
+
+A PC that joined the hotspot by hand can have the same problem as above. If `net use` says **System error 86**, or the list of folders is empty right after joining the hotspot, this PC may hold the hotspot's address itself. In an administrator PowerShell, run:
+
+```powershell
+Get-NetIPAddress -IPAddress 192.168.137.1 | Remove-NetIPAddress -Confirm:$false
+```
+
+This is the command that fixed it in testing. Then run the `net use` line again. Windows puts the address back the next time this PC turns on its own Mobile Hotspot. If the sharing PC's hotspot uses another address, put that address in the command. Typing the address in Devpit's own receiving screen catches this clash for you.
+
 ### Resuming a hotspot copy
 
-Resume joins the hotspot first, then carries on. It asks for the hotspot password again, because Devpit does not keep it, unless Windows already has that network saved.
+Resume joins the hotspot first, checks that the other PC can be reached (and offers the same fix if this PC holds its address), then carries on. It asks for the hotspot password again, because Devpit does not keep it, unless Windows already has that network saved.
 
 ## If the copy stops: Resume
 
@@ -219,6 +239,7 @@ If the same files keep failing for three rounds in a row and nothing new is copi
 - The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed while it copies. The math, and what slows a copy down, is in [move 100 GB between PCs](/docs/blog/move-100gb-between-computers).
 - A direct hotspot skips the router, so it can be faster. It can also be slower, for example when the card runs the hotspot at a lower link rate than your Wi-Fi. That is why Devpit checks the link after the other PC joins and offers to go back.
 - Windows needs this PC to be connected to a network before it can start a hotspot.
+- A PC that ran its own Mobile Hotspot before can hold the hotspot's address itself, and then it cannot reach the sharing PC. Devpit checks this after it joins a hotspot, and when you type an address, and offers a one-prompt fix. A PC that joined by hand from the Windows Wi-Fi list can have the same problem. Typing the sharing PC's address in Devpit's receiving screen catches it. See [If this PC is talking to itself](#if-this-pc-is-talking-to-itself).
 - For the fastest, steadiest link, connect the two PCs with a cable. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
 - It works in any Windows language.
 - It works whether or not the other PC has Devpit.
