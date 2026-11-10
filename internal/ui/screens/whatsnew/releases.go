@@ -45,6 +45,14 @@ type Entry struct {
 func Releases() []Entry {
 	return []Entry{
 		{
+			Version:  "0.5.2",
+			Headline: "Receiving over a direct hotspot is more reliable.",
+			Lines: []string{
+				"After joining a hotspot, the receiving PC checks that the other PC can be reached. If this PC still holds the hotspot's address itself, left over from its own Mobile Hotspot, Devpit fixes it with one admin prompt. An empty folder list now asks for the sign-in first.",
+				"Sharing over your network stays the default; the direct hotspot is a suggestion that can be slower than your router.",
+			},
+		},
+		{
 			Version:  "0.5.1",
 			Headline: "Direct hotspot for Share Files is new.",
 			Lines: []string{

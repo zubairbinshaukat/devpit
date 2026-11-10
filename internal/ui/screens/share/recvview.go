@@ -29,6 +29,9 @@ func roundDuration(d time.Duration) string {
 // View implements uictx.Screen.
 func (m recvScreen) View(ctx uictx.Context) string {
 	th := ctx.Theme
+	if s, ok := m.connCheckView(ctx); ok {
+		return s
+	}
 	if s, ok := m.hotspotView(ctx); ok {
 		return s
 	}

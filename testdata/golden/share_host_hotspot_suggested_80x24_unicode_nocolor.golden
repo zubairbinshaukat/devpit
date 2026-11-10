@@ -1,9 +1,9 @@
 How should the other PC reach this one?
 
-▌ ▸ Direct hotspot (suggested)
-▌   This PC starts its own Wi-Fi hotspot. The other PC joins it directly.
+▌ ▸ Wi-Fi  192.168.1.20                                 Wi-Fi 6 · 1201 Mbps link
+▌   Other PCs reach this one at 192.168.1.20. Windows uses it for the internet.
 
-    Wi-Fi  192.168.1.20                                 Wi-Fi 6 · 1201 Mbps link
-    Other PCs reach this one at 192.168.1.20. Windows uses it for the internet.
+    Direct hotspot (suggested)
+    This PC starts its own hotspot. It can be slower than your router.
 
 [keys] ↑↓ move  ·  enter select

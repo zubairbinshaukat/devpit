@@ -72,15 +72,19 @@ func (m hostScreen) adapterItems() []menu.Item {
 	if !s.Offer {
 		return items
 	}
+	// Sharing over the network stays first and selected: in the first real
+	// test a Wi-Fi 6 hotspot was slower than the router. The hotspot is a
+	// suggestion the user picks, and the receiver checks the link after it
+	// joins.
 	row := menu.Item{ID: hotspotRowID, Title: "Direct hotspot"}
 	if s.Suggested {
 		row.Title += " (suggested)"
-		row.Desc = "This PC starts its own Wi-Fi hotspot. The other PC joins it directly."
-		return append([]menu.Item{row}, items...)
-	}
-	row.Desc = "This PC starts its own Wi-Fi hotspot and the other PC joins it."
-	if s.Hint != "" {
-		row.Desc += " " + s.Hint
+		row.Desc = "This PC starts its own hotspot. It can be slower than your router."
+	} else {
+		row.Desc = "This PC starts its own Wi-Fi hotspot and the other PC joins it."
+		if s.Hint != "" {
+			row.Desc += " " + s.Hint
+		}
 	}
 	return append(items, row)
 }

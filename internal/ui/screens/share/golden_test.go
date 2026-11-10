@@ -180,7 +180,7 @@ func hostStates() []goldenState {
 }
 
 func recvStates() []goldenState {
-	return append(recvBaseStates(), recvHotspotStates()...)
+	return append(append(recvBaseStates(), recvHotspotStates()...), recvCheckStates()...)
 }
 
 func recvBaseStates() []goldenState {

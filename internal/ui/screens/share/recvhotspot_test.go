@@ -129,7 +129,7 @@ func recvHotspotStates() []goldenState {
 			return recvIn(t, r, down(), enter()).scr
 		}},
 		{"recv_hotspot_shares", func(t *testing.T) uictx.Screen {
-			return recvIn(t, hotspotRecv(), down(), enter(), enter()).typed("12345678").send(enter()).scr
+			return recvIn(t, hotspotRecv(), down(), enter(), enter()).typed("12345678").send(enter(), enter()).scr
 		}},
 	}
 }
@@ -147,7 +147,7 @@ func TestAPCThatCannotJoinGoesStraightToTheAddress(t *testing.T) {
 // the sharing PC's folders with the user name already known.
 func TestADevpitHotspotPrefillsTheUserAndListsAtTheHotspotAddress(t *testing.T) {
 	r := hotspotRecv()
-	h := recvIn(t, r, down(), enter(), enter()).typed("12345678").send(enter())
+	h := recvIn(t, r, down(), enter(), enter()).typed("12345678").send(enter(), enter())
 	s := asRecv(h)
 	if s.stage != recvShares {
 		t.Fatalf("stage = %v, want the shared folders", s.stage)
@@ -167,7 +167,7 @@ func TestADevpitHotspotPrefillsTheUserAndListsAtTheHotspotAddress(t *testing.T) 
 // asking for anything.
 func TestASavedNetworkNeedsNoPassword(t *testing.T) {
 	r := hotspotRecv()
-	s := asRecv(recvIn(t, r, down(), enter(), down(), down(), enter()))
+	s := asRecv(recvIn(t, r, down(), enter(), down(), down(), enter(), enter()))
 	if s.stage != recvShares {
 		t.Fatalf("stage = %v, want the shared folders", s.stage)
 	}
@@ -208,7 +208,7 @@ func TestASlowerHotspotOffersToGoBackAndDoesSo(t *testing.T) {
 func TestLeavingAnErrorAfterAJoinPutsTheWifiBack(t *testing.T) {
 	r := hotspotRecv()
 	r.listErr = errors.New("that PC did not answer")
-	h := recvIn(t, r, down(), enter(), down(), down(), enter())
+	h := recvIn(t, r, down(), enter(), down(), down(), enter(), enter())
 	if asRecv(h).stage != recvError {
 		t.Fatalf("stage = %v, want an error", asRecv(h).stage)
 	}
@@ -228,7 +228,7 @@ func TestResumeRejoinsTheHotspotFirst(t *testing.T) {
 	if asRecv(h).stage != recvHotspotPass {
 		t.Fatalf("stage = %v, want the hotspot password", asRecv(h).stage)
 	}
-	h.typed("12345678").send(enter())
+	h.typed("12345678").send(enter(), enter())
 	if r.called("join OMEN-Hotspot") != 1 || r.called("preflight") != 1 {
 		t.Errorf("calls = %v, want a join then a preflight", r.calls)
 	}
@@ -265,7 +265,7 @@ func TestTryingAFailedHotspotCopyAgainRejoinsFirst(t *testing.T) {
 	s.stage = recvFailed
 	s.job = job.Job{Host: "192.168.137.1", Share: "Games", Dest: `D:\Games`, Mode: job.ModeHotspot, SSID: "OMEN-Hotspot"}
 	h.scr = s
-	h.send(text("r"))
+	h.send(text("r"), enter())
 	if r.called("join OMEN-Hotspot") != 1 || r.called("run ") != 1 {
 		t.Fatalf("calls = %v, want a join before the run", r.calls)
 	}

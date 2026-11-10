@@ -50,12 +50,12 @@ func hostHotspotStates() []goldenState {
 		{"host_hotspot_band_options", func(t *testing.T) uictx.Screen {
 			f := hotspotHoster()
 			f.sugg.SavedBand, f.sugg.NeedsBandChoice = "2.4", true
-			return base(t, f).send(chosen(`D:\Games`), enter()).scr
+			return base(t, f).send(chosen(`D:\Games`), down(), enter()).scr
 		}},
 		{"host_hotspot_band_options_no_temp", func(t *testing.T) uictx.Screen {
 			f := hotspotHoster()
 			f.sugg.SavedBand, f.sugg.NeedsBandChoice, f.sugg.TempSupported = "auto", true, false
-			return base(t, f).send(chosen(`D:\Games`), enter()).scr
+			return base(t, f).send(chosen(`D:\Games`), down(), enter()).scr
 		}},
 		{"host_hotspot_setup", func(t *testing.T) uictx.Screen {
 			s := base(t, hotspotHoster()).scr.(hostScreen)
@@ -64,19 +64,19 @@ func hostHotspotStates() []goldenState {
 			return s
 		}},
 		{"host_hotspot_card", func(t *testing.T) uictx.Screen {
-			return base(t, hotspotHoster()).send(chosen(`D:\Games`), enter()).scr
+			return base(t, hotspotHoster()).send(chosen(`D:\Games`), down(), enter()).scr
 		}},
 		{"host_hotspot_card_temp", func(t *testing.T) uictx.Screen {
 			f := hotspotHoster()
 			f.hsCard.SSID, f.hsCard.HotspotPassword, f.hsCard.OwnPassword, f.hsCard.NormalIP = "Devpit-x7k2", "50318274", false, ""
-			return base(t, f).send(chosen(`D:\Games`), enter()).scr
+			return base(t, f).send(chosen(`D:\Games`), down(), enter()).scr
 		}},
 		{"host_hotspot_fallback_private", func(t *testing.T) uictx.Screen {
 			f := hotspotHoster()
 			f.hsErr = &host.HotspotFallbackError{
 				Key: "wifi-off", Message: "Wi-Fi is turned off, so a hotspot cannot start.", Err: host.ErrNeedPrivate,
 			}
-			return base(t, f).send(chosen(`D:\Games`), enter()).scr
+			return base(t, f).send(chosen(`D:\Games`), down(), enter()).scr
 		}},
 		{"host_card_link_speed", func(t *testing.T) uictx.Screen {
 			f := newFakeHoster()
@@ -99,7 +99,7 @@ func TestTheSuggestedRowSaysSoInWords(t *testing.T) {
 // starts a normal share.
 func TestHotspotModeIsOnlyStartedWhenChosen(t *testing.T) {
 	f := hotspotHoster()
-	newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), down(), enter())
+	newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), enter())
 	if len(f.started) != 1 || f.started[0].Mode != host.ModeNormal {
 		t.Fatalf("started = %+v, want one normal share", f.started)
 	}
@@ -110,7 +110,7 @@ func TestHotspotModeIsOnlyStartedWhenChosen(t *testing.T) {
 func TestHotspotModeNeverAsksToSwitchTheNetworkFirst(t *testing.T) {
 	f := hotspotHoster()
 	f.cat = host.CategoryPublic
-	h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), enter())
+	h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), down(), enter())
 	if s := h.scr.(hostScreen); s.stage != hostCard {
 		t.Fatalf("stage = %v, want the card", s.stage)
 	}
@@ -127,7 +127,7 @@ func TestTheBandChoiceIsPassedOn(t *testing.T) {
 	}{{0, host.HotspotSavedSwitchTo5}, {1, host.HotspotTemp}, {2, host.HotspotSaved}} {
 		f := hotspotHoster()
 		f.sugg.SavedBand, f.sugg.NeedsBandChoice = "2.4", true
-		h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), enter())
+		h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), down(), enter())
 		for range tt.downs {
 			h.send(down())
 		}
@@ -143,7 +143,7 @@ func TestTheBandChoiceIsPassedOn(t *testing.T) {
 func TestTheBandScreenSaysTheChangeStays(t *testing.T) {
 	f := hotspotHoster()
 	f.sugg.SavedBand, f.sugg.NeedsBandChoice = "2.4", true
-	h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), enter())
+	h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), down(), enter())
 	if !strings.Contains(h.view(), "stays on 5 GHz") {
 		t.Fatalf("the band screen does not say the change stays:\n%s", h.view())
 	}
@@ -154,7 +154,7 @@ func TestTheBandScreenSaysTheChangeStays(t *testing.T) {
 func TestAHotspotFallbackOnAPublicNetworkAsksThenSharesNormally(t *testing.T) {
 	f := hotspotHoster()
 	f.hsErr = &host.HotspotFallbackError{Key: "wifi-off", Message: "Wi-Fi is turned off.", Err: host.ErrNeedPrivate}
-	h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), enter())
+	h := newHostHarness(t, f, new([]string)).send(chosen(`D:\Games`), down(), enter())
 	if s := h.scr.(hostScreen); s.stage != hostPrivate {
 		t.Fatalf("stage = %v, want the Private question", s.stage)
 	}
@@ -167,7 +167,7 @@ func TestAHotspotFallbackOnAPublicNetworkAsksThenSharesNormally(t *testing.T) {
 // TestTheHotspotCardCopiesTheHotspotPassword: w copies it.
 func TestTheHotspotCardCopiesTheHotspotPassword(t *testing.T) {
 	var copied []string
-	newHostHarness(t, hotspotHoster(), &copied).send(chosen(`D:\Games`), enter(), text("w"))
+	newHostHarness(t, hotspotHoster(), &copied).send(chosen(`D:\Games`), down(), enter(), text("w"))
 	if len(copied) != 1 || copied[0] != "sunny-day-42" {
 		t.Fatalf("copied = %q, want the hotspot password", copied)
 	}
@@ -182,5 +182,16 @@ func TestNoHostHotspotFramePromisesASpeed(t *testing.T) {
 				t.Errorf("%s says %q:\n%s", st.name, bad, frame)
 			}
 		}
+	}
+}
+
+// TestSharingOverTheNetworkStaysFirstAndSelected: in the first real test the
+// hotspot was slower than the router, so Enter on the list shares over the
+// network and the hotspot is a suggestion lower down.
+func TestSharingOverTheNetworkStaysFirstAndSelected(t *testing.T) {
+	h := newHostHarness(t, hotspotHoster(), new([]string)).send(chosen(`D:\Games`))
+	s := h.scr.(hostScreen)
+	if it, ok := s.adMenu.Selected(); !ok || it.ID == hotspotRowID {
+		t.Fatalf("selected = %+v, want the network row first", it)
 	}
 }

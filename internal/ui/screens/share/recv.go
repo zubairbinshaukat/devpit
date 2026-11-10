@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -48,6 +49,10 @@ const (
 	recvSlowLink
 	recvLeaving
 	recvHotspotName
+	// The connection check (recvcheck.go).
+	recvConnCheck
+	recvConnChecking
+	recvFixing
 )
 
 // credsFor says which step the sign-in form belongs to.
@@ -156,6 +161,13 @@ type recvScreen struct {
 	resumeJoin bool   // the join is for a resumed copy
 	joinNote   string // what a failed join put back
 	ipNote     string // a line above the address field
+
+	// The connection check (recvcheck.go).
+	hc     recv.HostCheck
+	hcErr  error
+	hcDone bool
+	// checkFor is where a passed check leads.
+	checkFor checkFor
 }
 
 // newRecvScreen returns the receiving screen. With a saved copy it opens on
@@ -197,7 +209,7 @@ func (m recvScreen) Title() string { return "Copy from a shared folder" }
 // A join or a leave in flight counts too: it changes this PC's Wi-Fi, so Esc
 // must not drop the screen half way.
 func (m recvScreen) Busy() bool {
-	return m.stage == recvCopy || m.stage == recvJoining || m.stage == recvLeaving
+	return m.stage == recvCopy || m.stage == recvJoining || m.stage == recvLeaving || m.stage == recvFixing
 }
 
 // Stop implements uictx.Stopper. It cancels the copy, which saves it for
@@ -226,7 +238,11 @@ func bind(k, h string) key.Binding { return key.NewBinding(key.WithKeys(k), key.
 
 // ShortHelp implements uictx.Screen.
 func (m recvScreen) ShortHelp() []key.Binding {
-	if hints, ok := m.hotspotHelp(); ok {
+	hints, ok := m.connCheckHelp()
+	if !ok {
+		hints, ok = m.hotspotHelp()
+	}
+	if ok {
 		out := make([]key.Binding, len(hints))
 		for i, h := range hints {
 			out[i] = bind(h.key, h.help)
@@ -277,12 +293,16 @@ func (m recvScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 	switch msg := msg.(type) {
 	case spinMsg:
 		switch m.stage {
-		case recvListing, recvChecking, recvCopy, recvScanning, recvJoining, recvLeaving:
+		case recvListing, recvChecking, recvCopy, recvScanning, recvJoining, recvLeaving, recvConnChecking, recvFixing:
 			m.frame++
 			return m, spinCmd()
 		}
 		return m, nil
 
+	case hostCheckedMsg:
+		return m.onHostChecked(msg)
+	case freedMsg:
+		return m.onFreed(msg)
 	case hotspotsMsg:
 		return m.onHotspots(msg)
 	case joinedMsg:
@@ -382,6 +402,11 @@ func (m recvScreen) onList(msg listMsg) (uictx.Screen, tea.Cmd) {
 
 // showShares moves to the list of shared folders.
 func (m recvScreen) showShares(shares []netstat.Share) (uictx.Screen, tea.Cmd) {
+	if len(shares) == 0 && !m.haveCreds {
+		// Some PCs list nothing until you sign in, so ask for the user and
+		// code from the card before saying there is nothing there.
+		return m.askCreds(credsForList)
+	}
 	if len(shares) == 0 {
 		return m.fail(errors.New("that PC has no shared folders you can see"), errmap.PhaseConnect,
 			func(s recvScreen) (recvScreen, tea.Cmd) { s.stage = recvIP; return s, s.ip.Focus() })
@@ -547,6 +572,9 @@ func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 	if msg.err == nil && msg.out.Done {
 		m.rcv.Disconnect(m.host, m.share)
 	}
+	if msg.err == nil && msg.out.Check.Local {
+		return m.clashStoppedCopy(msg.out.Check)
+	}
 	switch {
 	case msg.err != nil:
 		return m.fail(msg.err, errmap.PhaseCopy, func(s recvScreen) (recvScreen, tea.Cmd) {
@@ -567,6 +595,9 @@ func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 
 // onKey routes a key to whatever has focus.
 func (m recvScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
+	if next, cmd, ok := m.connCheckKey(msg); ok {
+		return next, cmd
+	}
 	if next, cmd, ok := m.hotspotKey(msg); ok {
 		return next, cmd
 	}
@@ -581,6 +612,12 @@ func (m recvScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 		}
 	case recvIP:
 		if msg.Code == tea.KeyEnter {
+			if _, ok := m.checker(); ok {
+				// Catch a PC that holds the typed address itself before
+				// it lists its own empty shares.
+				m.host = strings.TrimSpace(m.ip.Value())
+				return m.runCheck(true)
+			}
 			m.stage = recvListing
 			return m, tea.Batch(m.listCmd(), spin())
 		}

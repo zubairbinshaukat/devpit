@@ -203,21 +203,25 @@ func (m recvScreen) onJoined(msg joinedMsg) (uictx.Screen, tea.Cmd) {
 // one lists the sharing PC's folders at the hotspot's address.
 func (m recvScreen) afterJoin() (uictx.Screen, tea.Cmd) {
 	if m.resumeJoin {
-		m.resumeJoin = false
-		return m.startCheck()
+		// A resumed copy checks too: the address clash can come back
+		// between two runs. A passed check measures again (afterCheck).
+		if m.join.Host != "" {
+			m.host = m.join.Host
+		}
+		return m.askToCheck()
 	}
 	h := m.join.Host
 	if h == "" {
 		h = recv.DefaultHotspotHost
 	}
+	m.host = h
 	m.ip.SetValue(h)
 	// A Devpit hotspot is named after the share's temporary login, so the
 	// user name is known: Devpit-x7k2 signs in as devpit-x7k2.
 	if suffix, ok := strings.CutPrefix(m.ssid, recv.HotspotPrefix); ok && suffix != "" {
 		m.user.SetValue("devpit-" + strings.ToLower(suffix))
 	}
-	m.stage = recvListing
-	return m, tea.Batch(m.listCmd(), spin())
+	return m.askToCheck()
 }
 
 // leaveCmd puts this PC back on its own network.

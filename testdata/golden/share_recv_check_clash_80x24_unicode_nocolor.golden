@@ -1,0 +1,12 @@
+✓ Joined Home Wi-Fi.
+
+✗ This PC is talking to itself.
+
+This PC still holds the other PC's address 192.168.137.1 on its own Wi-Fi Direct
+adapter, left over from its own Mobile Hotspot, so it is talking to itself.
+Devpit can take that address off (one administrator prompt); Windows puts it
+back the next time this PC turns on its own hotspot.
+
+Press f to fix it, then Devpit checks again.
+
+[keys] f fix it  ·  enter check again  ·  b back to my Wi-Fi
