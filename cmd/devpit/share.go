@@ -31,7 +31,9 @@ func newShareCmd() *cobra.Command {
 		Short: "Remove a share that an earlier Devpit left behind",
 		Long: "If Devpit or the PC stopped while a folder was shared, the share, its temporary login " +
 			"and the firewall or network changes may still be there. This removes them. " +
-			"Windows asks for permission once.",
+			"It also stops a direct hotspot Devpit started, when it still has the name Devpit gave it, " +
+			"removes that hotspot's firewall rule, and turns the hotspot's \"turn off when nothing is connected\" " +
+			"setting back on if Devpit turned it off. Windows asks for permission once.",
 		Example: "devpit share cleanup",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

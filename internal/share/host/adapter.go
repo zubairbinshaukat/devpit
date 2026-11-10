@@ -21,6 +21,18 @@ type Adapter struct {
 	// Best is true for the adapter Windows uses to reach the internet, the
 	// likeliest one to be on the same network as the other PC.
 	Best bool
+	// GUID is the interface GUID, "{XXXXXXXX-...}", "" when unknown. It joins
+	// the adapter to its Wi-Fi card.
+	GUID string
+	// LinkBps is the link speed Windows negotiated, in bits per second: the
+	// faster of send and receive. 0 means unknown, and the screen then shows
+	// nothing. It is a link speed, not a promise: a real copy is slower.
+	LinkBps uint64
+	// Wireless is true for a Wi-Fi (802.11) adapter.
+	Wireless bool
+	// Standard is the newest Wi-Fi generation the card supports ("Wi-Fi 6"),
+	// "" for a wired adapter or when Windows would not say.
+	Standard string
 }
 
 // Iface is what an interface looks like to [PickAdapters]: the few facts

@@ -12,11 +12,15 @@ import (
 type SystemNet struct {
 	// Run reads a connection's category; nil means [ExecProfileRunner].
 	Run ProfileRunner
+	// Wifi lists the Wi-Fi cards; nil means [winapi.WifiInterfaces].
+	Wifi func() ([]winapi.WifiInterface, error)
 }
 
 // Adapters implements [NetInfo]. The "best" adapter is the one Windows would
-// route to a public address through; asking does not send any packet.
-func (SystemNet) Adapters(context.Context) ([]Adapter, error) {
+// route to a public address through; asking does not send any packet. Each
+// adapter carries its link speed and, for Wi-Fi, the card's standard; both
+// are zero when Windows would not say.
+func (s SystemNet) Adapters(context.Context) ([]Adapter, error) {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("listing network adapters: %w", err)
@@ -39,7 +43,19 @@ func (SystemNet) Adapters(context.Context) ([]Adapter, error) {
 		list = append(list, f)
 	}
 	best, _ := winapi.BestInterface(net.IPv4(8, 8, 8, 8))
-	return PickAdapters(list, best), nil
+	picked := PickAdapters(list, best)
+	indexes := make([]uint32, len(picked))
+	for i, a := range picked {
+		indexes[i] = a.Index
+	}
+	wifiFn := s.Wifi
+	if wifiFn == nil {
+		wifiFn = winapi.WifiInterfaces
+	}
+	// The Wi-Fi standard is a bonus: no WLAN service or any probe error just
+	// leaves it empty.
+	wifi, _ := wifiFn()
+	return annotate(picked, linkRows(indexes), wifi), nil
 }
 
 // CategoryOf implements [NetInfo].

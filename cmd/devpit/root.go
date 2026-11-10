@@ -18,6 +18,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/app"
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/share/host"
+	"github.com/zubairbinshaukat/devpit/internal/share/recv"
 	"github.com/zubairbinshaukat/devpit/internal/version"
 )
 
@@ -132,6 +133,16 @@ func runTUI(ctx context.Context, flags *rootFlags) error {
 	// temporary login or a firewall change behind. If Devpit is killed
 	// outright, its elevated worker does the same when the pipe closes, and
 	// the next launch offers to finish any cleanup that is left.
+	//
+	// A receiver this process put on another PC's hotspot leaves it here
+	// too: Devpit's own Wi-Fi entry goes first, then the old network is
+	// reconnected for as long as the short limit allows. A crash is undone
+	// the next time Share Files opens.
+	lctx, cancel := context.WithTimeout(context.Background(), recv.ExitLeaveTimeout)
+	if _, lerr := recv.LeaveOnExit(lctx, host.StateDir()); lerr != nil {
+		fmt.Fprintln(os.Stderr, "devpit: could not remove Devpit's Wi-Fi entry; it is removed next time Share Files opens:", lerr)
+	}
+	cancel()
 	if serr := host.ShutdownAll(); serr != nil {
 		fmt.Fprintln(os.Stderr, "devpit: could not remove everything that sharing set up:", serr)
 	}

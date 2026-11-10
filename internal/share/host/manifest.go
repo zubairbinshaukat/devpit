@@ -24,8 +24,10 @@ const (
 	manifestExt    = ".json"
 )
 
-// manifestVersion is bumped when the file's shape changes.
-const manifestVersion = 1
+// manifestVersion is bumped when the file's shape changes. Version 2 added
+// the hotspot fields; a version 1 file is still read (its hotspot fields are
+// simply empty).
+const manifestVersion = 2
 
 // Manifest is what a share created, saved to disk as it is created. It is
 // what the next launch reads to find and remove leftovers when Devpit and its
@@ -62,18 +64,78 @@ type Manifest struct {
 	// Rules are the firewall rules Devpit turned on.
 	Rules []string `json:"rules,omitempty"`
 
+	// The hotspot record (version 2). It holds names and flags only: there
+	// is no field for a hotspot password, the temporary one or the user's.
+
+	// Mode is [ModeHotspot] for a share over a direct hotspot.
+	Mode Mode `json:"mode,omitempty"`
+	// HotspotConfig is "saved" or "temp", as sent to the worker.
+	HotspotConfig string `json:"hotspot_config,omitempty"`
+	// HotspotSSID is the running hotspot's name, which cleanup checks before
+	// it stops anything. A name is not a secret.
+	HotspotSSID string `json:"hotspot_ssid,omitempty"`
+	// HotspotRule is the devpit-hs- firewall rule, recorded before it exists.
+	HotspotRule string `json:"hotspot_rule,omitempty"`
+	// HotspotStarted says Devpit started the hotspot (recorded before the
+	// start, cleared when Windows says it did not start or it was already on).
+	HotspotStarted bool `json:"hotspot_started,omitempty"`
+	// HotspotTimeoutWasOn and HotspotTimeoutChanged say the "turn off when
+	// nothing is connected" setting was on and Devpit turned it off.
+	HotspotTimeoutWasOn   bool `json:"hotspot_timeout_was_on,omitempty"`
+	HotspotTimeoutChanged bool `json:"hotspot_timeout_changed,omitempty"`
+	// HotspotLegacy says a temporary start overwrote the saved hotspot
+	// settings (Windows before 26100).
+	HotspotLegacy bool `json:"hotspot_legacy,omitempty"`
+
 	// file is where the manifest was read from, when it was.
 	file string
 }
 
+// clearHotspot forgets the hotspot record, once the worker has undone it.
+func (m *Manifest) clearHotspot() {
+	m.Mode, m.HotspotConfig, m.HotspotSSID, m.HotspotRule = ModeNormal, "", "", ""
+	m.HotspotStarted, m.HotspotTimeoutWasOn, m.HotspotTimeoutChanged, m.HotspotLegacy = false, false, false, false
+}
+
+// MsgHotspotSettingsLost is what to tell the person after cleaning up a
+// leftover whose temporary hotspot overwrote their saved hotspot settings
+// (Windows before 26100): Devpit held the old ones in memory only, so they
+// are gone with the run that died (decision 14).
+const MsgHotspotSettingsLost = "Your hotspot name and password were changed by Devpit and could not be put back. " +
+	"Set them again in Settings > Network & internet > Mobile hotspot."
+
+// HotspotNote is a line to show with this leftover, or "" for none: today
+// [MsgHotspotSettingsLost] when a temporary start overwrote the saved
+// hotspot settings. It is shown whether or not the cleanup succeeds, since
+// nothing can put those settings back.
+func (m Manifest) HotspotNote() string {
+	if m.HotspotLegacy {
+		return MsgHotspotSettingsLost
+	}
+	return ""
+}
+
 // request turns the manifest into the worker's cleanup request.
-func (m Manifest) request() elevate.ShareRequest {
+func (m Manifest) request() elevate.ShareRequest { return m.cleanupRequest(bootTime()) }
+
+// cleanupRequest is request with the time Windows last started. A share set
+// up before then had its hotspot turned off by the restart, so a hotspot on
+// now is not Devpit's: the request then asks for no stop (the rule and the
+// timeout are still put back). An unknown boot time or start time changes
+// nothing; the worker's own name check still applies.
+func (m Manifest) cleanupRequest(boot time.Time) elevate.ShareRequest {
 	r := elevate.ShareRequest{
 		Op: elevate.ShareOpCleanup, User: m.User, SID: m.SID, Name: m.Share,
 		Index: m.ProfileIndex, Original: m.ProfileOriginal, Rules: m.Rules,
+		HotspotConfig: m.HotspotConfig, HotspotSSID: m.HotspotSSID, HotspotRule: m.HotspotRule,
+		HotspotStarted: m.HotspotStarted, HotspotTimeoutWasOn: m.HotspotTimeoutWasOn,
+		HotspotTimeoutChanged: m.HotspotTimeoutChanged, HotspotLegacy: m.HotspotLegacy,
 	}
 	if m.Granted {
 		r.Path = m.Path
+	}
+	if r.HotspotStarted && !boot.IsZero() && !m.StartedAt.IsZero() && m.StartedAt.Before(boot) {
+		r.HotspotStarted = false
 	}
 	return r
 }

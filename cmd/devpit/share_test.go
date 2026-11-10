@@ -87,6 +87,39 @@ func TestShareCleanupRemovesEveryLeftover(t *testing.T) {
 	}
 }
 
+func TestShareCleanupStopsALeftoverHotspot(t *testing.T) {
+	dir := t.TempDir()
+	raw := `{"version":2,"pid":0,"user":"devpit-abcd","path":"D:\\Games","share":"Games-x7k2","mode":"hotspot",` +
+		`"hotspot_config":"temp","hotspot_ssid":"Devpit-abcd","hotspot_rule":"devpit-hs-abcd2345","hotspot_started":true,` +
+		`"hotspot_timeout_was_on":true,"hotspot_timeout_changed":true}`
+	if err := os.WriteFile(filepath.Join(dir, "share-host-devpit-abcd.json"), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	admin := &fakeAdmin{}
+	var out bytes.Buffer
+	if err := runShareCleanup(context.Background(), &out, dir, func(context.Context) (host.Admin, error) { return admin, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if len(admin.ops) != 1 {
+		t.Fatalf("ops = %+v", admin.ops)
+	}
+	op := admin.ops[0]
+	if op.Op != elevate.ShareOpCleanup || op.HotspotConfig != "temp" || op.HotspotSSID != "Devpit-abcd" ||
+		op.HotspotRule != "devpit-hs-abcd2345" || !op.HotspotStarted || !op.HotspotTimeoutWasOn || !op.HotspotTimeoutChanged {
+		t.Errorf("the cleanup does not ask the worker to undo the hotspot: %+v", op)
+	}
+	if err := op.Validate(); err != nil {
+		t.Errorf("the worker would refuse the hotspot cleanup: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "share-host-devpit-abcd.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Error("the manifest is still there after a successful cleanup")
+	}
+	c, _, _ := NewRootCmd().Find([]string{"share", "cleanup"})
+	if !strings.Contains(c.Long, "hotspot") {
+		t.Errorf("the help does not say cleanup also stops a leftover hotspot: %q", c.Long)
+	}
+}
+
 func TestShareCleanupSaysWhenThePromptWasDeclined(t *testing.T) {
 	dir := t.TempDir()
 	writeManifest(t, dir)

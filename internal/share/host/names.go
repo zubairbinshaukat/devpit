@@ -90,6 +90,42 @@ func UserName(r io.Reader) (string, error) {
 	return "devpit-" + s, nil
 }
 
+// HotspotPasswordLength is the temporary hotspot password: 8 digits, the
+// shortest password WPA2 allows (owner decision 19). It is displayable: shown
+// on the card and in the WIFI: string, never on disk, in a log or on a
+// command line.
+const HotspotPasswordLength = 8
+
+// HotspotPassword returns HotspotPasswordLength random digits from r
+// (crypto/rand in production), new for every share.
+func HotspotPassword(r io.Reader) (string, error) {
+	out := make([]byte, HotspotPasswordLength)
+	for i := range out {
+		c, err := pick(r, digitSet)
+		if err != nil {
+			return "", err
+		}
+		out[i] = c
+	}
+	return string(out), nil
+}
+
+// HotspotSSID is the temporary hotspot name for the account user:
+// "Devpit-" and the same characters as the account's "devpit-xxxx", so the
+// other PC can find the hotspot and fill in the user name.
+func HotspotSSID(user string) string {
+	return "Devpit-" + strings.TrimPrefix(user, "devpit-")
+}
+
+// wifiEscaper escapes the characters the WIFI: format reserves.
+var wifiEscaper = strings.NewReplacer(`\`, `\\`, `;`, `\;`, `,`, `\,`, `"`, `\"`, `:`, `\:`)
+
+// WifiString is the standard Wi-Fi join string, WIFI:T:WPA;S:<ssid>;P:<pass>;;
+// with \ ; , " and : escaped, for a phone or a PC without Devpit.
+func WifiString(ssid, pass string) string {
+	return "WIFI:T:WPA;S:" + wifiEscaper.Replace(ssid) + ";P:" + wifiEscaper.Replace(pass) + ";;"
+}
+
 // unsafeName matches everything a share name may not contain here.
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/zubairbinshaukat/devpit/internal/elevate"
+	"github.com/zubairbinshaukat/devpit/internal/share/robocopy"
 )
 
 // seeded returns a reproducible random source, so a test that checks the
@@ -216,6 +217,11 @@ type fakeAdmin struct {
 	// shareLines is what the share step reports, such as a 24H2 rule that
 	// creating the share turned on.
 	shareLines []string
+	// hsLines is what the hotspot op reports, played back line by line (the
+	// worker's machine lines and progress text).
+	hsLines []string
+	// onLine sees each line played back, after the manager has handled it.
+	onLine func(op elevate.ShareOp, line string)
 }
 
 func (f *fakeAdmin) Share(_ context.Context, req elevate.ShareRequest, onLine func(string)) error {
@@ -223,23 +229,27 @@ func (f *fakeAdmin) Share(_ context.Context, req elevate.ShareRequest, onLine fu
 	f.ops = append(f.ops, req)
 	hook := f.onOp
 	fail := f.failOp == req.Op
+	seen := f.onLine
 	f.mu.Unlock()
 	if hook != nil {
 		hook(req)
 	}
 	if onLine != nil {
+		var lines []string
 		switch req.Op {
 		case elevate.ShareOpFirewall:
-			for _, l := range f.fwLines {
-				onLine(l)
-			}
+			lines = f.fwLines
 		case elevate.ShareOpAccount:
-			for _, l := range f.sidLines {
-				onLine(l)
-			}
+			lines = f.sidLines
 		case elevate.ShareOpShare:
-			for _, l := range f.shareLines {
-				onLine(l)
+			lines = f.shareLines
+		case elevate.ShareOpHotspot:
+			lines = f.hsLines
+		}
+		for _, l := range lines {
+			onLine(l)
+			if seen != nil {
+				seen(req.Op, l)
 			}
 		}
 	}
@@ -604,6 +614,100 @@ func TestLeftover(t *testing.T) {
 	if !ok || err != nil || m.User != "devpit-abcd" {
 		t.Errorf("a dead owner's share = %+v %v %v", m, ok, err)
 	}
+
+	// A hotspot share's record comes back whole, so its cleanup can stop the
+	// hotspot and remove its rule.
+	hs := Manifest{
+		PID: 501, User: "devpit-wxyz", Path: `D:\Movies`, Share: "Movies-x7k2", Mode: ModeHotspot,
+		HotspotConfig: "temp", HotspotSSID: "Devpit-wxyz", HotspotRule: "devpit-hs-wxyz2345",
+		HotspotStarted: true, HotspotTimeoutWasOn: true, HotspotTimeoutChanged: true, HotspotLegacy: true,
+		StartedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	if serr := saveManifest(dir, hs); serr != nil {
+		t.Fatal(serr)
+	}
+	alive[500] = true // only the hotspot share's owner is gone now
+	got, ok, err := Leftover(dir, isAlive, 1)
+	if !ok || err != nil || got.User != "devpit-wxyz" {
+		t.Fatalf("the hotspot share's leftover = %+v %v %v", got, ok, err)
+	}
+	got.file = ""
+	if fmt.Sprintf("%+v", got) != fmt.Sprintf("%+v", func() Manifest { h := hs; h.Version = manifestVersion; return h }()) {
+		t.Errorf("the hotspot record did not round-trip:\n got %+v\nwant %+v", got, hs)
+	}
+}
+
+func TestAVersion1ManifestIsStillRead(t *testing.T) {
+	dir := t.TempDir()
+	// Exactly what a 0.5.0 build wrote: no mode, no hotspot fields.
+	raw := `{"version":1,"pid":7,"started_at":"2026-09-29T10:00:00Z","user":"devpit-abcd","sid":"S-1-5-21-1-2-3-1004",` +
+		`"path":"D:\\Games","granted":true,"share":"Games-x7k2","profile_index":4,"profile_original":"Public","rules":["FPS-SMB-In-TCP"]}`
+	if err := os.WriteFile(manifestPath(dir, "devpit-abcd"), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m, ok, err := LoadManifest(dir)
+	if !ok || err != nil {
+		t.Fatalf("a version 1 manifest was not read: %v %v", ok, err)
+	}
+	if m.Version != 1 || m.User != "devpit-abcd" || m.Mode != ModeNormal || m.HotspotConfig != "" || m.HotspotStarted {
+		t.Errorf("version 1 manifest = %+v", m)
+	}
+	req := m.request()
+	if err := req.Validate(); err != nil {
+		t.Errorf("the worker would refuse a version 1 cleanup: %v", err)
+	}
+	if req.HotspotConfig != "" || req.HotspotRule != "" || req.HotspotStarted {
+		t.Errorf("a version 1 cleanup asks for hotspot work: %+v", req)
+	}
+	if manifestVersion != 2 {
+		t.Errorf("manifestVersion = %d, want 2", manifestVersion)
+	}
+}
+
+// TestTheCardCommandsMatchTheCopyArgs ties the card's robocopy line for a PC
+// without Devpit to the copy Devpit itself runs: every copy-behaviour flag of
+// robocopy.CopyArgs is on the card, the card has no flag the real copy does
+// not, and a new flag in CopyArgs fails here until it is placed on one side.
+func TestTheCardCommandsMatchTheCopyArgs(t *testing.T) {
+	_, robo, _ := Commands("192.168.137.1", "Games-x7k2", "devpit-abcd", "123456")
+	args := robocopy.CopyArgs(`\\192.168.137.1\Games-x7k2`, `.\Games-x7k2`, `C:\log.txt`)
+	// Flags of Devpit's own copy that a person typing the line does not need:
+	// output shaping for Devpit's log parser, the log file itself, and /XJ.
+	// /XJ (skip junctions) is a behaviour flag the card does not carry yet;
+	// it is listed here on purpose so adding it to the card is a choice.
+	devpitOnly := map[string]bool{"/XJ": true, "/NP": true, "/BYTES": true, "/NJH": true, "/NDL": true, "/FP": true, "/NC": true}
+	cardFlags := map[string]bool{}
+	for _, f := range strings.Fields(robo) {
+		if strings.HasPrefix(f, "/") {
+			cardFlags[f] = true
+		}
+	}
+	argFlags := map[string]bool{}
+	for _, a := range args[2:] {
+		if strings.HasPrefix(a, "/UNILOG:") {
+			continue
+		}
+		argFlags[a] = true
+		if devpitOnly[a] {
+			continue
+		}
+		if !cardFlags[a] {
+			t.Errorf("CopyArgs has %s but the card's robocopy line does not: %q", a, robo)
+		}
+	}
+	for f := range cardFlags {
+		if !argFlags[f] {
+			t.Errorf("the card's robocopy line has %s, which Devpit's own copy does not use", f)
+		}
+	}
+	for f := range devpitOnly {
+		if !argFlags[f] {
+			t.Errorf("%s is listed as Devpit-only but CopyArgs no longer has it; update the list", f)
+		}
+	}
+	if !strings.HasPrefix(robo, `robocopy \\192.168.137.1\Games-x7k2 ".\Games-x7k2" `) {
+		t.Errorf("the card's copy does not start with the share and the destination: %q", robo)
+	}
 }
 
 func TestLeftoverReportsADamagedManifestInsteadOfIgnoringIt(t *testing.T) {
@@ -621,6 +725,8 @@ func TestCleanUpSendsTheManifestToTheWorkerAndRemovesIt(t *testing.T) {
 	m := Manifest{
 		PID: 9, User: "devpit-abcd", SID: "S-1-5-21-1-2-3-1004", Path: `D:\Games`, Granted: true, Share: "Games-x7k2",
 		ProfileIndex: 4, ProfileOriginal: "Public", Rules: []string{"FPS-SMB-In-TCP"},
+		Mode: ModeHotspot, HotspotConfig: "saved", HotspotSSID: "My Hotspot", HotspotRule: "devpit-hs-abcd2345",
+		HotspotStarted: true, HotspotTimeoutWasOn: true, HotspotTimeoutChanged: true,
 	}
 	if err := saveManifest(dir, m); err != nil {
 		t.Fatal(err)
@@ -637,6 +743,22 @@ func TestCleanUpSendsTheManifestToTheWorkerAndRemovesIt(t *testing.T) {
 	if op.User != m.User || op.SID != m.SID || op.Path != m.Path || op.Name != m.Share || op.Index != 4 ||
 		op.Original != "Public" || len(op.Rules) != 1 {
 		t.Errorf("cleanup request = %+v", op)
+	}
+	// The hotspot record reaches the worker, so cleanup also stops a
+	// leftover Devpit hotspot, removes its rule and puts the timeout back.
+	if op.HotspotConfig != "saved" || op.HotspotSSID != "My Hotspot" || op.HotspotRule != "devpit-hs-abcd2345" ||
+		!op.HotspotStarted || !op.HotspotTimeoutWasOn || !op.HotspotTimeoutChanged || op.HotspotLegacy {
+		t.Errorf("cleanup request lost the hotspot record: %+v", op)
+	}
+	if op.SSID != "" || op.Passphrase != "" || op.Band != "" || op.SetBand5 {
+		t.Errorf("a cleanup carries a hotspot name, password or band to set: %+v", op)
+	}
+	// A temporary hotspot on older Windows is recorded as legacy, and the
+	// worker accepts that record too.
+	legacy := m
+	legacy.HotspotConfig, legacy.HotspotSSID, legacy.HotspotLegacy = "temp", "Devpit-abcd", true
+	if err := legacy.request().Validate(); err != nil {
+		t.Errorf("the worker would refuse a legacy hotspot cleanup: %v", err)
 	}
 	if err := op.Validate(); err != nil {
 		t.Errorf("the worker would refuse the cleanup request: %v", err)
