@@ -482,7 +482,10 @@ func TestPowerShellIsPassedEncodedFromItsFullPath(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for i, a := range f.argvs {
-		if len(a) != 6 || a[0] != `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` || a[4] != "-EncodedCommand" {
+		// psExe joins with the build's separator, so the path is compared
+		// with it rather than a Windows literal: the release tests run on
+		// Linux too.
+		if len(a) != 6 || a[0] != psExe() || a[4] != "-EncodedCommand" {
 			t.Errorf("hotspot command %d is %q", i, a)
 		}
 		for _, m := range []string{"hs-probe", "hs-timeout-off", "hs-start", "hs-rule-add", "hs-rule-remove", "hs-stop", "hs-timeout-on"} {
