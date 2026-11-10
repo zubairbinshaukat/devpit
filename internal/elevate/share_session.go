@@ -255,6 +255,8 @@ func (s *shareSession) run(ctx context.Context, req ShareRequest, emit onLine) e
 		return s.opShare(ctx, req, emit)
 	case ShareOpHotspot:
 		return s.opHotspot(ctx, req, emit)
+	case ShareOpFreeAddr:
+		return s.opFreeAddr(ctx, req, emit)
 	case ShareOpStop:
 		return s.teardown(ctx, emit)
 	case ShareOpCleanup:

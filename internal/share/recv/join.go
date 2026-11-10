@@ -410,6 +410,12 @@ type JoinResult struct {
 	// private IPv4 default gateway, else [DefaultHotspotHost]. It is set only
 	// after a successful join.
 	Host string
+	// Check is [Session.CheckHost] on Host right after the join. When
+	// Check.Local is true this PC holds the other PC's address itself (a
+	// leftover of its own Mobile Hotspot) and cannot reach it; the screen
+	// offers [Session.FreeAddress] when Check.Fixable. It is empty when the
+	// join failed or the check could not run.
+	Check HostCheck
 }
 
 // SavedProfile returns the name of a saved profile for ssid, or "". hint is
@@ -433,7 +439,9 @@ func (s *Session) SavedProfile(guid, ssid, hint string) (string, error) {
 // Join joins the other PC's hotspot. It writes the join record first, then
 // connects: with the PC's own saved profile when there is one (no password,
 // and that profile is never deleted), else with a new manual-mode profile.
-// It then reads the new link and compares it with the old one. A failed
+// It then reads the new link and compares it with the old one, and checks
+// that this PC does not hold the other PC's address itself (JoinResult.Check).
+// A failed
 // join is undone before it returns, and the result says what was put back.
 func (s *Session) Join(ctx context.Context, req JoinRequest) (JoinResult, error) {
 	w, ok := s.WifiCard()
@@ -525,6 +533,12 @@ func (s *Session) Join(ctx context.Context, req JoinRequest) (JoinResult, error)
 	}
 	res.Verdict = CompareLinks(before, after)
 	res.Host = s.hotspotHost(ctx, w.GUID)
+	if s.deps.Addresses != nil {
+		// A failed check is not a failed join: Check stays empty.
+		if c, cerr := s.CheckHost(ctx, res.Host); cerr == nil {
+			res.Check = c
+		}
+	}
 	return res, nil
 }
 

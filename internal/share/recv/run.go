@@ -81,6 +81,22 @@ type Outcome struct {
 	// WifiNote is one plain sentence about leaving the hotspot, "" when
 	// there was nothing to say.
 	WifiNote string
+	// Check is set when a hotspot copy stopped because this PC holds the
+	// other PC's address itself (Check.Local); the run is Paused and Message
+	// is Check.Reason(). The screen offers [Session.FreeAddress] when
+	// Check.Fixable, then Resume.
+	Check HostCheck
+}
+
+// addressClash reports, for a hotspot job, whether this PC holds the job's
+// host address itself. It reads this PC's adapters only. A normal job, a
+// session that cannot read its adapters, or a failed read is never a clash.
+func (s *Session) addressClash(j job.Job) (HostCheck, bool) {
+	if !j.Hotspot() || s.deps.Addresses == nil {
+		return HostCheck{}, false
+	}
+	c, err := s.localCheck(j.Host)
+	return c, err == nil && c.Local
 }
 
 // maxStalled is how many robocopy runs in a row may end with failures and no
@@ -206,6 +222,18 @@ func (s *Session) run(ctx context.Context, j job.Job, onEvent func(Event)) (Outc
 				Note: "Rejoined the other PC's hotspot.",
 			})
 			reachable = netstat.Reachable(ctx, s.deps.Dial, j.Host, 3*time.Second)
+		}
+		if c, clash := s.addressClash(j); clash {
+			// This PC holds the other PC's address itself (Windows can put
+			// its old hotspot address back, or move it to another Wi-Fi
+			// Direct adapter, after a rejoin), so the probe above answered
+			// from this PC. Waiting cannot fix that: stop, and say how.
+			msg := c.Reason()
+			save(job.StatePaused, msg, nil)
+			return Outcome{
+				Paused: true, DoneBytes: j.DoneBytes, DoneFiles: j.DoneFiles,
+				Elapsed: s.deps.Now().Sub(started), Message: msg, Check: c,
+			}, nil
 		}
 		if !reachable {
 			// The other PC is gone: wait for it, however long that takes,

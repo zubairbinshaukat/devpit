@@ -23,6 +23,7 @@ func TestTheHotspotScriptsParseInWindowsPowerShell(t *testing.T) {
 		"restore":     scriptHotspotRestore,
 		"rule-add":    fmt.Sprintf(scriptHotspotRuleAdd, psString("devpit-hs-abcd1234"), psString(hsRuleDescription), psString("192.168.137.0/24")),
 		"rule-remove": fmt.Sprintf(scriptHotspotRuleRemove, psString("devpit-hs-abcd1234"), psString(hsRuleDescription)),
+		"free-addr":   fmt.Sprintf(scriptFreeAddr, psString("192.168.137.1")),
 	}
 	for name, script := range scripts {
 		t.Run(name, func(t *testing.T) {

@@ -40,6 +40,11 @@ const (
 	// ShareOpHotspot starts the Windows Mobile Hotspot for this share and
 	// opens TCP 445 to the hotspot's own subnet only; see share_hotspot.go.
 	ShareOpHotspot ShareOp = "hotspot"
+	// ShareOpFreeAddr removes one private IPv4 address from this PC's Wi-Fi
+	// Direct virtual adapters only, for a receiver whose own old hotspot
+	// still holds the sharing PC's address; see share_freeaddr.go. It is the
+	// one operation with nothing to undo.
+	ShareOpFreeAddr ShareOp = "freeaddr"
 	// ShareOpStop undoes everything this worker did, in reverse order.
 	ShareOpStop ShareOp = "stop"
 	// ShareOpCleanup undoes what an earlier run recorded in its manifest,
@@ -119,6 +124,10 @@ type ShareRequest struct {
 	// hotspot settings (Windows before 26100), for cleanup. The settings
 	// themselves were held in worker memory only and cannot be restored.
 	HotspotLegacy bool `json:"hotspotLegacy,omitempty"`
+
+	// FreeIP is the private IPv4 address to take off this PC's Wi-Fi Direct
+	// virtual adapters, for freeaddr only.
+	FreeIP string `json:"freeIp,omitempty"`
 }
 
 // String describes the request without its password or hotspot passphrase,
@@ -126,6 +135,9 @@ type ShareRequest struct {
 func (r ShareRequest) String() string {
 	if r.Op == ShareOpHotspot {
 		return fmt.Sprintf("share %s (%s, ssid %s, band %s, band switch %t)", r.Op, r.HotspotConfig, r.SSID, r.Band, r.SetBand5)
+	}
+	if r.Op == ShareOpFreeAddr {
+		return fmt.Sprintf("share %s (ip %s)", r.Op, r.FreeIP)
 	}
 	return fmt.Sprintf("share %s (user %s, path %s, name %s)", r.Op, r.User, r.Path, r.Name)
 }
@@ -188,6 +200,9 @@ func (r ShareRequest) Validate() error {
 		}
 		return nil
 	}
+	if r.FreeIP != "" && r.Op != ShareOpFreeAddr {
+		return errors.New("refused: only freeaddr carries an address to free")
+	}
 	switch r.Op {
 	case ShareOpProfile:
 		if r.Index == 0 || !categories[r.Category] || !categories[r.Original] {
@@ -216,6 +231,8 @@ func (r ShareRequest) Validate() error {
 		return needPath()
 	case ShareOpHotspot:
 		return r.validateHotspot()
+	case ShareOpFreeAddr:
+		return r.validateFreeAddr()
 	case ShareOpCleanup:
 		return r.validateCleanup(needUser, needName, needPath)
 	default:

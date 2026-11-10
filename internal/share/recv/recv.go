@@ -52,6 +52,16 @@ type Deps struct {
 	// Wifi is the Wi-Fi card, for hotspot mode. Nil means no Wi-Fi: the
 	// hotspot path is never offered.
 	Wifi Wifi
+	// Addresses lists the adapters on this PC that hold an IPv4 address
+	// ([winapi.LocalAddressHolders]) and Route names the adapter the route
+	// to an address uses ([winapi.RouteSource]), for [Session.CheckHost].
+	// Nil Addresses means the check cannot run: [Session.Join] then leaves
+	// JoinResult.Check empty and a copy never pauses for it.
+	Addresses func(ip string) ([]winapi.AddressHolder, error)
+	Route     func(ip string) (alias, src string, err error)
+	// Admin starts the elevated worker for [Session.FreeAddress], the one
+	// UAC prompt. Nil means the fix is not offered.
+	Admin Launcher
 	// PID is this process's ID and ProcessStart reads a process's creation
 	// time, for the join record's owner. Zero and nil mean the real ones.
 	PID          int
@@ -89,6 +99,9 @@ func Real(stateDir, logDir string) Deps {
 		},
 		KeepAwake: winapi.KeepAwake,
 		Wifi:      WinWifi{},
+		Addresses: winapi.LocalAddressHolders,
+		Route:     winapi.RouteSource,
+		Admin:     RealLauncher,
 		Now:       time.Now,
 		Sleep:     netstat.SleepCtx,
 		StateDir:  stateDir,

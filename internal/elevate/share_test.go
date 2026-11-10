@@ -42,6 +42,8 @@ type shareFake struct {
 	hsStartStderr []string // stderr of the start; with hsStartCode, a failure
 	hsStartCode   int
 	hsStopOut     []string // stdout of the stop
+
+	freeOut []string // stdout of the freeaddr script
 }
 
 func newShareFake() *shareFake {
@@ -182,6 +184,10 @@ func (f *shareFake) ExecInput(_ context.Context, argv []string, stdin string, on
 	switch {
 	case strings.Contains(text, "# devpit hs-"):
 		return f.playHotspot(text, onLine), nil
+	case strings.Contains(text, "# devpit free-addr"):
+		for _, l := range f.freeOut {
+			onLine("stdout", l)
+		}
 	case strings.Contains(text, "OTHERS="):
 		onLine("stdout", "OTHERS="+strconv.Itoa(f.others))
 	case strings.Contains(text, "New-SmbShare"):
