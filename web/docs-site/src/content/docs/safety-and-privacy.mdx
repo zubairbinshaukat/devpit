@@ -128,6 +128,17 @@ These rules apply to it.
 - **A save never overwrites a file.** Nothing is saved without a key press and a yes.
 - **The one admin prompt is optional.** It reads the drive's wear and power-on hours, runs a fixed read with no arguments, and you can say no.
 
+## Share Files and the direct hotspot
+
+[Share Files](/docs/features/share-files) can start a Wi-Fi hotspot on the sharing PC so the other PC joins it directly.
+It starts one only when you pick it, and never when your hotspot is already on.
+It opens file sharing for the hotspot's own network only, with one firewall rule that it removes by name when you stop.
+The password it makes for a temporary hotspot is 8 digits, which is weak on purpose, so use it only with people you trust nearby.
+If you use your own saved hotspot instead, its password is shown on the card and never saved, logged or sent to Devpit's admin helper.
+On the other PC, Devpit deletes only the Wi-Fi entry it added and puts the PC back on its own network.
+Anyone who joins the hotspot also gets internet through the sharing PC while it is on.
+Devpit stops the hotspot it started, also after a crash, with one stated limit that the Share Files page explains.
+
 ## What Devpit sends
 
 Short version: **usage stats are off until you turn them on.**

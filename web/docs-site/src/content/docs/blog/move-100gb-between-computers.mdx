@@ -75,6 +75,8 @@ A copy runs as fast as the **slowest part** of the chain. The chain has more par
 
 When **both** PCs are on Wi-Fi through the same router, every byte usually travels over the air twice: from PC A to the router, then from the router to PC B. Both trips share the same radio channel with every other device in the house. So two PCs on Wi-Fi often copy slower than one PC on Wi-Fi and one on a cable.
 
+One way around it is to take the router out. If the sharing PC starts its own Wi-Fi hotspot and the other PC joins it, the bytes cross the air once instead of twice. Devpit's [Share Files](/docs/features/share-files#direct-hotspot) can do this: it suggests a direct hotspot when the sharing PC is on Wi-Fi with a Wi-Fi 6 or newer card. That is the idea, not a measured result. Some cards run a hotspot at a lower link rate than your normal Wi-Fi, and then it is slower. So after the other PC joins, Devpit compares the two link rates Windows reports and offers to go back to your normal network if the hotspot is clearly slower. A link rate is not a copy speed, so measure your own copy as described below.
+
 Microsoft's own Nearby sharing page makes a related point: when that feature falls back to Bluetooth, transfers are "much slower".
 
 ## Measure your own speed

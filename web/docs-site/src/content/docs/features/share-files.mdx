@@ -11,15 +11,19 @@ related:
   - troubleshooting
 faq:
   - question: "How fast is the copy?"
-    answer: "The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed and the time left while it copies, so measure it on your own network."
+    answer: "The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed and the time left while it copies, so measure it on your own network. A direct hotspot can be faster, because the copy skips the router, but Devpit makes no promise. It checks the link and offers to go back if the hotspot is clearly slower."
+  - question: "What is Direct hotspot?"
+    answer: "A mode where the sharing PC starts its own Wi-Fi hotspot and the other PC joins it, so the copy goes straight between the two PCs. Devpit suggests it only when the sharing PC is on Wi-Fi with a Wi-Fi 6 or newer card. You can always pick your normal network instead. When the copy ends, Devpit stops the hotspot it started and puts the other PC back on its own Wi-Fi."
+  - question: "Does Direct hotspot change my hotspot settings?"
+    answer: "By default Devpit starts your hotspot with the name and password already saved in Windows. If the saved band is not 5 GHz, Devpit asks first. You can switch it to 5 GHz, which stays switched after sharing, use a temporary name and password for this share only, or keep it as it is. Devpit never changes anything without that choice."
   - question: "What if the Wi-Fi drops halfway?"
     answer: "Devpit waits until the other PC answers again and carries on by itself, as long as Devpit stays open. If you stopped the copy or closed Devpit, open Share Files and choose the resume entry. Finished files are skipped and half-copied files carry on."
   - question: "Does the other PC need Devpit?"
-    answer: "No. The sharing PC shows the address, share name, user name and password, plus a net use line and a robocopy line for someone who does not have Devpit. Copying works whether or not the other PC has Devpit."
+    answer: "No. The sharing PC shows the address, share name, user name and password, plus a net use line and a robocopy line for someone who does not have Devpit. Copying works whether or not the other PC has Devpit. With a direct hotspot, a PC without Devpit joins the hotspot by hand from the Windows Wi-Fi list and then uses the same two lines."
   - question: "Does Devpit use my Windows password to share?"
     answer: "No. Devpit creates a temporary login just for this share, so your own Windows password is never used. Stop sharing removes it. If it is ever left behind, it expires by itself after 48 hours."
   - question: "What does Devpit change in the firewall?"
-    answer: "It turns on the File and Printer Sharing rule for incoming SMB, named FPS-SMB-In-TCP, only if that rule is off. When you stop sharing it turns off only the rule it turned on."
+    answer: "It turns on the File and Printer Sharing rule for incoming SMB, named FPS-SMB-In-TCP, only if that rule is off. When you stop sharing it turns off only the rule it turned on. A direct hotspot adds one more rule, named like devpit-hs-x7k2, that lets in file sharing from the hotspot's own network only. It is removed when you stop."
 ---
 
 import Shot from '@/components/Shot.astro';
@@ -39,10 +43,10 @@ There are two sides:
 
 1. Open Devpit and choose **Share Files**, then **Share a folder**.
 2. Pick the folder to share.
-3. If the PC has more than one network connection, pick the one the other PC is on.
-4. If that network is set to **Public**, Devpit asks if it may switch it to **Private**. Windows blocks file sharing on a Public network. Devpit puts it back when you stop sharing.
+3. If the PC has more than one network connection, pick the one the other PC is on. If the PC is on Wi-Fi with a Wi-Fi 6 or newer card, the list also has **Direct hotspot (suggested)**, already selected. Press <kbd>Enter</kbd> to use it. See [Direct hotspot](#direct-hotspot) below.
+4. If you picked a normal connection and it is set to **Public**, Devpit asks if it may switch it to **Private**. Windows blocks file sharing on a Public network. Devpit puts it back when you stop sharing. A direct hotspot does not ask this.
 5. Approve the Windows admin prompt. Devpit asks **once**.
-6. Devpit sets up the firewall rule, a temporary login, and a **read-only** share of the folder. You see each step.
+6. Devpit sets up the firewall rule, a temporary login, and a **read-only** share of the folder. You see each step. With a direct hotspot there are two more: starting the hotspot, and allowing file sharing on the hotspot only.
 7. A card shows what the other PC needs:
    - the **address** (IP),
    - the **share** name,
@@ -62,7 +66,7 @@ The card has these keys:
 | <kbd>s</kbd> or <kbd>Esc</kbd> | Stop sharing (asks first) |
 
 8. Leave Devpit open while the other PC copies. Devpit keeps this PC awake, because a PC that sleeps stops sharing.
-9. When you are done, stop sharing. Devpit removes what it set up: the shared folder, the temporary login, the firewall rule it turned on, and the network change.
+9. When you are done, stop sharing. Devpit removes what it set up: the shared folder, the temporary login, the firewall rules it turned on, the network change, and the hotspot if it started one.
 
 Devpit also does this when you quit it with <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
@@ -80,9 +84,11 @@ Windows asks for permission once.
 If nothing is left, it says "Nothing to clean up."
 The temporary login also expires by itself after 48 hours.
 
+Cleanup also removes the hotspot's firewall rule and stops a leftover hotspot when it can tell that Devpit started it. See [Safety](#safety) for the one case where it cannot.
+
 ## On the PC that receives: Copy from a shared folder
 
-1. Open Devpit and choose **Share Files**, then **Copy from a shared folder**.
+1. Open Devpit and choose **Share Files**, then **Copy from a shared folder**. If this PC has a Wi-Fi card, Devpit asks how to reach the sharing PC. Pick **Type the other PC's address** for the steps below. If the card shows a hotspot name, see [Direct hotspot](#direct-hotspot).
 2. Type the IP address of the other PC. It is on the sharing PC's card.
 3. Pick a shared folder from the list. If the other PC wants a sign-in before it lists its folders, Devpit asks first.
 4. Sign in with the user name and password from the card.
@@ -108,6 +114,79 @@ While it copies you see:
 - a notice when the network hiccups and Devpit tries a file again.
 
 Devpit runs `robocopy` for you, with up to 16 files at once.
+
+## Direct hotspot
+
+On a PC that is on Wi-Fi, Devpit can start a Wi-Fi hotspot, and the other PC joins it.
+The copy then goes straight between the two PCs and skips the router.
+That can be faster.
+It is not always faster, so Devpit checks the link it gets and offers to go back if the hotspot is clearly slower.
+It never promises a speed.
+
+### When Devpit suggests it
+
+**Direct hotspot (suggested)** is the first row, already selected, only when all of this is true:
+
+- The PC's internet connection is Wi-Fi and it is connected.
+- The Wi-Fi card is Wi-Fi 6 or newer. [PC specs](/docs/features/pc-specs) shows your card's standard.
+- Windows allows a hotspot on this PC. Some work PCs turn it off.
+- The card can run a hotspot on 5 GHz.
+- Your hotspot is not already on. Devpit never takes over a hotspot you started.
+
+If the card is older, or the PC is on a 2.4 GHz network, the row is still in the list but lower, not selected, with "May be slower than your router." On a cable, Devpit does not offer it. If anything is unclear, or the check takes too long, Devpit offers nothing and shares over your network as before. No error is shown.
+
+### Which hotspot settings it uses
+
+By default Devpit starts the hotspot with the **name and password already saved in Windows**. It first reads the saved band.
+
+- If the band is **5 GHz** (or 6 GHz), Devpit starts the hotspot with no question.
+- If the band is **2.4 GHz** or **Auto**, one screen asks: "Your hotspot is not set to 5 GHz, so it may be slow. What should Devpit do?"
+
+| Choice | What it does |
+| --- | --- |
+| **Switch my hotspot to 5 GHz** (selected) | Keeps the name and password. The setting **stays** on 5 GHz after sharing. Devpit does not put it back. To change it, open Settings, Network & internet, Mobile hotspot. |
+| **Use a temporary name and password on 5 GHz** | Your own hotspot settings are not touched. Devpit makes a name like `Devpit-x7k2` and an 8-digit password for this share only. This row only appears when your Windows can do it. |
+| **Keep it as it is (slower)** | Uses your saved hotspot as it is, which may be on 2.4 GHz. |
+
+### The card
+
+The card shows the hotspot name and band, the hotspot password, then the address, share, user and the 6-digit code.
+With your saved hotspot, a line says "This is your own hotspot password."
+If your normal network was already set to Private, the card also shows its address, for the case that the hotspot is slow.
+The usual `net use` and `robocopy` lines are there too, using the hotspot's address.
+Press <kbd>w</kbd> to copy the hotspot password and <kbd>p</kbd> to copy the code.
+Devpit stops the hotspot when you stop sharing.
+
+If the hotspot cannot start, Devpit undoes what it did and shares over your normal network instead, with no second admin prompt. The card says why. If that network is Public, Devpit asks first, as in normal sharing. If your hotspot was already on, Devpit leaves it alone and shares over your network.
+
+### On the receiving PC
+
+1. Open **Share Files**, then **Copy from a shared folder**, then pick **Join the other PC's hotspot**.
+2. Devpit looks for Wi-Fi networks nearby. It lists `Devpit-` names first. Pick the hotspot name shown on the sharing PC's card. If Windows will not list the networks (for example when location access is off), type the name from the card instead.
+3. Type the **hotspot password** from the card. Devpit uses it once to join and does not save it. If Windows on this PC already has that network saved, Devpit uses it and asks for no password.
+4. Devpit joins, which can take half a minute, and lists the shared folders at the hotspot's address. Sign in with the user name and 6-digit code from the card. For a `Devpit-x7k2` hotspot, the user name `devpit-x7k2` is already filled in. With your own saved hotspot name, you type it.
+5. Choose where to save and start, as above.
+
+This PC needs a Wi-Fi card. Without one, Devpit does not offer the hotspot.
+
+After the copy, or when you stop, Devpit puts the PC **back on its own Wi-Fi**. It deletes the Wi-Fi entry it added, and only that one, and reconnects to the network the PC was on before. A Wi-Fi network you already had saved is never deleted. Quitting Devpit does it too. If Devpit crashed, it does this the next time you open Share Files and says so in one line.
+
+### Measure, then decide
+
+After joining, Devpit reads the link rate Windows reports for the hotspot and for the Wi-Fi the PC was on before.
+If the hotspot link is clearly slower, or the PC is on a cable, Devpit says so and shows both link rates. If Windows does not report the rates, Devpit keeps the direct link.
+Press <kbd>b</kbd> to go back to your Wi-Fi and copy over your network, or <kbd>Enter</kbd> to use the hotspot anyway.
+A link rate is what Windows reports for the connection, not the speed of your copy.
+
+### A PC without Devpit
+
+Join the hotspot from the Windows Wi-Fi list, with the name and password on the card.
+Then type the `net use` and `robocopy` lines from the card, as in normal sharing.
+When you are done, switch that PC back to its own Wi-Fi yourself.
+
+### Resuming a hotspot copy
+
+Resume joins the hotspot first, then carries on. It asks for the hotspot password again, because Devpit does not keep it, unless Windows already has that network saved.
 
 ## If the copy stops: Resume
 
@@ -138,11 +217,13 @@ If the same files keep failing for three rounds in a row and nothing new is copi
 ## Good to know
 
 - The network sets the speed limit. Time is the folder size divided by your real speed. Devpit shows the real speed while it copies. The math, and what slows a copy down, is in [move 100 GB between PCs](/docs/blog/move-100gb-between-computers).
+- A direct hotspot skips the router, so it can be faster. It can also be slower, for example when the card runs the hotspot at a lower link rate than your Wi-Fi. That is why Devpit checks the link after the other PC joins and offers to go back.
+- Windows needs this PC to be connected to a network before it can start a hotspot.
 - For the fastest, steadiest link, connect the two PCs with a cable. See [connect two PCs with an Ethernet cable](/docs/blog/direct-ethernet-cable-between-two-pcs).
 - It works in any Windows language.
 - It works whether or not the other PC has Devpit.
 - If this PC has strict password rules, Windows can refuse a 6-digit code and Devpit says so. Open Local Security Policy, then Account Policies, then Password Policy. Set the minimum password length to 6 or less and turn off the complexity rule, then share again.
-- Both PCs must be on the same network. Sending over the internet is not part of this feature. For phones, Macs or other ways to move files, see [transfer files between two PCs over Wi-Fi](/docs/blog/transfer-files-between-two-pcs-over-wifi) and [LocalSend vs Quick Share vs Syncthing](/docs/blog/localsend-vs-quick-share-vs-syncthing).
+- Both PCs must be on the same network, or the receiving PC must join the sharing PC's direct hotspot. Sending over the internet is not part of this feature. For phones, Macs or other ways to move files, see [transfer files between two PCs over Wi-Fi](/docs/blog/transfer-files-between-two-pcs-over-wifi) and [LocalSend vs Quick Share vs Syncthing](/docs/blog/localsend-vs-quick-share-vs-syncthing).
 
 ## Safety
 
@@ -150,8 +231,19 @@ If the same files keep failing for three rounds in a row and nothing new is copi
 - The sharing PC uses a temporary login named like `devpit-x7k2`, created for this share only. It can only read the shared folder. Its password is a new random 6-digit code every time and is never your own.
 - The code is short on purpose, so it is easy to read out and type. That makes it weak: it is meant for people you trust on your own network, and the login is removed when you stop sharing. Do not share on a network with people you do not trust.
 - The login expires after 48 hours even if nothing removes it.
-- Devpit turns on only the firewall rule `FPS-SMB-In-TCP`, and only if it was off. When you stop, it turns off only what it turned on. If Windows names that rule differently, Devpit turns on the File and Printer Sharing group instead.
+- In normal sharing, Devpit turns on only the firewall rule `FPS-SMB-In-TCP`, and only if it was off. When you stop, it turns off only what it turned on. If Windows names that rule differently, Devpit turns on the File and Printer Sharing group instead.
 - **Stop sharing** removes the share, the login, the firewall rule and the network change. Quitting Devpit does the same.
+
+### With a direct hotspot
+
+- **One firewall rule for the hotspot's own network.** It is named like `devpit-hs-x7k2`. It lets in file sharing (TCP port 445) only from the hotspot's own address range, never from the internet. It is removed by its exact name when you stop. A direct hotspot does not switch your network to Private. If your normal network is already Private, Devpit also turns on `FPS-SMB-In-TCP`, only if it was off, so the other PC can fall back to your network. It turns it off again when you stop.
+- **The temporary password is weak.** The 8-digit password is the shortest Wi-Fi allows. It lives only as long as the share, and it is meant for people you trust nearby. Anyone in Wi-Fi range who guesses it can join the hotspot. The share still needs the login and 6-digit code. Do not use it where you do not trust the people around you.
+- **Your own hotspot password is on the card.** With your saved hotspot, the card shows your own hotspot password because the other PC needs it. Devpit does not save it, log it or send it to its admin helper. The other PC can join your hotspot again later, with the same password, unless you change the password in Settings, Network & internet, Mobile hotspot.
+- **Anyone who joins also gets internet through this PC.** That is how a Windows hotspot works. Stop sharing when the copy is done.
+- **The band switch stays.** If you pick **Switch my hotspot to 5 GHz**, Devpit changes only the band, keeps the name and password, and does not put the band back.
+- **Devpit stops the hotspot it started.** Stop sharing, quitting and a crash all end it, and turn the hotspot's "turn off when nothing is connected" setting back on if Devpit had turned it off. Devpit never stops a hotspot that was already on when you started.
+- **Cleanup stops a leftover hotspot when it can tell it is Devpit's.** After a crash of both Devpit and its helper, `devpit share cleanup` (or **Clean up an old share**) removes the rule and turns the setting back on. It stops your saved hotspot only if it still has the name Devpit recorded. It cannot tell a temporary `Devpit-` hotspot from another one, so it leaves that one on. If that setting was on before, Windows then ends the hotspot a few minutes after the last device leaves. If it is still on, turn it off in Settings, Network & internet, Mobile hotspot.
+- **On the other PC,** Devpit deletes only the Wi-Fi entry it added, and reconnects to the network the PC was on before.
 - Share only the folder you mean to. Anyone on your network who has the password can read it while it is shared.
 - Devpit does not turn on SMB encryption for the share. Unless your Windows is set to require it, the files cross the network unencrypted. Use it on a network you trust. See [SMB vs FTP vs HTTP](/docs/blog/smb-vs-ftp-vs-http-local-network) for what SMB protects and what it does not.
 - Devpit refuses to share Windows folders, Program Files, the shared program data folder, or the whole system drive.

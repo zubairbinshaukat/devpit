@@ -174,8 +174,8 @@ doing the stubs are the list of what has to be written.
 | `network` | Ping, DNS flush, local/public IP | `Ping`, `FlushDNS`, `LocalIPs`, `PublicIP` | `dns_test.go`'s Windows path (`ipconfig /flushdns`) |
 | `gitssh` | SSH keygen with overwrite protection, git config read/write, OSC 52 clipboard | `Keygen`, `GitConfig`, `SetGitConfig`, `Copy` | `clipboard_windows.go` |
 | `elevate` | The elevated worker: wire protocol, client, server loop, remove-path whitelist, typed share operations | `Launch`, `Serve`, `Client.Exec`, `Client.Remove`, `Client.Share` | `launch_windows.go` (`ShellExecuteExW`), `pipe_windows.go`, `serve_windows.go`, `shellexecute_windows.go`, `iselevated_windows.go` |
-| `share/host` | Pick an adapter, set up a read-only share with a temporary login through the worker, show the card, take everything down on Stop, quit, crash and next launch; estimate sender-side progress from the adapter's out counter plus a one-time folder size scan (read-only, no admin) | `Manager.Start`, `Manager.Stop`, `Manager.Progress`, `MeasureFolder`, `ShutdownAll`, `Leftover`, `CleanUp` | `alive_windows.go` |
-| `share/recv` | List another PC's shares, sign in, dry-run size and free-space check, copy with retry and resume | `Session.List`, `Preflight`, `Run` | none, the Win32 calls are in `winapi` |
+| `share/host` | Pick an adapter, or a direct hotspot when `Suggest` says it is worth it, set up a read-only share with a temporary login through the worker, show the card, take everything down on Stop, quit, crash and next launch; estimate sender-side progress from the adapter's out counter plus a one-time folder size scan (read-only, no admin) | `Manager.Start`, `Manager.Stop`, `Manager.Suggest`, `Manager.Progress`, `MeasureFolder`, `ShutdownAll`, `Leftover`, `CleanUp` | `alive_windows.go` |
+| `share/recv` | List another PC's shares, sign in, dry-run size and free-space check, copy with retry and resume; join and leave the sharing PC's hotspot | `Session.List`, `Preflight`, `Run`, `Session.Join`, `Session.Leave` | none, the Win32 calls are in `winapi` |
 | `share/robocopy` | Command lines, log tailing, language-independent parsing, exit-code bits | `CopyArgs`, `DryRunArgs`, `ParseLine`, `ParseSummary`, `DecodeExit`, `Tool.Copy` | `exec_windows.go` (no console window) |
 | `share/netstat` | Address check, `net view` parsing, sign-in, adapter byte counters, reachability probe | `ParseHost`, `ParseNetView`, `SignIn`, `Meter` (`NewMeter` reads in, `NewSendMeter` reads out, `NewByteMeter` any counter), `WaitReachable` | `oem_windows.go` (OEM code page) |
 | `sysinfo` | Read what the PC is made of, one section at a time, each bounded; judge it for a buyer; write the report | `NewLive` (a `Source`), `Bounded`, `Assess`, `Glance`, `Markdown`, `SaveNew`, `ReadReliability` (elevated worker only) | `live_windows.go`, `smbios_windows.go`, `battery_windows.go`, `display_windows.go`, `gpu_windows.go`, `volumes_windows.go`, `windows_windows.go`, `psbatch_windows.go`, `desktop_windows.go` |
@@ -269,6 +269,34 @@ a 6-digit password, `errmap.PasswordPolicyMessage` turns the error into a
 message that names the setting to change. The TUI
 writes a manifest of the names (no password) before it creates anything, so
 a crash of both processes is finished by the next launch.
+
+**Direct hotspot** (`share/host`, `elevate`, `winapi`, `share/recv`; safety.md
+rules 62 to 69). `Manager.Suggest` reads, from the TUI and without admin, whether
+a hotspot is worth offering: a constant read-only PowerShell 5.1 probe for the
+capability, state and saved settings, plus `winapi.WifiInterfaces` for the
+card's standard and channel. A failed or late probe offers nothing. When the
+person picks hotspot mode, `Manager.Start` sends one more typed operation,
+`hotspot`, to the same worker, before the login and the share. The worker
+starts the hotspot from the saved settings (`saved`, which carries no name or
+password), or with a temporary `Devpit-xxxx` name and 8-digit password
+(`temp`), then makes one firewall rule, `devpit-hs-xxxx`, for the hotspot's /24
+only. Teardown removes the rule, stops the hotspot Devpit started and puts the
+timeout setting back, before the other-shares gate. The manifest (version 2)
+records the hotspot's name, rule and flags, never a password, so `host.CleanUp`
+can finish the job; a cleanup stops only a hotspot it can prove is Devpit's and
+leaves a per-session temporary one on. If the hotspot does not start, `Start`
+undoes it and carries on with normal sharing in the same worker.
+
+**Receiver join** (`share/recv/join.go`, `winapi/wlanjoin_windows.go`). The
+screen can offer "Join the other PC's hotspot": `Session.FindHotspots` scans,
+`Session.Join` writes the join record (`share-join.json`, beside the resume
+record, no password) before it touches Wi-Fi, then joins with the PC's own
+saved profile or a new manual-mode per-user profile, reads the link and
+compares it with the old one (`CompareLinks`, `WorseLinkMarginPercent`). A
+worse link is offered back, not forced. `Session.Leave` deletes only a profile
+the record says Devpit created and reconnects to the previous network; it runs
+on stop, failure and the next open of Share Files, and leaves alone a join
+another running Devpit window owns.
 
 **Receiving** (`share/recv`, the same screens package). `recv.Session` lists shares
 with `net view`, signs in with `WNetAddConnection2`, runs a `robocopy /L` dry
