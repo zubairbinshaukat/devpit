@@ -49,7 +49,22 @@ type Deps struct {
 	Sleep func(context.Context, time.Duration)
 	// Tick is how often speed is measured and progress is sent.
 	Tick time.Duration
-	// StateDir holds the resume record. LogDir holds robocopy's logs.
+	// Wifi is the Wi-Fi card, for hotspot mode. Nil means no Wi-Fi: the
+	// hotspot path is never offered.
+	Wifi Wifi
+	// PID is this process's ID and ProcessStart reads a process's creation
+	// time, for the join record's owner. Zero and nil mean the real ones.
+	PID          int
+	ProcessStart func(pid int) (created time.Time, alive bool)
+	// ProcessImage reads the program a process runs, Executable is this
+	// program's path, and BootTime is when Windows last started: they tell a
+	// PID that was reused from the Devpit window that made a join when the
+	// start time cannot be read. Nil means the real ones.
+	ProcessImage func(pid int) (string, error)
+	Executable   func() (string, error)
+	BootTime     func() (time.Time, error)
+	// StateDir holds the resume record and the join record. LogDir holds
+	// robocopy's logs.
 	StateDir, LogDir string
 }
 
@@ -73,6 +88,7 @@ func Real(stateDir, logDir string) Deps {
 			return c, err
 		},
 		KeepAwake: winapi.KeepAwake,
+		Wifi:      WinWifi{},
 		Now:       time.Now,
 		Sleep:     netstat.SleepCtx,
 		StateDir:  stateDir,
@@ -87,6 +103,12 @@ type Session struct {
 	deps Deps
 	// Host is the other PC, once a list has succeeded.
 	Host string
+	// hotspot is the hotspot this session joined, "" when none or once it
+	// has tried to leave.
+	hotspot string
+	// lastRejoin is when the copy last tried to rejoin the hotspot, by the
+	// session's clock.
+	lastRejoin time.Time
 }
 
 // New returns a session over deps, with defaults filled in for anything nil

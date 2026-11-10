@@ -78,6 +78,9 @@ type Outcome struct {
 	Elapsed time.Duration
 	// Message is one plain sentence about the end.
 	Message string
+	// WifiNote is one plain sentence about leaving the hotspot, "" when
+	// there was nothing to say.
+	WifiNote string
 }
 
 // maxStalled is how many robocopy runs in a row may end with failures and no
@@ -87,14 +90,20 @@ type Outcome struct {
 const maxStalled = 3
 
 // Start creates the copy's record from a check and returns it, ready for
-// [Session.Run].
+// [Session.Run]. While a [Session.Join] is in force (joined, not left, and
+// its record on disk) the record says it runs over that hotspot, so Resume
+// rejoins it first.
 func (s *Session) Start(host, share, user, dest string, plan robocopy.Plan) job.Job {
 	now := s.deps.Now()
-	return job.Job{
+	j := job.Job{
 		Host: host, Share: share, User: user, Dest: dest,
 		TotalFiles: plan.Files, TotalBytes: plan.Bytes,
 		State: job.StateRunning, Started: now, Updated: now,
 	}
+	if s.joinLive() {
+		j.Mode, j.SSID = job.ModeHotspot, s.hotspot
+	}
+	return j
 }
 
 // Run copies until everything is there, the context is cancelled, or robocopy
@@ -110,7 +119,26 @@ func (s *Session) Start(host, share, user, dest string, plan robocopy.Plan) job.
 //
 // onEvent is called on Run's own goroutine only. Cancelling ctx stops
 // robocopy and returns a paused outcome.
+//
+// In hotspot mode, step 3 first puts the PC back on the hotspot when it has
+// dropped off, and every way out of Run (done, stopped, failed) leaves the
+// hotspot with [Session.Leave]; the outcome's WifiNote says what was put
+// back. The screen calls Leave too on paths that never reach Run, and the
+// program calls [LeaveOnExit] on its way out, which covers a quit that does
+// not wait for this leave to finish.
 func (s *Session) Run(ctx context.Context, j job.Job, onEvent func(Event)) (Outcome, error) {
+	out, err := s.run(ctx, j, onEvent)
+	if j.Hotspot() {
+		lr, lerr := s.Leave()
+		out.WifiNote = lr.Note
+		if lerr != nil {
+			out.WifiNote = noteLeaveRetried
+		}
+	}
+	return out, err
+}
+
+func (s *Session) run(ctx context.Context, j job.Job, onEvent func(Event)) (Outcome, error) {
 	release, _ := s.deps.KeepAwake()
 	defer release()
 
@@ -171,6 +199,14 @@ func (s *Session) Run(ctx context.Context, j job.Job, onEvent func(Event)) (Outc
 		}
 		failed := failedFiles(prog)
 		reachable := netstat.Reachable(ctx, s.deps.Dial, j.Host, 3*time.Second)
+		if !reachable && s.rejoin(ctx, j) {
+			// The PC had dropped off the hotspot; it is back on it now.
+			emit(Event{
+				Phase: PhaseWaiting, DoneBytes: j.DoneBytes, DoneFiles: j.DoneFiles, Attempt: attempt,
+				Note: "Rejoined the other PC's hotspot.",
+			})
+			reachable = netstat.Reachable(ctx, s.deps.Dial, j.Host, 3*time.Second)
+		}
 		if !reachable {
 			// The other PC is gone: wait for it, however long that takes,
 			// and start again. Nothing is lost, robocopy skips finished
@@ -181,6 +217,9 @@ func (s *Session) Run(ctx context.Context, j job.Job, onEvent func(Event)) (Outc
 			})
 			save(job.StatePaused, "The other PC stopped answering.", nil)
 			werr := netstat.WaitReachable(ctx, s.deps.Dial, j.Host, s.deps.Sleep, func(d time.Duration) {
+				// The hotspot may be back before the other PC answers;
+				// rejoin tries only when it is in range, and not often.
+				s.rejoin(ctx, j)
 				emit(Event{
 					Phase: PhaseWaiting, DoneBytes: j.DoneBytes, DoneFiles: j.DoneFiles, Attempt: attempt, NextTry: d,
 					Note: "The other PC stopped answering.",

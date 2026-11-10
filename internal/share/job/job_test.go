@@ -39,9 +39,51 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	}
 }
 
+// A record written before 0.5.1 has no mode or hotspot name, and still loads
+// as a normal copy that can be resumed.
+func TestAnOldJobRecordStillLoads(t *testing.T) {
+	dir := t.TempDir()
+	old := `{"version":1,"host":"192.168.1.5","share":"Games","user":"devpit-abcd","dest":"D:\\Games",` +
+		`"total_files":100,"total_bytes":1000,"done_files":60,"done_bytes":600,"state":"paused",` +
+		`"started":"2026-09-29T10:00:00Z","updated":"2026-09-29T10:20:00Z"}`
+	if err := os.WriteFile(filepath.Join(dir, "share-recv.json"), []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	j, ok, err := job.Load(dir)
+	if err != nil || !ok {
+		t.Fatalf("Load = %v %v", ok, err)
+	}
+	if j.Mode != "" || j.SSID != "" || j.Hotspot() || !j.Resumable() || j.DoneBytes != 600 {
+		t.Errorf("old record = %+v", j)
+	}
+}
+
+func TestAHotspotJobRoundTrips(t *testing.T) {
+	dir := t.TempDir()
+	j := sample()
+	j.Mode, j.SSID, j.Host = job.ModeHotspot, "Devpit-x7k2", "192.168.137.1"
+	if err := job.Save(dir, j); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := job.Load(dir)
+	if err != nil || !got.Hotspot() || got.SSID != "Devpit-x7k2" {
+		t.Errorf("got %+v, %v", got, err)
+	}
+	// A normal copy writes neither field.
+	if err := job.Save(dir, sample()); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(filepath.Join(dir, "share-recv.json"))
+	if strings.Contains(string(raw), `"mode"`) || strings.Contains(string(raw), `"ssid"`) {
+		t.Errorf("a normal record carries hotspot fields:\n%s", raw)
+	}
+}
+
 func TestTheRecordNeverHoldsAPassword(t *testing.T) {
 	dir := t.TempDir()
-	if err := job.Save(dir, sample()); err != nil {
+	hs := sample()
+	hs.Mode, hs.SSID = job.ModeHotspot, "Devpit-x7k2"
+	if err := job.Save(dir, hs); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(dir, "share-recv.json"))

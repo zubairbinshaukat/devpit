@@ -133,6 +133,7 @@ const summaryOK = "----\n\n               Total    Copied   Skipped  Mismatch   
 // rig is a receiving session over fakes.
 type rig struct {
 	s      *recv.Session
+	deps   recv.Deps // what s was built from, for tests that rebuild it
 	runner *scriptRunner
 	dir    string
 	sleeps []time.Duration
@@ -184,6 +185,12 @@ func (c *fakeConn) Disconnect(remote string) error {
 
 func newRig(t *testing.T, steps ...step) *rig {
 	t.Helper()
+	return newWifiRig(t, nil, steps...)
+}
+
+// newWifiRig is [newRig] with a Wi-Fi card seam, for hotspot mode.
+func newWifiRig(t *testing.T, wifi recv.Wifi, steps ...step) *rig {
+	t.Helper()
 	r := &rig{
 		runner: newScriptRunner(steps...), dir: t.TempDir(), conn: &fakeConn{}, net: &fakeNet{out: map[string]string{}, exit: map[string]int{}},
 		free: 1 << 40, fsName: "NTFS",
@@ -218,9 +225,11 @@ func newRig(t *testing.T, steps ...step) *rig {
 			r.reachable.Store(true)
 		},
 		Tick:     3 * time.Millisecond,
+		Wifi:     wifi,
 		StateDir: r.dir,
 		LogDir:   filepath.Join(r.dir, "logs"),
 	}
+	r.deps = deps
 	r.s = recv.New(deps)
 	return r
 }

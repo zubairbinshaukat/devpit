@@ -72,7 +72,20 @@ type Job struct {
 	// Started and Updated are the times of the first and latest write.
 	Started time.Time `json:"started"`
 	Updated time.Time `json:"updated"`
+	// Mode is "" for a copy over the normal network, or [ModeHotspot] for
+	// one over the other PC's hotspot. SSID is that hotspot's name, so
+	// Resume rejoins it first. The hotspot password is never saved: Resume
+	// asks for it again unless Windows has a saved profile for the hotspot.
+	// Both are new in 0.5.1 and empty in older records.
+	Mode string `json:"mode,omitempty"`
+	SSID string `json:"ssid,omitempty"`
 }
+
+// ModeHotspot is [Job.Mode] for a copy over the other PC's hotspot.
+const ModeHotspot = "hotspot"
+
+// Hotspot reports whether the copy runs over the other PC's hotspot.
+func (j Job) Hotspot() bool { return j.Mode == ModeHotspot && j.SSID != "" }
 
 // Remaining returns the bytes still to copy.
 func (j Job) Remaining() int64 { return max(0, j.TotalBytes-j.DoneBytes) }
