@@ -54,12 +54,13 @@ type shareState struct {
 	sid             string
 	grantPath       string
 	shareName       string
+	hotspot         hotspotState
 }
 
 // empty reports whether there is nothing to undo.
 func (s *shareState) empty() bool {
 	return s.profileIndex == 0 && len(s.rules) == 0 && s.user == "" &&
-		s.grantPath == "" && s.shareName == ""
+		s.grantPath == "" && s.shareName == "" && s.hotspot.empty()
 }
 
 // shareSession runs the share operations of one worker connection, one at a
@@ -252,6 +253,8 @@ func (s *shareSession) run(ctx context.Context, req ShareRequest, emit onLine) e
 		return s.opGrant(ctx, req, emit)
 	case ShareOpShare:
 		return s.opShare(ctx, req, emit)
+	case ShareOpHotspot:
+		return s.opHotspot(ctx, req, emit)
 	case ShareOpStop:
 		return s.teardown(ctx, emit)
 	case ShareOpCleanup:
@@ -458,7 +461,37 @@ func (s *shareSession) opShare(ctx context.Context, req ShareRequest, emit onLin
 	if err != nil {
 		return err
 	}
-	return checkACL(out, req.User)
+	if err := checkACL(out, req.User); err != nil {
+		return err
+	}
+	s.closeShareRules(ctx, out, emit)
+	return nil
+}
+
+// closeShareRules turns off again, in hotspot mode, the SMB rules creating
+// the share turned on by itself (24H2's FPS-SMB-In-TCP-V2, for every
+// profile). The hotspot's own rule already lets the hotspot's subnet in, and
+// the normal path, when it was prepared, has its own rule from the firewall
+// step; left on, V2 would open TCP 445 on a Public normal network too. The
+// rules stay recorded, so stop turns them off again should Windows turn one
+// back on. A failure is reported as a line, not as a failed share: the share
+// itself is fine, and stop still puts the rules back.
+func (s *shareSession) closeShareRules(ctx context.Context, out []string, emit onLine) {
+	if !s.state.hotspot.ruleOn {
+		return
+	}
+	var quoted []string
+	for _, l := range out {
+		if name, ok := strings.CutPrefix(strings.TrimSpace(l), "FW="); ok && rulePattern.MatchString(name) {
+			quoted = append(quoted, "'"+name+"'")
+		}
+	}
+	if len(quoted) == 0 {
+		return
+	}
+	if _, err := s.ps(ctx, fmt.Sprintf(scriptFirewallOff, strings.Join(quoted, ","))); err != nil {
+		emit("info", "Could not turn off the extra file sharing rule Windows turned on; it is turned off when sharing stops")
+	}
 }
 
 // checkACL verifies the share's access list: exactly the account, allowed,
@@ -490,6 +523,7 @@ func (s *shareSession) seed(r ShareRequest) {
 		profileIndex: r.Index, profileOriginal: r.Original,
 		rules: append([]string(nil), r.Rules...),
 		user:  r.User, sid: r.SID, grantPath: r.Path, shareName: r.Name,
+		hotspot: seedHotspot(r),
 	}
 }
 
@@ -531,7 +565,9 @@ func (s *shareSession) grantee() (string, error) {
 }
 
 // teardown undoes everything in state, newest first: the share, the folder
-// permission, the account, the firewall rules, the network category. It goes
+// permission, the account, the hotspot's firewall rule, the hotspot, the
+// hotspot's settings and timeout, then (past the other-shares gate) the
+// firewall rules and the network category. It goes
 // on past a failure so one stuck step does not leave the others behind, and
 // keeps a step in state until it has really succeeded, so a second stop
 // finishes the job. The errors are joined.
@@ -580,6 +616,9 @@ func (s *shareSession) teardown(ctx context.Context, emit onLine) error {
 		// once the account is gone it is the only name that entry has.
 		st.sid = ""
 	}
+	// The hotspot and its rule belong to this session alone, so they are
+	// undone before the gate below, whatever other shares are up.
+	errs = append(errs, s.teardownHotspot(ctx, emit)...)
 	if len(st.rules) > 0 || st.profileIndex != 0 {
 		// The firewall rule and the network category are shared by every
 		// Devpit share on this PC. While another one is up (a second Devpit

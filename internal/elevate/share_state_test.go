@@ -36,6 +36,70 @@ func TestACutOffStepStaysRecordedAndAFailedOneDoesNot(t *testing.T) {
 	}
 }
 
+// A hotspot step that was cut off (the timeout switch, the start, the rule)
+// may have landed, so it stays recorded and stop undoes it; a timeout switch
+// that failed outright changed nothing and is forgotten.
+func TestACutOffHotspotStepStaysRecorded(t *testing.T) {
+	shareEnv(t)
+	f := newShareFake()
+	f.failMatch = "# devpit hs-timeout-off"
+	s := newSession(f)
+	if _, err := run(t, s, tempHotspot); err == nil {
+		t.Fatal("the failing timeout switch succeeded")
+	}
+	if !s.state.hotspot.empty() {
+		t.Errorf("a timeout switch that failed outright is still recorded: %+v", s.state.hotspot)
+	}
+
+	for _, tc := range []struct {
+		match string
+		check func(h hotspotState) bool
+		undo  []string
+	}{
+		{
+			"# devpit hs-timeout-off", func(h hotspotState) bool { return h.timeoutChanged && !h.started },
+			[]string{"hs-timeout-on"},
+		},
+		{
+			"# devpit hs-start", func(h hotspotState) bool { return h.timeoutChanged && h.started && h.ssid == "Devpit-abcd" },
+			[]string{"hs-stop", "hs-timeout-on"},
+		},
+		{
+			"# devpit hs-rule-add", func(h hotspotState) bool { return h.started && hsRulePattern.MatchString(h.rule) },
+			[]string{"hs-rule-remove", "hs-stop", "hs-timeout-on"},
+		},
+	} {
+		stuck := newStuckShare(tc.match)
+		stuck.hsStartOut = sessionStart("Devpit-abcd")
+		s := newSession(stuck.shareFake)
+		s.exec = stuck
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		if err := s.run(ctx, tempHotspot, func(string, string) {}); err == nil {
+			t.Fatalf("%s: the cut-off step succeeded", tc.match)
+		}
+		cancel()
+		if !tc.check(s.state.hotspot) {
+			t.Errorf("%s: the cut-off step was forgotten: %+v", tc.match, s.state.hotspot)
+		}
+		before := len(stuck.commands())
+		if _, err := run(t, s, ShareRequest{Op: ShareOpStop}); err != nil {
+			t.Fatalf("%s: stop: %v", tc.match, err)
+		}
+		undo := stuck.commands()[before:]
+		if len(undo) != len(tc.undo) {
+			t.Fatalf("%s: stop ran %d commands, want %v:\n%s", tc.match, len(undo), tc.undo, strings.Join(undo, "\n"))
+		}
+		for i, m := range tc.undo {
+			if !strings.Contains(undo[i], "# devpit "+m+"\n") {
+				t.Errorf("%s: undo step %d is not %s", tc.match, i, m)
+			}
+		}
+		if !s.state.empty() {
+			t.Errorf("%s: state after stop = %+v", tc.match, s.state)
+		}
+	}
+}
+
 // Rules the firewall script turned on before it failed are still undone.
 func TestFirewallRulesTurnedOnBeforeAFailureAreRecorded(t *testing.T) {
 	shareEnv(t)

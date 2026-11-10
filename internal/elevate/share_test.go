@@ -18,11 +18,12 @@ import (
 // records every command line, plays back scripted output for the PowerShell
 // scripts, and keeps a set of accounts in memory.
 type shareFake struct {
-	mu    sync.Mutex
-	calls []string // decoded command lines, in order
-	argvs [][]string
-	users map[string]string
-	sids  map[string]string
+	mu     sync.Mutex
+	calls  []string // decoded command lines, in order
+	argvs  [][]string
+	stdins []string // standard input of each command, in order
+	users  map[string]string
+	sids   map[string]string
 
 	fwOut     []string // stdout of the firewall-on script
 	aceOut    []string // stdout of the share script
@@ -34,14 +35,113 @@ type shareFake struct {
 	failed    bool
 	deleted   []string
 	createErr error // returned by CreateUser, to play a NetUserAdd failure
+
+	// The hotspot scripts, found by their marker comment.
+	hsProbeOut    []string // stdout of the probe
+	hsStartOut    []string // stdout of the start
+	hsStartStderr []string // stderr of the start; with hsStartCode, a failure
+	hsStartCode   int
+	hsStopOut     []string // stdout of the stop
 }
 
 func newShareFake() *shareFake {
 	return &shareFake{
 		users: map[string]string{}, sids: map[string]string{},
-		fwOut:  []string{"FW=FPS-SMB-In-TCP"},
-		aceOut: []string{`ACE=PC\devpit-abcd|Read|Allow`},
+		fwOut:      []string{"FW=FPS-SMB-In-TCP"},
+		aceOut:     []string{`ACE=PC\devpit-abcd|Read|Allow`},
+		hsProbeOut: []string{"HSCAP=0", "HSTIMEOUT=1"},
+		hsStartOut: savedStart("MyHotspot"),
+		hsStopOut:  []string{"HSSTOPSTATUS=0"},
 	}
+}
+
+// savedStart is what the start script prints for a saved-mode start of the
+// hotspot called ssid.
+func savedStart(ssid string) []string {
+	return []string{
+		"HSMODE=saved", "HSSSID=" + base64.StdEncoding.EncodeToString([]byte(ssid)),
+		"HSBAND=5", "HSSTATUS=0", "HSIP=192.168.137.1",
+	}
+}
+
+// sessionStart is the same for a temp-mode, per-session start.
+func sessionStart(ssid string) []string {
+	return []string{
+		"HSMODE=session", "HSSSID=" + base64.StdEncoding.EncodeToString([]byte(ssid)),
+		"HSBAND=5", "HSSTATUS=0", "HSIP=192.168.137.1",
+	}
+}
+
+// psValue decodes the [psString] a script assigns to $name.
+func psValue(t *testing.T, script, name string) string {
+	t.Helper()
+	prefix := "$" + name + "=([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"
+	i := strings.Index(script, prefix)
+	if i < 0 {
+		t.Fatalf("the script sets no $%s:\n%s", name, script)
+	}
+	rest := script[i+len(prefix):]
+	b, err := base64.StdEncoding.DecodeString(rest[:strings.Index(rest, "'")])
+	if err != nil {
+		t.Fatalf("$%s: %v", name, err)
+	}
+	return string(b)
+}
+
+// stdinOf returns the values the n-th command with hotspot marker m was
+// given on standard input, decoded the way ReadIn decodes them.
+func stdinOf(t *testing.T, f *shareFake, m string, n int) []string {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, c := range f.calls {
+		if !strings.Contains(c, "# devpit "+m+"\n") {
+			continue
+		}
+		if n > 0 {
+			n--
+			continue
+		}
+		var out []string
+		for _, l := range strings.Split(strings.TrimSuffix(f.stdins[i], "\n"), "\n") {
+			b, err := base64.StdEncoding.DecodeString(l)
+			if err != nil {
+				t.Fatalf("%s: stdin line %q: %v", m, l, err)
+			}
+			out = append(out, string(b))
+		}
+		return out
+	}
+	t.Fatalf("no %s command", m)
+	return nil
+}
+
+// playHotspot plays back the hotspot scripts.
+func (f *shareFake) playHotspot(text string, onLine func(stream, text string)) int {
+	out := func(lines []string) {
+		for _, l := range lines {
+			onLine("stdout", l)
+		}
+	}
+	switch {
+	case strings.Contains(text, "# devpit hs-probe"):
+		out(f.hsProbeOut)
+	case strings.Contains(text, "# devpit hs-start"):
+		out(f.hsStartOut)
+		for _, l := range f.hsStartStderr {
+			onLine("stderr", l)
+		}
+		return f.hsStartCode
+	case strings.Contains(text, "# devpit hs-stop"):
+		out(f.hsStopOut)
+	case strings.Contains(text, "# devpit hs-rule-add"):
+		i := strings.Index(text, "$n=") + 3
+		j := strings.Index(text[i:], "\n")
+		b, _ := base64.StdEncoding.DecodeString(strings.TrimSuffix(strings.TrimPrefix(text[i:i+j],
+			"([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"), "')))"))
+		onLine("stdout", "HSFW="+string(b))
+	}
+	return 0
 }
 
 // decode turns a command line into readable text: PowerShell scripts are
@@ -60,12 +160,18 @@ func decode(argv []string) string {
 	return strings.Join(argv, " ")
 }
 
-func (f *shareFake) Exec(_ context.Context, argv []string, onLine func(stream, text string)) (int, error) {
+func (f *shareFake) Exec(ctx context.Context, argv []string, onLine func(stream, text string)) (int, error) {
+	return f.ExecInput(ctx, argv, "", onLine)
+}
+
+// ExecInput records what the command was given on its standard input.
+func (f *shareFake) ExecInput(_ context.Context, argv []string, stdin string, onLine func(stream, text string)) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	text := decode(argv)
 	f.calls = append(f.calls, text)
 	f.argvs = append(f.argvs, argv)
+	f.stdins = append(f.stdins, stdin)
 	if f.failMatch != "" && !f.failed && strings.Contains(text, f.failMatch) {
 		f.failed = true
 		if f.failCode != 0 {
@@ -74,6 +180,8 @@ func (f *shareFake) Exec(_ context.Context, argv []string, onLine func(stream, t
 		return 1, nil
 	}
 	switch {
+	case strings.Contains(text, "# devpit hs-"):
+		return f.playHotspot(text, onLine), nil
 	case strings.Contains(text, "OTHERS="):
 		onLine("stdout", "OTHERS="+strconv.Itoa(f.others))
 	case strings.Contains(text, "New-SmbShare"):
@@ -217,7 +325,61 @@ func TestShareValidate(t *testing.T) {
 			}
 		})
 	}
+
+	hotspot := []struct {
+		name   string
+		mutate func(*ShareRequest)
+		ok     bool
+	}{
+		{"good temp hotspot", func(*ShareRequest) {}, true},
+		{"6 GHz", func(r *ShareRequest) { r.Band = "6" }, true},
+		{"auto band", func(r *ShareRequest) { r.Band = "auto" }, true},
+		{"2.4 GHz is not asked for", func(r *ShareRequest) { r.Band = "2.4" }, false},
+		{"no band", func(r *ShareRequest) { r.Band = "" }, false},
+		{"band carries a command", func(r *ShareRequest) { r.Band = "5; calc" }, false},
+		{"ssid not Devpit-shaped", func(r *ShareRequest) { r.SSID = "HomeWiFi" }, false},
+		{"ssid upper case", func(r *ShareRequest) { r.SSID = "Devpit-ABCD" }, false},
+		{"ssid with a quote", func(r *ShareRequest) { r.SSID = "Devpit-ab'cd" }, false},
+		{"ssid too long", func(r *ShareRequest) { r.SSID = "Devpit-abcdefghijklm" }, false},
+		{"passphrase 7 digits", func(r *ShareRequest) { r.Passphrase = "4071935" }, false},
+		{"passphrase 9 digits", func(r *ShareRequest) { r.Passphrase = "407193581" }, false},
+		{"passphrase with a letter", func(r *ShareRequest) { r.Passphrase = "4071935a" }, false},
+		{"passphrase with a quote", func(r *ShareRequest) { r.Passphrase = "4071'358" }, false},
+		{"passphrase non-ASCII digits", func(r *ShareRequest) { r.Passphrase = "٤٠٧١٩٣٥٨" }, false},
+		{"temp with the band switch", func(r *ShareRequest) { r.SetBand5 = true }, false},
+		{"unknown configuration", func(r *ShareRequest) { r.HotspotConfig = "mine" }, false},
+		{"start with a cleanup rule", func(r *ShareRequest) { r.HotspotRule = "devpit-hs-abcd" }, false},
+		{"start with a recorded start", func(r *ShareRequest) { r.HotspotStarted = true }, false},
+		{"saved", func(r *ShareRequest) { *r = ShareRequest{Op: ShareOpHotspot, HotspotConfig: "saved"} }, true},
+		{"saved with the band switch", func(r *ShareRequest) {
+			*r = ShareRequest{Op: ShareOpHotspot, HotspotConfig: "saved", SetBand5: true}
+		}, true},
+		{"saved with a name", func(r *ShareRequest) { r.HotspotConfig, r.Passphrase, r.Band = "saved", "", "" }, false},
+		{"saved with a password", func(r *ShareRequest) { r.HotspotConfig, r.SSID, r.Band = "saved", "", "" }, false},
+		{"saved with a band", func(r *ShareRequest) { r.HotspotConfig, r.SSID, r.Passphrase = "saved", "", "" }, false},
+	}
+	for _, tt := range hotspot {
+		t.Run("hotspot/"+tt.name, func(t *testing.T) {
+			r := tempHotspot
+			tt.mutate(&r)
+			err := r.Validate()
+			if (err == nil) != tt.ok {
+				t.Errorf("Validate = %v, want ok=%v", err, tt.ok)
+			}
+			if err != nil && r.Passphrase != "" && strings.Contains(err.Error(), r.Passphrase) {
+				t.Errorf("the refusal holds the passphrase: %v", err)
+			}
+		})
+	}
 }
+
+// The two hotspot starts the tests use.
+var (
+	savedHotspot = ShareRequest{Op: ShareOpHotspot, HotspotConfig: "saved"}
+	tempHotspot  = ShareRequest{Op: ShareOpHotspot, HotspotConfig: "temp", SSID: "Devpit-abcd", Passphrase: goodPassphrase, Band: "5"}
+)
+
+const goodPassphrase = "40719358"
 
 func TestShareValidateOtherOps(t *testing.T) {
 	shareEnv(t)
@@ -242,6 +404,22 @@ func TestShareValidateOtherOps(t *testing.T) {
 		{Op: ShareOpCleanup, Rules: []string{"FPS-x; calc"}},
 		{Op: ShareOpCleanup, SID: "S-1-5-18"},
 		{Op: ShareOpCleanup, Index: 4},
+		{Op: ShareOpHotspot},
+		{Op: ShareOpCleanup, HotspotRule: "FPS-SMB-In-TCP"},
+		{Op: ShareOpCleanup, HotspotRule: "devpit-hs-*"},
+		{Op: ShareOpCleanup, HotspotRule: "devpit-hs-ab cd"},
+		{Op: ShareOpCleanup, HotspotConfig: "temp", HotspotSSID: "MyHotspot"},
+		{Op: ShareOpCleanup, HotspotConfig: "saved", HotspotSSID: "bad\nname"},
+		{Op: ShareOpCleanup, HotspotConfig: "saved", HotspotSSID: strings.Repeat("x", 33)},
+		{Op: ShareOpCleanup, HotspotConfig: "saved", HotspotSSID: "\xff\xfe"},
+		{Op: ShareOpCleanup, HotspotStarted: true, HotspotSSID: "MyHotspot"},
+		{Op: ShareOpCleanup, HotspotTimeoutChanged: true},
+		{Op: ShareOpCleanup, HotspotConfig: "saved", HotspotLegacy: true},
+		{Op: ShareOpCleanup, HotspotConfig: "mine"},
+		{Op: ShareOpCleanup, Passphrase: goodPassphrase},
+		{Op: ShareOpCleanup, SSID: "Devpit-abcd"},
+		{Op: ShareOpCleanup, Band: "5"},
+		{Op: ShareOpCleanup, SetBand5: true},
 	}
 	for _, r := range bad {
 		if err := r.Validate(); err == nil {
@@ -259,6 +437,14 @@ func TestShareValidateOtherOps(t *testing.T) {
 			Op: ShareOpCleanup, User: "devpit-abcd", SID: "S-1-5-21-1-2-3-1004", Name: "Games-x7k2", Path: `D:\Games`,
 			Rules: []string{"FPS-SMB-In-TCP"}, Index: 5, Original: "Public",
 		},
+		savedHotspot,
+		tempHotspot,
+		{
+			Op: ShareOpCleanup, HotspotConfig: "saved", HotspotRule: "devpit-hs-abcd1234", HotspotStarted: true,
+			HotspotTimeoutWasOn: true, HotspotTimeoutChanged: true, HotspotSSID: "Bob’s hotspot é",
+		},
+		{Op: ShareOpCleanup, HotspotConfig: "temp", HotspotStarted: true, HotspotSSID: "Devpit-abcd", HotspotLegacy: true},
+		{Op: ShareOpCleanup, HotspotConfig: "saved", HotspotStarted: true}, // cut off before the name arrived
 	}
 	for _, r := range good {
 		if err := r.Validate(); err != nil {
@@ -282,6 +468,42 @@ func TestPowerShellIsPassedEncodedFromItsFullPath(t *testing.T) {
 	}
 	if got := decode(argv); got != "powershell: Write-Output 'héllo'" {
 		t.Errorf("round trip = %q", got)
+	}
+
+	// Every hotspot script goes the same way.
+	shareEnv(t)
+	f := newShareFake()
+	f.hsStartOut = sessionStart("Devpit-abcd")
+	s := newSession(f)
+	for _, r := range []ShareRequest{tempHotspot, {Op: ShareOpStop}} {
+		if _, err := run(t, s, r); err != nil {
+			t.Fatalf("%s: %v", r.Op, err)
+		}
+	}
+	seen := map[string]bool{}
+	for i, a := range f.argvs {
+		if len(a) != 6 || a[0] != `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` || a[4] != "-EncodedCommand" {
+			t.Errorf("hotspot command %d is %q", i, a)
+		}
+		for _, m := range []string{"hs-probe", "hs-timeout-off", "hs-start", "hs-rule-add", "hs-rule-remove", "hs-stop", "hs-timeout-on"} {
+			if strings.Contains(f.calls[i], "# devpit "+m+"\n") {
+				seen[m] = true
+			}
+		}
+	}
+	if len(seen) != 7 {
+		t.Errorf("hotspot scripts seen: %v, want all seven", seen)
+	}
+}
+
+func TestShareRequestStringHidesThePassphrase(t *testing.T) {
+	r := tempHotspot
+	got := r.String()
+	if strings.Contains(got, goodPassphrase) || strings.Contains(got, base64.StdEncoding.EncodeToString([]byte(goodPassphrase))) {
+		t.Errorf("String leaks the passphrase: %s", got)
+	}
+	if !strings.Contains(got, "Devpit-abcd") || !strings.Contains(got, "hotspot") {
+		t.Errorf("String = %q, want the op and the name", got)
 	}
 }
 

@@ -110,6 +110,82 @@ func TestAFailedCheckForOtherSharesKeepsTheRecord(t *testing.T) {
 	}
 }
 
+// The hotspot's rule lets in TCP 445 from the hotspot's own /24 and nothing
+// else; an address that is not private stops the operation before any rule
+// is made, and the hotspot it started is still stopped.
+func TestTheHotspotRuleIsScopedToTheHotspotSubnet(t *testing.T) {
+	shareEnv(t)
+	f := newShareFake()
+	if _, err := run(t, newSession(f), savedHotspot); err != nil {
+		t.Fatal(err)
+	}
+	add := marked(f.commands(), "hs-rule-add")
+	if len(add) != 1 {
+		t.Fatalf("rule scripts = %v", add)
+	}
+	if got := psValue(t, add[0], "ra"); got != "192.168.137.0/24" {
+		t.Errorf("the rule lets in %q, want the hotspot's /24", got)
+	}
+	if got := psValue(t, add[0], "d"); got != hsRuleDescription {
+		t.Errorf("the rule's description is %q", got)
+	}
+	if got := psValue(t, add[0], "n"); !hsRulePattern.MatchString(got) {
+		t.Errorf("the rule is named %q", got)
+	}
+	if !strings.Contains(add[0], "-Direction Inbound -Protocol TCP -LocalPort 445 -RemoteAddress $ra -Profile Any -Action Allow") {
+		t.Errorf("the rule is not inbound TCP 445 from $ra only:\n%s", add[0])
+	}
+
+	for _, ip := range []string{"8.8.8.8", "", "garbage", "fe80::1", "192.168.137.1; calc", "127.0.0.1", "169.254.1.1"} {
+		f := newShareFake()
+		f.hsStartOut = append(savedStart("MyHotspot"), "HSIP="+ip)
+		s := newSession(f)
+		if _, err := run(t, s, savedHotspot); err == nil {
+			t.Errorf("HSIP=%q was accepted", ip)
+		}
+		if len(marked(f.commands(), "hs-rule-add")) != 0 || s.state.hotspot.rule != "" {
+			t.Errorf("HSIP=%q: a rule was made", ip)
+		}
+		if _, err := run(t, s, ShareRequest{Op: ShareOpStop}); err != nil || len(marked(f.commands(), "hs-stop")) != 1 {
+			t.Errorf("HSIP=%q: the started hotspot was not stopped (%v)", ip, err)
+		}
+	}
+	if got, err := hotspotSubnet("10.20.30.40"); err != nil || got != "10.20.30.0/24" {
+		t.Errorf("hotspotSubnet(10.20.30.40) = %q, %v", got, err)
+	}
+}
+
+// The rule is removed by its exact name and Devpit's description: never by
+// a wildcard, never a rule of the user's that happens to share the name.
+func TestTheHotspotRuleIsRemovedByExactNameOnly(t *testing.T) {
+	shareEnv(t)
+	f := newShareFake()
+	s := newSession(f)
+	if _, err := run(t, s, savedHotspot); err != nil {
+		t.Fatal(err)
+	}
+	name := s.state.hotspot.rule
+	if _, err := run(t, s, ShareRequest{Op: ShareOpStop}); err != nil {
+		t.Fatal(err)
+	}
+	rm := marked(f.commands(), "hs-rule-remove")
+	if len(rm) != 1 || psValue(t, rm[0], "n") != name || psValue(t, rm[0], "d") != hsRuleDescription {
+		t.Fatalf("remove scripts = %v, want one for %s", rm, name)
+	}
+	if !strings.Contains(scriptHotspotRuleRemove, "$_.Name -ceq $n -and $_.Description -ceq $d") ||
+		!strings.Contains(scriptHotspotRuleRemove, "if($r.Count -eq 1)") {
+		t.Error("the removal does not insist on the exact name and the description")
+	}
+	if strings.Contains(scriptHotspotRuleRemove, "*") || strings.Contains(scriptHotspotRuleRemove, "-like") {
+		t.Error("the removal matches by wildcard")
+	}
+	for _, bad := range []string{"devpit-hs-*", "devpit-hs-ab?d", "devpit-hs-[ab]", "FPS-SMB-In-TCP", "devpit-hs-abcd'"} {
+		if err := (ShareRequest{Op: ShareOpCleanup, HotspotRule: bad}).Validate(); err == nil {
+			t.Errorf("a cleanup of rule %q was accepted", bad)
+		}
+	}
+}
+
 // icacls fails with 1332 when the account the permission names is gone;
 // then there is nothing left to remove.
 func TestAPermissionForAnAccountThatIsGoneCountsAsRemoved(t *testing.T) {

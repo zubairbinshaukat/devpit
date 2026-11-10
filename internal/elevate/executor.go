@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -32,6 +33,20 @@ type Executor interface {
 	// Remove deletes path. [Serve] has already checked path is inside an
 	// allowed cleanup root before calling this.
 	Remove(ctx context.Context, path string) error
+}
+
+// InputExecutor is an [Executor] that can also hand the command data on its
+// standard input. The hotspot scripts use it for their passwords: a script's
+// text can be written to the Windows PowerShell event log (event 4104 logs any
+// script block that uses Add-Type, even with no logging policy set), and a
+// command line to the process creation audit, but standard input is in
+// neither. [DefaultExecutor] implements it; an executor that does not is never
+// given a password.
+type InputExecutor interface {
+	// ExecInput is [Executor.Exec] with stdin written to the command's
+	// standard input, which is then closed. An empty stdin is the same as
+	// Exec: the command's standard input is the null device.
+	ExecInput(ctx context.Context, argv []string, stdin string, onLine func(stream, text string)) (exitCode int, err error)
 }
 
 // DefaultExecutor is the real implementation: it shells out with os/exec
@@ -72,7 +87,12 @@ func splitExecLines(data []byte, atEOF bool) (int, []byte, error) {
 // through its job can exit with code 0, which must not read as success. A
 // command that ends on its own leaves alone whatever it started and meant to
 // keep running, such as the updated app relaunched.
-func (DefaultExecutor) Exec(ctx context.Context, argv []string, onLine func(stream, text string)) (int, error) {
+func (d DefaultExecutor) Exec(ctx context.Context, argv []string, onLine func(stream, text string)) (int, error) {
+	return d.ExecInput(ctx, argv, "", onLine)
+}
+
+// ExecInput implements [InputExecutor]. It behaves as [DefaultExecutor.Exec].
+func (DefaultExecutor) ExecInput(ctx context.Context, argv []string, stdin string, onLine func(stream, text string)) (int, error) {
 	if len(argv) == 0 {
 		return -1, errors.New("elevate: exec requires at least one argument")
 	}
@@ -96,6 +116,9 @@ func (DefaultExecutor) Exec(ctx context.Context, argv []string, onLine func(stre
 		return cmd.Process.Kill()
 	}
 	cmd.WaitDelay = waitDelay
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return -1, err

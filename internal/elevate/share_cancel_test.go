@@ -28,8 +28,12 @@ func newStuckShare(match string) *stuckShare {
 }
 
 func (s *stuckShare) Exec(ctx context.Context, argv []string, onLine func(stream, text string)) (int, error) {
+	return s.ExecInput(ctx, argv, "", onLine)
+}
+
+func (s *stuckShare) ExecInput(ctx context.Context, argv []string, stdin string, onLine func(stream, text string)) (int, error) {
 	if !strings.Contains(decode(argv), s.match) {
-		return s.shareFake.Exec(ctx, argv, onLine)
+		return s.shareFake.ExecInput(ctx, argv, stdin, onLine)
 	}
 	select {
 	case s.running <- struct{}{}:
@@ -130,6 +134,44 @@ func TestAStuckShareOperationCanBeCancelledAndTheWorkerCarriesOn(t *testing.T) {
 	for _, want := range []string{"-NetworkCategory Public", "Enabled False"} {
 		if !strings.Contains(all, want) {
 			t.Errorf("the worker did not undo %q:\n%s", want, all)
+		}
+	}
+}
+
+// A hotspot start stuck in Windows can be cancelled like any other step, the
+// worker carries on, and the hotspot it may have started and the timeout it
+// turned off are undone at the end.
+func TestAStuckHotspotStartCanBeCancelled(t *testing.T) {
+	shareEnv(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	f := newStuckShare("# devpit hs-start")
+	peer, serveErr := dialRawWith(ctx, t, f, defaultLimits())
+
+	req := savedHotspot
+	peer.send(t, Request{ID: "h", Kind: KindShare, Share: &req})
+	// net.Pipe is unbuffered: take the progress lines up to the start
+	// (checking, HSCAP, HSTIMEOUT, keeping the hotspot on, starting).
+	for range 5 {
+		peer.infoLine(t)
+	}
+	f.waitRunning(t)
+	peer.send(t, Request{ID: "c", Kind: KindCancel, Target: "h"})
+	if ev := peer.doneFor(t, "h"); ev.Err != "cancelled" {
+		t.Fatalf("done = %+v, want the stuck start cancelled", ev)
+	}
+
+	peer.send(t, Request{ID: "f", Kind: KindShare, Share: &ShareRequest{Op: ShareOpFirewall}})
+	if ev := peer.doneFor(t, "f"); ev.Err != "" {
+		t.Fatalf("the next operation failed: %+v", ev)
+	}
+
+	peer.send(t, Request{Kind: KindShutdown})
+	waitServed(t, serveErr, 3*time.Second)
+	cmds := f.commands()
+	for _, m := range []string{"hs-stop", "hs-timeout-on"} {
+		if len(marked(cmds, m)) != 1 {
+			t.Errorf("the worker did not run %s:\n%s", m, strings.Join(cmds, "\n"))
 		}
 	}
 }

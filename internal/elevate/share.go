@@ -37,6 +37,9 @@ const (
 	ShareOpGrant ShareOp = "grant"
 	// ShareOpShare creates the read-only share.
 	ShareOpShare ShareOp = "share"
+	// ShareOpHotspot starts the Windows Mobile Hotspot for this share and
+	// opens TCP 445 to the hotspot's own subnet only; see share_hotspot.go.
+	ShareOpHotspot ShareOp = "hotspot"
 	// ShareOpStop undoes everything this worker did, in reverse order.
 	ShareOpStop ShareOp = "stop"
 	// ShareOpCleanup undoes what an earlier run recorded in its manifest,
@@ -80,11 +83,50 @@ type ShareRequest struct {
 	Name string `json:"name,omitempty"`
 	// Rules are the firewall rules an earlier run turned on, for cleanup.
 	Rules []string `json:"rules,omitempty"`
+
+	// The hotspot fields; see share_hotspot.go for the whole contract.
+
+	// HotspotConfig is "saved" (the user's own saved hotspot settings) or
+	// "temp" (a temporary Devpit-xxxx name and an 8-digit password), for
+	// hotspot and cleanup.
+	HotspotConfig string `json:"hotspotConfig,omitempty"`
+	// SetBand5 switches the saved hotspot to 5 GHz before the start,
+	// keeping its name and password, for hotspot in saved mode only. It is
+	// never put back (owner decision 18).
+	SetBand5 bool `json:"setBand5,omitempty"`
+	// SSID is the temporary hotspot name, for hotspot in temp mode only.
+	SSID string `json:"ssid,omitempty"`
+	// Passphrase is the temporary hotspot password, for hotspot in temp mode
+	// only. Like Password it is never on a command line in plain form, in a
+	// log line or in an error, and String never prints it.
+	Passphrase string `json:"passphrase,omitempty"`
+	// Band is "5", "6" or "auto", for hotspot in temp mode only.
+	Band string `json:"band,omitempty"`
+	// HotspotRule is the devpit-hs- firewall rule an earlier run made, for
+	// cleanup only.
+	HotspotRule string `json:"hotspotRule,omitempty"`
+	// HotspotStarted says an earlier run started the hotspot, for cleanup.
+	HotspotStarted bool `json:"hotspotStarted,omitempty"`
+	// HotspotTimeoutWasOn and HotspotTimeoutChanged say the "turn off when
+	// nothing is connected" setting was on and an earlier run turned it off,
+	// for cleanup.
+	HotspotTimeoutWasOn   bool `json:"hotspotTimeoutWasOn,omitempty"`
+	HotspotTimeoutChanged bool `json:"hotspotTimeoutChanged,omitempty"`
+	// HotspotSSID is the name of the hotspot an earlier run started, which
+	// must still be the running name before cleanup stops it, for cleanup.
+	HotspotSSID string `json:"hotspotSsid,omitempty"`
+	// HotspotLegacy says an earlier temp-mode run overwrote the saved
+	// hotspot settings (Windows before 26100), for cleanup. The settings
+	// themselves were held in worker memory only and cannot be restored.
+	HotspotLegacy bool `json:"hotspotLegacy,omitempty"`
 }
 
-// String describes the request without its password, so it is safe in any
-// log or error message.
+// String describes the request without its password or hotspot passphrase,
+// so it is safe in any log or error message.
 func (r ShareRequest) String() string {
+	if r.Op == ShareOpHotspot {
+		return fmt.Sprintf("share %s (%s, ssid %s, band %s, band switch %t)", r.Op, r.HotspotConfig, r.SSID, r.Band, r.SetBand5)
+	}
 	return fmt.Sprintf("share %s (user %s, path %s, name %s)", r.Op, r.User, r.Path, r.Name)
 }
 
@@ -109,7 +151,18 @@ var (
 	// and no shell character can get through. The code is short on purpose
 	// (about 20 bits, easy to read out); see host.PasswordLength.
 	passwordPattern = regexp.MustCompile(`^[0-9]{6}$`)
+	// ssidPattern is the temporary hotspot name the host generates.
+	ssidPattern = regexp.MustCompile(`^Devpit-[a-z0-9]{4,12}$`)
+	// passphrasePattern is the temporary hotspot password: an 8-digit
+	// number (owner decision 19), the shortest WPA2 allows.
+	passphrasePattern = regexp.MustCompile(`^[0-9]{8}$`)
+	// hsRulePattern is the hotspot's own firewall rule. rulePattern (FPS-)
+	// is not widened for it.
+	hsRulePattern = regexp.MustCompile(`^devpit-hs-[a-z0-9]{4,12}$`)
 )
+
+// hotspotBands are the bands a temp-mode hotspot request may name.
+var hotspotBands = map[string]bool{"5": true, "6": true, "auto": true}
 
 // categories are the network categories a profile operation may name.
 var categories = map[string]bool{"Private": true, "Public": true}
@@ -161,6 +214,8 @@ func (r ShareRequest) Validate() error {
 			return err
 		}
 		return needPath()
+	case ShareOpHotspot:
+		return r.validateHotspot()
 	case ShareOpCleanup:
 		return r.validateCleanup(needUser, needName, needPath)
 	default:
@@ -201,7 +256,7 @@ func (r ShareRequest) validateCleanup(needUser, needName, needPath func() error)
 			return errors.New("refused: the saved network profile is not valid")
 		}
 	}
-	return nil
+	return r.validateHotspotCleanup()
 }
 
 // accountError words a failure of the account creation. A refusal by this
