@@ -97,7 +97,7 @@ func parseIPv4(ip string) (netip.Addr, error) {
 // rawAdapter is what the Windows calls say about one adapter.
 type rawAdapter struct {
 	alias         string
-	guid          string // "{XXXXXXXX-...}", as [WifiInterface].GUID
+	guid          string //nolint:unused // "{XXXXXXXX-...}", as [WifiInterface].GUID; set and read by Windows code only
 	index, ifType uint32
 	flags         uint8
 	haveFlags     bool
