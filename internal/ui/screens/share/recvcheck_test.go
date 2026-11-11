@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zubairbinshaukat/devpit/internal/config"
 	"github.com/zubairbinshaukat/devpit/internal/share/job"
@@ -68,6 +69,12 @@ func recvCheckStates() []goldenState {
 			c := clashRecv()
 			c.check = recv.HostCheck{Reachable: true, Via: "Wi-Fi"}
 			return joinSaved(newCheckHarness(t, c)).send(enter()).scr
+		}},
+		{"recv_copy_estimated", func(t *testing.T) uictx.Screen {
+			s := asRecv(recvIn(t, newRecvFake()))
+			s.stage, s.host = recvCopy, "192.168.1.178"
+			s.ev = recv.Event{Phase: recv.PhaseCopying, TotalBytes: 56 << 30, DoneBytes: 26 << 30, TotalFiles: 8, Estimated: true, Elapsed: 62 * time.Minute}
+			return s
 		}},
 		{"recv_check_no_answer", func(t *testing.T) uictx.Screen {
 			c := clashRecv()

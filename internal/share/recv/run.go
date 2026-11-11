@@ -35,9 +35,17 @@ type Event struct {
 	// across every run of it. DoneFiles and TotalFiles likewise.
 	DoneBytes, TotalBytes int64
 	DoneFiles, TotalFiles int64
-	// Speed is bytes per second, measured on the network adapter.
+	// Speed is bytes per second, measured on the share's own byte counter,
+	// or on the network adapter when that cannot be read (see Estimated).
 	Speed float64
-	// ETA is the time left at that speed, or zero when not known yet.
+	// Estimated is true when Speed and the bytes of the files still copying
+	// come from the network adapter's count, which includes everything else
+	// this PC receives on it, so they may be too high. False means they come
+	// from this share's own counter, or from robocopy's file lines alone.
+	// Either way DoneBytes reaches TotalBytes only from robocopy's own lines.
+	Estimated bool
+	// ETA is the time left at that speed, or zero when the speed is not known
+	// yet. It is never zero while robocopy has files left to report.
 	ETA time.Duration
 	// Recent are the latest finished files, newest last.
 	Recent []string
@@ -126,7 +134,8 @@ func (s *Session) Start(host, share, user, dest string, plan robocopy.Plan) job.
 // keeps failing with nothing new copied. The whole life of a copy is here:
 //
 //  1. run robocopy; read its log as it grows;
-//  2. measure speed on the network adapter and send an event each tick;
+//  2. measure speed on the share's own byte counter (the network adapter's
+//     when that cannot be read) and send an event each tick;
 //  3. when robocopy ends with failures, check whether the other PC still
 //     answers on port 445; if not, wait with a growing pause until it does,
 //     then run robocopy again, which skips what is finished;
@@ -159,12 +168,25 @@ func (s *Session) run(ctx context.Context, j job.Job, onEvent func(Event)) (Outc
 	defer release()
 
 	started := s.deps.Now()
-	var meter *netstat.Meter
-	if s.deps.Counters != nil {
-		if c, err := s.deps.Counters(j.Host); err == nil {
-			meter = netstat.NewMeter(c, s.deps.Now)
+	// The share's own byte counter counts this copy and nothing else; the
+	// adapter's counts everything this PC receives on it, and is only the
+	// fallback.
+	var shareRead func() (uint64, error)
+	if s.deps.ShareCounter != nil {
+		if r, closeFn, err := s.deps.ShareCounter(netstat.UNC(j.Host, j.Share)); err == nil && r != nil {
+			shareRead = r
+			if closeFn != nil {
+				defer closeFn()
+			}
 		}
 	}
+	var adapter netstat.Counters
+	if s.deps.Counters != nil {
+		if c, err := s.deps.Counters(j.Host); err == nil {
+			adapter = c
+		}
+	}
+	meter := newCopyMeter(shareRead, adapter, s.deps.Now)
 	save := func(state job.State, lastErr string, failed []string) {
 		j.State, j.LastError, j.Failed, j.Updated = state, lastErr, failed, s.deps.Now()
 		_ = job.Save(s.deps.StateDir, j)
@@ -282,7 +304,7 @@ func (s *Session) run(ctx context.Context, j job.Job, onEvent func(Event)) (Outc
 // A goroutine runs robocopy; this one measures speed each tick and turns the
 // latest log progress into events, so every callback runs on the caller's
 // goroutine.
-func (s *Session) runOnce(ctx context.Context, j job.Job, attempt int, meter *netstat.Meter, prev Event, emit func(Event)) (robocopy.Result, robocopy.Progress, error) {
+func (s *Session) runOnce(ctx context.Context, j job.Job, attempt int, meter *copyMeter, prev Event, emit func(Event)) (robocopy.Result, robocopy.Progress, error) {
 	logPath, err := s.newLogPath("copy")
 	if err != nil {
 		return robocopy.Result{}, robocopy.Progress{}, err
@@ -314,37 +336,34 @@ func (s *Session) runOnce(ctx context.Context, j job.Job, attempt int, meter *ne
 	}()
 
 	var cur robocopy.Progress
-	if meter != nil {
-		// Baseline for this run. Without Rebase, "received" kept counting
-		// from the first run, so after a network drop the second run started
-		// with the first run's bytes added on top of what was already saved,
-		// and the bar jumped to nearly full.
-		meter.Rebase()
-		meter.Sample()
-	}
+	// Baseline for this run. Without the rebase, "counted" kept counting from
+	// the first run, so after a network drop the second run started with the
+	// first run's bytes added on top of what was already saved, and the bar
+	// jumped to nearly full.
+	meter.rebase()
+	_, _, estimated, _ := meter.sample()
 	tick := time.NewTicker(s.deps.Tick)
 	defer tick.Stop()
 	speed := prev.Speed
-	var received uint64
+	var counted uint64
+	var shown int64 // the bar never goes back within a run
 	build := func() Event {
 		remaining := j.TotalBytes - j.DoneBytes
-		doneNow := cur.BytesDone
-		// The adapter's count includes a file that is still copying, which
-		// the file lines cannot see. Use it while it is ahead, but never let
-		// it reach the total before robocopy says so.
-		if est := min(int64(received), remaining-1); est > doneNow { //nolint:gosec // received is far below MaxInt64
-			doneNow = max(est, 0)
-		}
+		// The counter includes a file that is still copying, which the file
+		// lines cannot see. Use it while it is ahead, but never let it reach
+		// the total: only robocopy's own lines do that.
+		doneNow := max(cur.BytesDone, capEstimate(counted, remaining), shown)
+		shown = doneNow
 		e := Event{
 			Phase:     PhaseCopying,
 			DoneBytes: j.DoneBytes + doneNow, DoneFiles: j.DoneFiles + cur.FilesDone,
-			Speed: speed, Recent: cur.Recent, Attempt: attempt,
+			Speed: speed, Estimated: estimated, Recent: cur.Recent, Attempt: attempt,
 		}
 		if cur.Retrying {
 			e.Phase = PhaseRetrying
 			e.Note = "The network hiccuped. Trying that file again."
 		}
-		e.ETA = netstat.ETA(j.TotalBytes-e.DoneBytes, speed)
+		e.ETA = etaLeft(j.TotalBytes-e.DoneBytes, speed, e.DoneFiles < j.TotalFiles)
 		return e
 	}
 	emit(build())
@@ -353,8 +372,8 @@ func (s *Session) runOnce(ctx context.Context, j job.Job, attempt int, meter *ne
 		case p := <-progCh:
 			cur = p
 		case <-tick.C:
-			if meter != nil {
-				speed, received = meter.Sample()
+			if sp, n, est, ok := meter.sample(); ok {
+				speed, counted, estimated = sp, n, est
 			}
 			emit(build())
 		case d := <-doneCh:

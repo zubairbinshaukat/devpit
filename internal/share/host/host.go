@@ -69,6 +69,12 @@ type Deps struct {
 	// releases the counter when sharing stops. Nil means the adapter's own out
 	// counter. This is the seam for a future per-share source.
 	Counter func(share string, a Adapter) (read func() (uint64, error), src ProgressSource, closeFn func())
+	// ShareCounter opens the share's own byte counter, the bytes other PCs
+	// read from the share named share ([winapi.OpenServerShareBytes]), and
+	// returns its reader and its release. Once it reads, [Manager.Progress]
+	// uses it instead of Counter and says [SourceShare]; a failure to open or
+	// to read leaves Counter in use. Nil means the Windows counter.
+	ShareCounter func(share string) (read func() (uint64, error), closeFn func(), err error)
 	// Measure adds up the size of the shared folder, once, in the background.
 	// Its context is cancelled when sharing stops. Nil means [MeasureFolder].
 	Measure func(ctx context.Context, root string) (FolderSize, error)
@@ -96,6 +102,16 @@ func adapterCounter(_ string, a Adapter) (func() (uint64, error), ProgressSource
 	return read, SourceAdapter, func() {}
 }
 
+// serverShareCounter is the default [Deps.ShareCounter]: Windows' own count
+// of the bytes read from the share. Reading it needs no administrator rights.
+func serverShareCounter(share string) (func() (uint64, error), func(), error) {
+	c, err := winapi.OpenServerShareBytes(share)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c.Read, c.Close, nil
+}
+
 // withDefaults fills in what a caller left out.
 func (d Deps) withDefaults() Deps {
 	if d.Launch == nil {
@@ -121,6 +137,9 @@ func (d Deps) withDefaults() Deps {
 	}
 	if d.Counter == nil {
 		d.Counter = adapterCounter
+	}
+	if d.ShareCounter == nil {
+		d.ShareCounter = serverShareCounter
 	}
 	if d.Measure == nil {
 		d.Measure = MeasureFolder
@@ -561,9 +580,10 @@ func (m *Manager) Start(ctx context.Context, opts Options, onStep func(Step)) (C
 	if aerr != nil {
 		rel = func() {}
 	}
-	// Progress is read from the sending adapter's counter, not from the
-	// worker: it needs no admin and adds no operation. The first reading is
-	// the baseline, so what the PC sent before sharing is not counted.
+	// Progress is read from the share's own byte counter, or the sending
+	// adapter's when that cannot be read, not from the worker: it needs no
+	// admin and adds no operation. The first reading is the baseline, so what
+	// the PC sent before sharing is not counted.
 	read, src, closeCounter := m.deps.Counter(share, sharedOn)
 	if read == nil {
 		read = func() (uint64, error) { return 0, errors.New("no byte counter") }
@@ -572,6 +592,13 @@ func (m *Manager) Start(ctx context.Context, opts Options, onStep func(Step)) (C
 		closeCounter = func() {}
 	}
 	tr := newTraffic(read, src, m.deps.Now)
+	if sread, sclose, serr := m.deps.ShareCounter(share); serr == nil && sread != nil {
+		tr.preferShare(sread)
+		if sclose != nil {
+			adapterClose := closeCounter
+			closeCounter = func() { sclose(); adapterClose() }
+		}
+	}
 	tr.sample()
 	// The folder is measured once, in the background, on its own context: the
 	// caller's ctx ends when Start returns, and Stop cancels this one.

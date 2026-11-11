@@ -42,6 +42,13 @@ type Deps struct {
 	// Counters returns the byte counters of the adapter that routes to host.
 	// A failure means speed falls back to the copy's own file lines.
 	Counters func(host string) (netstat.Counters, error)
+	// ShareCounter opens the per-share byte counter for the share at unc
+	// (`\\host\share`): the bytes this PC read from that one share
+	// ([winapi.OpenClientShareBytes]). It returns the reader and the function
+	// that releases it. It is preferred over Counters, which counts all of
+	// the adapter's traffic; nil or a failure means Counters is used, and the
+	// events say so with Event.Estimated.
+	ShareCounter func(unc string) (read func() (uint64, error), closeFn func(), err error)
 	// KeepAwake stops the PC sleeping during a copy.
 	KeepAwake func() (release func(), err error)
 	// Now is the clock and Sleep the wait, both injected for tests.
@@ -96,6 +103,13 @@ func Real(stateDir, logDir string) Deps {
 		Counters: func(host string) (netstat.Counters, error) {
 			c, _, err := netstat.AdapterCounters(host)
 			return c, err
+		},
+		ShareCounter: func(unc string) (func() (uint64, error), func(), error) {
+			c, err := winapi.OpenClientShareBytes(unc)
+			if err != nil {
+				return nil, nil, err
+			}
+			return c.Read, c.Close, nil
 		},
 		KeepAwake: winapi.KeepAwake,
 		Wifi:      WinWifi{},

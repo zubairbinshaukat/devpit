@@ -29,6 +29,13 @@ type progRig struct {
 	measureDone chan struct{}
 	size        FolderSize
 	block       bool // the measure waits for its context instead of answering
+
+	// The fake per-share counter: off (failing to open) unless shareOn.
+	shareOn     bool
+	shareName   string
+	shareN      atomic.Uint64
+	shareOpened atomic.Int32
+	shareClosed atomic.Int32
 }
 
 func newProgRig(t *testing.T, src ProgressSource) *progRig {
@@ -60,6 +67,17 @@ func newProgRig(t *testing.T, src ProgressSource) *progRig {
 				t.Errorf("the counter was opened for %q on adapter %d", share, a.Index)
 			}
 			return func() (uint64, error) { return r.out.Load(), nil }, src, func() { r.closed.Add(1) }
+		},
+		ShareCounter: func(share string) (func() (uint64, error), func(), error) {
+			r.mu.Lock()
+			on := r.shareOn
+			r.shareName = share
+			r.mu.Unlock()
+			if !on {
+				return nil, nil, errors.New("no SMB counters here")
+			}
+			r.shareOpened.Add(1)
+			return func() (uint64, error) { return r.shareN.Load(), nil }, func() { r.shareClosed.Add(1) }, nil
 		},
 		Measure: func(ctx context.Context, root string) (FolderSize, error) {
 			r.measures.Add(1)
@@ -307,4 +325,62 @@ func TestProgressSourceDefaultsToTheAdapter(t *testing.T) {
 		t.Errorf("a per-share counter reported source %q", p.Source)
 	}
 	_ = r2.m.Stop(context.Background())
+}
+
+func TestTheSenderPrefersTheShareCounterAndReleasesIt(t *testing.T) {
+	r := newProgRig(t, SourceAdapter)
+	r.shareOn = true
+	r.out.Store(1000)
+	r.shareN.Store(500)
+	r.start(t)
+	r.out.Add(10_000_000_000) // everything else the adapter sent
+	r.shareN.Add(4096)        // what was read from this share
+	p := r.m.Progress()
+	if p.Source != SourceShare || !p.Exact() || p.Sent != 4096 {
+		t.Fatalf("progress = %+v, want 4096 sent, exact, from the share counter", p)
+	}
+	r.mu.Lock()
+	name := r.shareName
+	r.mu.Unlock()
+	if card, _ := r.m.Card(); name == "" || name != card.Share {
+		t.Errorf("share counter opened for %q, want the share %q", name, card.Share)
+	}
+	if err := r.m.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if r.shareOpened.Load() != 1 || r.shareClosed.Load() != 1 || r.closed.Load() != 1 {
+		t.Errorf("share counter opened %d, closed %d; adapter closed %d; want one each",
+			r.shareOpened.Load(), r.shareClosed.Load(), r.closed.Load())
+	}
+}
+
+func TestTheSenderFallsBackToTheAdapterMarkedEstimated(t *testing.T) {
+	r := newProgRig(t, SourceAdapter) // the share counter fails to open
+	r.start(t)
+	r.out.Add(7000)
+	p := r.m.Progress()
+	if p.Source != SourceAdapter || p.Exact() || p.Sent != 7000 {
+		t.Fatalf("progress = %+v, want the adapter's 7000, not exact", p)
+	}
+	_ = r.m.Stop(context.Background())
+	if r.shareClosed.Load() != 0 || r.closed.Load() != 1 {
+		t.Errorf("share closed %d, adapter closed %d", r.shareClosed.Load(), r.closed.Load())
+	}
+}
+
+func TestTheDefaultShareCounterIsWindowsOwn(t *testing.T) {
+	d := Deps{}.withDefaults()
+	if d.ShareCounter == nil {
+		t.Fatal("no default share counter")
+	}
+	// A share that does not exist: opening may work (Windows) or not
+	// (elsewhere), but reading must never claim bytes for it.
+	read, closeFn, err := d.ShareCounter("devpit-no-such-share")
+	if err != nil {
+		return
+	}
+	defer closeFn()
+	if _, rerr := read(); rerr == nil {
+		t.Error("a share that does not exist read without an error")
+	}
 }

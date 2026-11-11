@@ -143,3 +143,41 @@ func TestPartialFolderMeasureMarksTheTotalPartial(t *testing.T) {
 		t.Errorf("progress = %+v, want a known but partial total", p)
 	}
 }
+
+func TestTheShareCounterIsPreferredOverTheAdapterForSending(t *testing.T) {
+	tr, adapter := newCounterTraffic(0)
+	share := &counter{now: adapter.now}
+	tr.preferShare(share.read)
+	tr.sample()
+	adapter.n += 10_000_000_000 // other traffic on the adapter
+	share.n += 2048
+	adapter.now = adapter.now.Add(time.Second)
+	p := tr.sample()
+	if p.Source != SourceShare || !p.Exact() || p.Sent != 2048 {
+		t.Errorf("progress = %+v, want 2048 sent, exact, from the share", p)
+	}
+	if !p.Flowing || p.Rate > 1e6 {
+		t.Errorf("rate %v flowing %v, want the share's speed", p.Rate, p.Flowing)
+	}
+}
+
+func TestTheSenderUsesTheAdapterUntilTheShareCounterReads(t *testing.T) {
+	tr, adapter := newCounterTraffic(0)
+	share := &counter{fail: true}
+	tr.preferShare(share.read)
+	tr.sample()
+	adapter.n += 3000
+	adapter.now = adapter.now.Add(time.Second)
+	if p := tr.sample(); p.Source != SourceAdapter || p.Exact() || p.Sent != 3000 {
+		t.Fatalf("share unreadable: progress = %+v, want the adapter's 3000, not exact", p)
+	}
+	share.fail = false // the share's instance appeared
+	share.n = 100
+	adapter.now = adapter.now.Add(time.Second)
+	tr.sample() // its baseline
+	share.n += 500
+	adapter.now = adapter.now.Add(time.Second)
+	if p := tr.sample(); p.Source != SourceShare || p.Sent != 500 {
+		t.Errorf("share readable: progress = %+v, want the share's 500, exact", p)
+	}
+}

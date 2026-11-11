@@ -156,7 +156,11 @@ func (m recvScreen) copyView(ctx uictx.Context) string {
 	var b strings.Builder
 	b.WriteString(th.Title.Render("Copying") + th.Muted.Render(" from "+m.host) + "\n")
 	b.WriteString(" " + ctx.Track(frac, min(48, max(10, ctx.Width-12))) + th.Info.Render(fmt.Sprintf("  %3.0f%%", frac*100)) + "\n")
-	b.WriteString(th.Base.Bold(true).Render(fmt.Sprintf(" %s of %s", recv.FormatBytes(e.DoneBytes), recv.FormatBytes(e.TotalBytes))))
+	about := ""
+	if e.Estimated {
+		about = "about "
+	}
+	b.WriteString(th.Base.Bold(true).Render(fmt.Sprintf(" %s%s of %s", about, recv.FormatBytes(e.DoneBytes), recv.FormatBytes(e.TotalBytes))))
 	stats := []string{speedText(e.Speed), etaText(e.ETA)}
 	for _, s := range stats {
 		if s != "" {
@@ -164,7 +168,11 @@ func (m recvScreen) copyView(ctx uictx.Context) string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(fmt.Sprintf(" %s of %s files  ·  %s", commas(e.DoneFiles), commas(e.TotalFiles), roundDuration(e.Elapsed))) + "\n\n")
+	b.WriteString(th.Muted.Render(fmt.Sprintf(" %s of %s files  ·  %s", commas(e.DoneFiles), commas(e.TotalFiles), roundDuration(e.Elapsed))) + "\n")
+	if e.Estimated {
+		b.WriteString(th.Muted.Render(" Counts everything this PC receives on its network, not only this copy.") + "\n")
+	}
+	b.WriteString("\n")
 
 	rows := m.copyRows(e)
 	b.WriteString(activity.View(ctx, rows, m.frame, ctx.Width, max(3, ctx.BodyHeight-9)))

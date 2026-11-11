@@ -160,5 +160,5 @@ func (m hostScreen) trafficNote() string {
 	if m.prog.Source == host.SourceAdapter {
 		return "Counts everything this PC sends on " + m.card.Adapter + ", not only this copy."
 	}
-	return "Counted for every PC copying from this share. Not exact."
+	return "Counted for this share (every PC copying from it)."
 }
