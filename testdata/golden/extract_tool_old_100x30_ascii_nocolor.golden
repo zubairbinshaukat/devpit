@@ -1,0 +1,13 @@
+hatchzip 0.1.8 is installed. Devpit needs 0.1.10 or newer.
+
+| > Update hatchzip with Scoop
+|   Refreshes Scoop's buckets, then updates hatchzip. No admin needed.
+
+    Not now
+    Go back
+
+Devpit will run exactly:
+  scoop update
+  scoop update hatchzip
+
+[keys] ↑↓ move  ·  enter select  ·  r check again  ·  esc back

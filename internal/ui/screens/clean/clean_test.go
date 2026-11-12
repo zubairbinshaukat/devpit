@@ -13,8 +13,10 @@ import (
 
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
+	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/clean"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
@@ -609,3 +611,150 @@ func TestDuplicateKeyPressesAreDebounced(t *testing.T) {
 // msgName is the type name of a message, which is how this test counts the
 // batches without reaching into the package's unexported types.
 func msgName(msg tea.Msg) string { return fmt.Sprintf("%T", msg) }
+
+// menuWith is the clean menu after its Init has read a record of unfinished
+// extractions holding these archives.
+func menuWith(t *testing.T, cfg config.Config, unfinished ...string) *harness {
+	t.Helper()
+	engines := baseEngines()
+	engines.Unfinished = unfinishedList(unfinished...)
+	s := clean.New().WithClock(stepClock()).WithEngines(engines)
+	h := newHarness(t, s, cfg)
+	h.queue(s.Init())
+	h.settle()
+	return h
+}
+
+func TestCleanMenuHasTheExtractRow(t *testing.T) {
+	h := menuWith(t, testConfig())
+	view := ansi.Strip(h.view())
+	for _, want := range []string{
+		"Resume interrupted deletes",
+		"Extract big archive in place",
+		"Unpack a big .zip, .7z or .rar even when the disk is nearly full",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("the menu does not say %q:\n%s", want, view)
+		}
+	}
+	if strings.Index(view, "Extract big archive in place") < strings.Index(view, "Resume interrupted deletes") {
+		t.Errorf("the Extract row is not the last one:\n%s", view)
+	}
+	if strings.Contains(view, "unfinished") {
+		t.Errorf("a reminder is shown with nothing unfinished:\n%s", view)
+	}
+
+	// Enter on it pushes the Extract screen. It starts nothing here: the
+	// clean screen stays on its menu, idle.
+	for range 4 {
+		h.special(tea.KeyDown)
+	}
+	h.special(tea.KeyEnter)
+	h.settle()
+	var pushed uictx.Screen
+	for _, msg := range h.trace {
+		if p, ok := msg.(uictx.PushScreenMsg); ok {
+			pushed = p.Screen
+		}
+	}
+	if pushed == nil {
+		t.Fatal("Enter on the Extract row pushed nothing")
+	}
+	if got := pushed.Title(); got != "Free Up Disk Space · Extract" {
+		t.Errorf("the pushed screen is titled %q", got)
+	}
+	uictx.Stop(pushed)
+	if h.state() != "menu" || h.model().Busy() {
+		t.Errorf("the clean screen is on %q, busy %v", h.state(), h.model().Busy())
+	}
+}
+
+func TestCleanMenuShowsTheUnfinishedHint(t *testing.T) {
+	one := menuWith(t, testConfig(), `D:\Downloads\Game-Backup.zip`)
+	if view := ansi.Strip(one.view()); !strings.Contains(view, "! 1 unfinished extraction: Game-Backup.zip. Open Extract to resume it.") {
+		t.Errorf("the reminder is missing:\n%s", view)
+	}
+	many := menuWith(t, testConfig(), `D:\Downloads\Game-Backup.zip`, `E:\iso\dataset.zip`, `E:\iso\more.zip`)
+	if view := ansi.Strip(many.view()); !strings.Contains(view, "! 3 unfinished extractions. Open Extract to resume them.") {
+		t.Errorf("the reminder for several is missing:\n%s", view)
+	}
+
+	// The frame with the reminder is pinned at both sizes, and is exactly as
+	// tall as the body of the smallest window.
+	for _, size := range []struct {
+		name string
+		w, h int
+		tier icons.Tier
+	}{{"80x24_unicode", 80, 24, icons.TierUnicode}, {"100x30_ascii", 100, 30, icons.TierASCII}} {
+		ctx := sizedContext(testConfig(), size.w, size.h, size.tier)
+		frame := one.s.View(ctx)
+		if n := len(strings.Split(frame, "\n")); n > ctx.BodyHeight {
+			t.Errorf("at %s the menu is %d lines in a body of %d", size.name, n, ctx.BodyHeight)
+		}
+		requireGolden(t, "clean_menu_unfinished_"+size.name+"_nocolor", frameWithKeys(one.s, ctx))
+	}
+}
+
+func TestCleanMenuHintHidesTheLifetimeLine(t *testing.T) {
+	cfg := testConfig()
+	cfg.LifetimeFreedBytes = 9 << 30
+
+	without := menuWith(t, cfg)
+	if view := ansi.Strip(without.view()); !strings.Contains(view, "Devpit has freed 9.0 GB on this machine so far.") {
+		t.Fatalf("the lifetime line is missing with nothing unfinished:\n%s", view)
+	}
+
+	with := menuWith(t, cfg, `D:\Downloads\Game-Backup.zip`)
+	view := ansi.Strip(with.view())
+	if !strings.Contains(view, "1 unfinished extraction: Game-Backup.zip") {
+		t.Errorf("the reminder is missing:\n%s", view)
+	}
+	if strings.Contains(view, "Devpit has freed") {
+		t.Errorf("the lifetime line is drawn under the reminder:\n%s", view)
+	}
+	ctx := sizedContext(cfg, 80, 24, icons.TierUnicode)
+	if n := len(strings.Split(with.s.View(ctx), "\n")); n > ctx.BodyHeight {
+		t.Errorf("the menu is %d lines in a body of %d", n, ctx.BodyHeight)
+	}
+}
+
+// TestCleanMenuReadsTheReminderAgainAfterExtract: nothing tells a screen it
+// is on top again, so once Extract has been opened the next key on the menu
+// reads the record again.
+func TestCleanMenuReadsTheReminderAgainAfterExtract(t *testing.T) {
+	var paths []string
+	reads := 0
+	engines := baseEngines()
+	engines.Unfinished = func(ctx context.Context) []extractengine.Unfinished {
+		reads++
+		return unfinishedList(paths...)(ctx)
+	}
+	s := clean.New().WithClock(stepClock()).WithEngines(engines)
+	h := newHarness(t, s, testConfig())
+	h.queue(s.Init())
+	h.settle()
+
+	h.special(tea.KeyDown)
+	h.settle()
+	if reads != 1 {
+		t.Fatalf("the record was read %d times before Extract was ever opened", reads)
+	}
+
+	for range 3 {
+		h.special(tea.KeyDown)
+	}
+	h.special(tea.KeyEnter)
+	h.settle()
+	for _, msg := range h.trace {
+		if p, ok := msg.(uictx.PushScreenMsg); ok {
+			uictx.Stop(p.Screen)
+		}
+	}
+	// Meanwhile an extraction was paused on the Extract screen.
+	paths = []string{`D:\Downloads\Game-Backup.zip`}
+	h.special(tea.KeyUp)
+	h.settle()
+	if view := ansi.Strip(h.view()); !strings.Contains(view, "1 unfinished extraction: Game-Backup.zip") {
+		t.Errorf("the reminder did not appear after coming back:\n%s", view)
+	}
+}

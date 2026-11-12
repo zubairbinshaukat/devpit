@@ -1,0 +1,14 @@
+╭──────────────────────────────────────────────────────────────────────────╮
+│ Extract Game-Backup.zip in place and remove the archive?                 │
+│ Devpit will unpack Game-Backup.zip into D:\Downloads\Game-Backup and     │
+│ hatchzip will cut the archive down as each part is written. If it stops, │
+│ the files written so far stay and Resume carries on. When it finishes,   │
+│ Game-Backup.zip is gone.                                                 │
+│                                                                          │
+│ Keep another copy if this archive is the only one. Esc pauses safely at  │
+│ any time.                                                                │
+│                                                                          │
+│ [ No ]   [ Yes ]                                                         │
+╰──────────────────────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

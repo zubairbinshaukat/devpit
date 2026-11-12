@@ -12,12 +12,15 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/extract"
+	"github.com/zubairbinshaukat/devpit/internal/extract/archive"
 	"github.com/zubairbinshaukat/devpit/internal/share/errmap"
 	"github.com/zubairbinshaukat/devpit/internal/share/job"
 	"github.com/zubairbinshaukat/devpit/internal/share/netstat"
 	"github.com/zubairbinshaukat/devpit/internal/share/recv"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/pathpicker"
+	extractscreen "github.com/zubairbinshaukat/devpit/internal/ui/screens/extract"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 	"github.com/zubairbinshaukat/devpit/internal/winapi"
 )
@@ -103,7 +106,44 @@ type (
 		out    recv.Outcome
 		err    error
 	}
+	// archivesMsg is the big archives found in the folder a copy filled.
+	archivesMsg struct {
+		dir   string
+		found []extract.Found
+	}
 )
+
+// The search for big archives after a copy (plan 3.9). It reads folder names
+// and file sizes only, and it is an offer, not a step: a search that is slow
+// or finds nothing leaves the done card as it always was.
+const (
+	// archiveSearchLimit is how long the search may take.
+	archiveSearchLimit = 2 * time.Second
+	// archiveSearchDepth is how many folder levels it looks into.
+	archiveSearchDepth = 3
+	// archiveSearchEntries is how many names it reads at most.
+	archiveSearchEntries = 20000
+)
+
+// ArchiveFinder is the part of a receiving engine that looks for big archives
+// in the folder a copy filled. The real engine does not have it, so the
+// screen searches the disk itself; tests and demos do, so they never do.
+type ArchiveFinder interface {
+	FindArchives(ctx context.Context, dir string) []extract.Found
+}
+
+// findIn returns the search over a disk: supported archives of at least
+// extract.OfferMinBytes (a split set counts as the sum of its parts) in dir
+// and two folder levels below it.
+func findIn(fsys extract.StatFS) func(ctx context.Context, dir string) []extract.Found {
+	return func(ctx context.Context, dir string) []extract.Found {
+		return extract.FindArchives(ctx, fsys, []string{dir},
+			extract.OfferMinBytes, archiveSearchDepth, archiveSearchEntries)
+	}
+}
+
+// openExtractScreen builds the real extract screen.
+func openExtractScreen(opts ...extractscreen.Option) uictx.Screen { return extractscreen.New(opts...) }
 
 // copyStream carries a run's events to the screen.
 type copyStream struct {
@@ -142,6 +182,13 @@ type recvScreen struct {
 	stream *copyStream
 	ev     recv.Event
 	out    recv.Outcome
+
+	// The offer on the done card (plan 3.9): the big archives the copy
+	// brought, how they are looked for, and how the extract screen is built.
+	archives     []extract.Found
+	findArchives func(ctx context.Context, dir string) []extract.Found
+	findLimit    time.Duration
+	newExtract   func(opts ...extractscreen.Option) uictx.Screen
 
 	err      error
 	errPhase errmap.Phase
@@ -183,6 +230,10 @@ func newRecvScreen(deps Deps, cfg config.Config, saved *job.Job) recvScreen {
 		stage: recvIP, ip: ip, user: user, pass: pass, hsPass: newHotspotInput(), hsName: newInput(34, "Devpit-x7k2"),
 		picker: pathpicker.New(pickerConfig(cfg)).WithPrompts(
 			"Where should the files go?", "Type the folder to copy into, then press Enter."),
+		findArchives: findIn(extract.Real().FS), findLimit: archiveSearchLimit, newExtract: openExtractScreen,
+	}
+	if f, ok := m.rcv.(ArchiveFinder); ok {
+		m.findArchives = f.FindArchives
 	}
 	if saved != nil {
 		m.stage, m.job = recvResumeAsk, *saved
@@ -268,6 +319,9 @@ func (m recvScreen) ShortHelp() []key.Binding {
 	case recvCopy:
 		return []key.Binding{bind("esc", "stop (resume later)")}
 	case recvDone:
+		if len(m.archives) > 0 {
+			return []key.Binding{bind("x", "extract archive"), bind("enter", "back")}
+		}
 		return []key.Binding{bind("enter", "back")}
 	case recvFailed:
 		return []key.Binding{bind("r", "try again"), bind("enter", "back")}
@@ -339,6 +393,12 @@ func (m recvScreen) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cm
 			return m, nil
 		}
 		return m.onCopyDone(msg)
+	case archivesMsg:
+		// Only the done card of the copy that was searched for shows the offer.
+		if m.stage == recvDone && msg.dir == m.doneDir() {
+			m.archives = msg.found
+		}
+		return m, nil
 
 	case tea.KeyPressMsg:
 		return m.onKey(msg)
@@ -584,13 +644,66 @@ func (m recvScreen) onCopyDone(msg copyDoneMsg) (uictx.Screen, tea.Cmd) {
 	case msg.out.Paused:
 		return m, uictx.Pop()
 	case msg.out.Done:
-		m.stage = recvDone
+		m.stage, m.archives = recvDone, nil
 		_ = m.rcv.ClearJob()
-		return m, nil
+		return m, m.findArchivesCmd(m.doneDir())
 	default:
 		m.stage = recvFailed
 		return m, nil
 	}
+}
+
+// doneDir is the folder the finished copy filled.
+func (m recvScreen) doneDir() string {
+	if m.job.Dest != "" {
+		return m.job.Dest
+	}
+	return m.dest
+}
+
+// findArchivesCmd looks for big archives in dir, off the update loop. A
+// search that runs out of time answers with nothing, even when it had found
+// something by then: half a list would offer the wrong archive. The command
+// returns at the limit whatever the search itself does, so a disk that has
+// stopped answering cannot hold it.
+func (m recvScreen) findArchivesCmd(dir string) tea.Cmd {
+	find, parent, limit := m.findArchives, m.ctx, m.findLimit
+	if find == nil || dir == "" {
+		return nil
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(parent, limit)
+		defer cancel()
+		got := make(chan []extract.Found, 1)
+		go func() { got <- find(ctx, dir) }()
+		select {
+		case found := <-got:
+			if ctx.Err() != nil {
+				return archivesMsg{dir: dir}
+			}
+			return archivesMsg{dir: dir, found: found}
+		case <-ctx.Done():
+			return archivesMsg{dir: dir}
+		}
+	}
+}
+
+// openExtract opens the extract screen on what the copy brought: one archive
+// goes straight to its space check, several go to a list of only them. It
+// starts nothing: the check and the confirmation are the extract screen's own
+// (safety rule 89).
+func (m recvScreen) openExtract() (uictx.Screen, tea.Cmd) {
+	if len(m.archives) == 0 || m.newExtract == nil {
+		return m, nil
+	}
+	if len(m.archives) == 1 {
+		return m, uictx.Push(m.newExtract(extractscreen.WithArchive(m.archives[0].Set.First)))
+	}
+	sets := make([]archive.Set, len(m.archives))
+	for i, f := range m.archives {
+		sets[i] = f.Set
+	}
+	return m, uictx.Push(m.newExtract(extractscreen.WithArchives(sets)))
 }
 
 // onKey routes a key to whatever has focus.
@@ -652,8 +765,11 @@ func (m recvScreen) onKey(msg tea.KeyPressMsg) (uictx.Screen, tea.Cmd) {
 			m.run.stop()
 		}
 	case recvDone:
-		if msg.Code == tea.KeyEnter || msg.Code == tea.KeyEscape {
+		switch {
+		case msg.Code == tea.KeyEnter || msg.Code == tea.KeyEscape:
 			return m, uictx.Pop()
+		case msg.Text == "x":
+			return m.openExtract()
 		}
 	case recvFailed:
 		switch {

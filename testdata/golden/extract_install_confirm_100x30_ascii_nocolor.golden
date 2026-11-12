@@ -1,0 +1,12 @@
+╭────────────────────────────────────────────────────────────────────╮
+│ Install hatchzip?                                                  │
+│ Devpit will run exactly:                                           │
+│   scoop bucket add xevrion https://github.com/xevrion/scoop-bucket │
+│   scoop install xevrion/hatchzip                                   │
+│                                                                    │
+│ No admin rights are needed.                                        │
+│                                                                    │
+│ [ No ]   [ Yes ]                                                   │
+╰────────────────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

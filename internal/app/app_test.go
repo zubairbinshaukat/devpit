@@ -18,6 +18,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/app"
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/tools"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/menu"
@@ -25,6 +26,7 @@ import (
 	accountsui "github.com/zubairbinshaukat/devpit/internal/ui/screens/accounts"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/accounts/demo"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/apps"
+	"github.com/zubairbinshaukat/devpit/internal/ui/screens/clean"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/home"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/install"
 	"github.com/zubairbinshaukat/devpit/internal/ui/screens/portsnet"
@@ -182,6 +184,13 @@ func fakeScreens() map[string]func() uictx.Screen {
 				install.WithDetectFunc(func(context.Context) []tools.Tool { return detected }),
 				install.WithLookPathFunc(func(string) (string, error) { return "", errors.New("not installed") }),
 			)
+		},
+		// Clean's Init reads Devpit's record of unfinished extractions; a
+		// frame must not depend on what this PC left unfinished.
+		home.SectionClean: func() uictx.Screen {
+			return clean.New().WithEngines(clean.Engines{
+				Unfinished: func(context.Context) []extractengine.Unfinished { return nil },
+			})
 		},
 		home.SectionShare:    func() uictx.Screen { return share.NewWith(share.Deps{}) },
 		home.SectionSettings: settingsScreen,

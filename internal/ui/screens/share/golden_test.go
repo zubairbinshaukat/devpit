@@ -287,6 +287,15 @@ func recvBaseStates() []goldenState {
 			s.out = recv.Outcome{Done: true, Message: "All files were copied.", Elapsed: 14*time.Minute + 2*time.Second}
 			return s
 		}},
+		{"recv_done_extract_one", func(t *testing.T) uictx.Screen {
+			return doneWithArchives(t, bigArchive(`D:\Games\Backup.7z`, 62_400_000_000))
+		}},
+		{"recv_done_extract_many", func(t *testing.T) uictx.Screen {
+			return doneWithArchives(t,
+				bigArchive(`D:\Games\Backup.7z`, 62_400_000_000),
+				bigArchive(`D:\Games\Mods\Textures.zip`, 81_300_000_000),
+				bigArchive(`D:\Games\Saves.rar`, 4_300_000_000))
+		}},
 		{"recv_failed", func(t *testing.T) uictx.Screen {
 			s := asRecv(recvIn(t, newRecvFake()))
 			s.stage = recvFailed
@@ -425,7 +434,7 @@ func TestGoldenFrames(t *testing.T) {
 // TestGoldenFramesAscii pins the main states on the plain tier at 100x30, so
 // a terminal with no unicode still gets a card and a progress bar.
 func TestGoldenFramesAscii(t *testing.T) {
-	want := map[string]bool{"menu": true, "host_card": true, "host_hotspot_card": true, "recv_hotspot_list": true, "recv_check_ok": true, "recv_copy": true, "recv_done": true, "recv_error_session_conflict": true}
+	want := map[string]bool{"menu": true, "host_card": true, "host_hotspot_card": true, "recv_hotspot_list": true, "recv_check_ok": true, "recv_copy": true, "recv_done": true, "recv_done_extract_one": true, "recv_done_extract_many": true, "recv_error_session_conflict": true}
 	var all []goldenState
 	all = append(all, menuStates()...)
 	all = append(all, hostStates()...)

@@ -1,0 +1,9 @@
+Type the path of the archive, then press Enter.
+
+› \\nas\backups\big.zip
+
+Works with .zip, .7z, .rar and split parts (.001, .part1.rar, .r00).
+
+✗ Network paths are not extracted. Copy the archive to this PC first.
+
+[keys] enter choose  ·  esc back

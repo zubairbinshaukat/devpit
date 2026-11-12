@@ -11,6 +11,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/accounts"
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/protect"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/telemetry"
@@ -85,6 +86,11 @@ type Engines struct {
 	// it is called on the scan's and the delete's own goroutines. Nil adds
 	// nothing.
 	Protect func() protect.List
+	// Unfinished lists the extractions hatchzip has not finished, for the
+	// one-line reminder under the menu. It reads Devpit's own record and
+	// checks that each journal still exists, so it runs in a command. Nil
+	// shows no reminder.
+	Unfinished func(ctx context.Context) []extractengine.Unfinished
 }
 
 // DefaultEngines returns the real engines.
@@ -100,6 +106,10 @@ func DefaultEngines() Engines {
 		Report:    sendReport,
 		Getenv:    os.Getenv,
 		Protect:   func() protect.List { return accounts.Protected(os.LookupEnv) },
+		Unfinished: func(ctx context.Context) []extractengine.Unfinished {
+			// No hatchzip is needed to read the record: only a run needs it.
+			return extractengine.New(extractengine.Tool{}, extractengine.Real()).Pending(ctx)
+		},
 	}
 }
 
@@ -194,7 +204,25 @@ type (
 	retryDoneMsg struct{ results []cleanengine.Result }
 	// sweepDoneMsg carries the report of a tombstone sweep.
 	sweepDoneMsg struct{ report cleanengine.Report }
+	// unfinishedMsg carries the extractions hatchzip has not finished.
+	unfinishedMsg struct{ list []extractengine.Unfinished }
 )
+
+// loadUnfinished reads the unfinished extractions off the update loop.
+func loadUnfinished(fn func(ctx context.Context) []extractengine.Unfinished) tea.Cmd {
+	if fn == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), unfinishedTimeout)
+		defer cancel()
+		return unfinishedMsg{list: fn(ctx)}
+	}
+}
+
+// unfinishedTimeout bounds the look at Devpit's record of unfinished
+// extractions, so a sleeping disk can only cost the reminder, not the menu.
+const unfinishedTimeout = 2 * time.Second
 
 // waitBatch reads one batch of scan results, blocking on its own goroutine
 // the way every tea.Cmd does. Update never blocks; this is the whole reason

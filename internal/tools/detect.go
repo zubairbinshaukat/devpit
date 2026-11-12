@@ -95,6 +95,7 @@ var specs = []toolSpec{
 	{name: "git", exe: "git", versionArgs: []string{"--version"}},
 	{name: "code", exe: "code", versionArgs: []string{"--version"}},
 	{name: "wt", exe: "wt", neverRun: true},
+	{name: "hatchzip", exe: "hatchzip", versionArgs: []string{"--version"}},
 }
 
 // Names returns the stable, ordered list of tool names Devpit detects.

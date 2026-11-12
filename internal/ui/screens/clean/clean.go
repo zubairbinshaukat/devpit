@@ -34,6 +34,7 @@ import (
 
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/scan/rules"
 	"github.com/zubairbinshaukat/devpit/internal/telemetry"
@@ -44,6 +45,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/progress"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/restable"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/summary"
+	extractscreen "github.com/zubairbinshaukat/devpit/internal/ui/screens/extract"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
@@ -67,6 +69,7 @@ const (
 	rowFull    = "full"
 	rowChoose  = "choose"
 	rowResume  = "resume"
+	rowExtract = "extract"
 )
 
 // dialogID identifies this screen's confirmation. An AnsweredMsg with any
@@ -131,6 +134,12 @@ type Model struct {
 	locked     []cleanengine.Result
 	retrying   bool
 	freedSoFar uint64
+
+	// unfinished is the extractions hatchzip has not finished, for the
+	// reminder under the menu. openedExtract says the Extract screen was
+	// opened from here, after which the list can be out of date.
+	unfinished    []extractengine.Unfinished
+	openedExtract bool
 
 	engines Engines
 	now     func() time.Time
@@ -215,6 +224,9 @@ func (m Model) WithEngines(e Engines) Model {
 	if e.Getenv != nil {
 		m.engines.Getenv = e.Getenv
 	}
+	if e.Unfinished != nil {
+		m.engines.Unfinished = e.Unfinished
+	}
 	return m
 }
 
@@ -228,8 +240,9 @@ func (m Model) WithClock(now func() time.Time) Model {
 }
 
 // Init implements uictx.Screen. The screen starts idle: nothing is scanned
-// until the user asks for it.
-func (m Model) Init() tea.Cmd { return nil }
+// until the user asks for it. The one thing it looks up is whether an
+// extraction was left unfinished, for the reminder under the menu.
+func (m Model) Init() tea.Cmd { return loadUnfinished(m.engines.Unfinished) }
 
 // Title implements uictx.Screen.
 func (m Model) Title() string {
@@ -414,6 +427,10 @@ func (m Model) Update(msg tea.Msg, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 	case sweepDoneMsg:
 		return m.onSweepDone(msg.report, ctx)
 
+	case unfinishedMsg:
+		m.unfinished = msg.list
+		return m, nil
+
 	case summary.DismissedMsg:
 		return m, uictx.Pop()
 
@@ -487,6 +504,12 @@ func (m Model) onKey(km tea.KeyPressMsg, ctx uictx.Context) (uictx.Screen, tea.C
 	case stateMenu:
 		next, cmd := m.menu.Update(km)
 		m.menu = next
+		if m.openedExtract {
+			// Nothing tells a screen it is on top again, so once Extract
+			// has been opened from here the reminder is read again on the
+			// next key: the extraction may have been paused or finished.
+			cmd = tea.Batch(cmd, loadUnfinished(m.engines.Unfinished))
+		}
 		return m, cmd
 
 	case statePicker:
@@ -567,6 +590,12 @@ func (m Model) activate(id string, ctx uictx.Context) (uictx.Screen, tea.Cmd) {
 
 	case rowResume:
 		return m.startSweep(ctx)
+
+	case rowExtract:
+		// A screen of its own: Extract runs hatchzip and deletes nothing
+		// itself, so none of it shares a state with the delete flow above.
+		m.openedExtract = true
+		return m, uictx.Push(extractscreen.New())
 	}
 	return m, nil
 }
@@ -1113,7 +1142,7 @@ func toCleanTier(t scan.Tier) cleanengine.Tier {
 	}
 }
 
-// submenuRows is the four things this screen can do.
+// submenuRows is the five things this screen can do.
 func submenuRows() []menu.Item {
 	return []menu.Item{
 		{
@@ -1135,6 +1164,11 @@ func submenuRows() []menu.Item {
 			ID:    rowResume,
 			Title: "Resume interrupted deletes",
 			Desc:  "Finish deleting what a stopped clean-up left half done",
+		},
+		{
+			ID:    rowExtract,
+			Title: "Extract big archive in place",
+			Desc:  "Unpack a big .zip, .7z or .rar even when the disk is nearly full",
 		},
 	}
 }

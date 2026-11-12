@@ -9,6 +9,7 @@ package catalog
 import (
 	_ "embed"
 	"fmt"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -29,6 +30,11 @@ type App struct {
 	Winget string `toml:"winget"`
 	// Choco is the Chocolatey package id, or empty if not verified.
 	Choco string `toml:"choco"`
+	// Bucket is the Scoop bucket the app's Scoop id comes from, as "<name>
+	// <url>", or empty for an app in Scoop's default buckets. It is fixed
+	// catalog data: the managers package only honours a bucket that is in
+	// its own list of known buckets.
+	Bucket string `toml:"bucket"`
 	// Detect lists executable names used to guess whether the app is
 	// already installed, independent of which manager (if any) owns it.
 	Detect []string `toml:"detect"`
@@ -49,6 +55,16 @@ func (a App) HasManager(name string) bool {
 	default:
 		return false
 	}
+}
+
+// ScoopBucket splits [App.Bucket] into the bucket's name and URL. ok is false
+// when the app has no bucket or the field is not exactly "<name> <url>".
+func (a App) ScoopBucket() (name, url string, ok bool) {
+	fields := strings.Fields(a.Bucket)
+	if len(fields) != 2 {
+		return "", "", false
+	}
+	return fields[0], fields[1], true
 }
 
 // file mirrors the top-level shape of apps.toml.

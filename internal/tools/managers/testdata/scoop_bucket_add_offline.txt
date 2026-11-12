@@ -1,0 +1,2 @@
+fatal: unable to access 'https://github.com/xevrion/scoop-bucket/': Could not resolve host: github.com
+Failed to clone 'https://github.com/xevrion/scoop-bucket' to 'C:\Users\x\scoop\buckets\xevrion'.

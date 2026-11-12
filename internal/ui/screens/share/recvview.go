@@ -6,9 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/zubairbinshaukat/devpit/internal/share/errmap"
 	"github.com/zubairbinshaukat/devpit/internal/share/recv"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/activity"
+	"github.com/zubairbinshaukat/devpit/internal/ui/components/filepicker"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
 
@@ -211,7 +214,39 @@ func (m recvScreen) doneView(ctx uictx.Context) string {
 		th.Muted.Render(fmt.Sprintf("  ·  %s files  ·  %s", commas(m.job.TotalFiles), roundDuration(o.Elapsed))) + "\n\n" +
 		th.Base.Render("The files are in "+m.dest) + "\n" + th.Muted.Render(o.Message)
 	card := th.CardFor(ctx.Icons.Tier == "ascii")
-	return card.Render(body) + "\n\n" + th.Muted.Render("Press Enter to go back.")
+	if len(m.archives) == 0 {
+		return card.Render(body) + "\n\n" + th.Muted.Render("Press Enter to go back.")
+	}
+	return card.Render(body) + "\n\n" + m.extractOffer(ctx)
+}
+
+// extractOffer is the block under the done card when the copy brought big
+// archives (plan 3.9): what arrived, what Devpit can do with it, and the key.
+func (m recvScreen) extractOffer(ctx uictx.Context) string {
+	th := ctx.Theme
+	var what, can, press string
+	if len(m.archives) == 1 {
+		set := m.archives[0].Set
+		size := filepicker.FormatSize(set.Bytes)
+		if n := len(set.Parts); n > 1 {
+			size += fmt.Sprintf(" in %d parts", n)
+		}
+		lead, tail := "You received a big archive: ", "  ·  "+size
+		name := fit(filepicker.Base(set.First), max(ctx.Width-ansi.StringWidth(lead+tail), 16))
+		what = th.Base.Render(lead) + th.Base.Bold(true).Render(name) + th.Muted.Render(tail)
+		can = "Devpit can extract it in place, even when the disk is nearly full."
+		press = "Press x to extract it (you see the space plan first), Enter to go back."
+	} else {
+		var total int64
+		for _, f := range m.archives {
+			total += f.Set.Bytes
+		}
+		what = th.Base.Render(fmt.Sprintf("You received %d big archives", len(m.archives))) +
+			th.Muted.Render(" ("+filepicker.FormatSize(total)+").")
+		can = "Devpit can extract one in place, even when the disk is nearly full."
+		press = "Press x to choose one (you see the space plan first), Enter to go back."
+	}
+	return what + "\n" + ctx.Wrap(th.Muted.Render(can)) + "\n\n" + ctx.Wrap(th.Muted.Render(press))
 }
 
 // failedView lists the files that did not copy, with what to do.

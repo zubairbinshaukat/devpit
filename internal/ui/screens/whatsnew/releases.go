@@ -45,6 +45,14 @@ type Entry struct {
 func Releases() []Entry {
 	return []Entry{
 		{
+			Version:  "0.5.4",
+			Headline: "Extract a big archive in place is new.",
+			Lines: []string{
+				"Clean › Extract big archive in place unpacks a .zip, .7z or .rar even when the disk has less free space than the files need, by removing the archive as it goes. It uses hatchzip, which Devpit can install for you with Scoop.",
+				"You always see the space plan first, the answer is No until you say yes, and Esc pauses safely; Resume carries on later. After Share Files receives a big archive, Devpit offers to extract it.",
+			},
+		},
+		{
 			Version:  "0.5.2",
 			Headline: "Receiving over a direct hotspot is more reliable.",
 			Lines: []string{

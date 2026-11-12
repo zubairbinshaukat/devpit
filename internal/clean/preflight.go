@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 
+	"github.com/zubairbinshaukat/devpit/internal/extract/archive"
 	"github.com/zubairbinshaukat/devpit/internal/protect"
 )
 
@@ -40,6 +42,9 @@ func Preflight(it Item, opts Options) error {
 		return err
 	}
 	if err := checkReparse(p); err != nil {
+		return err
+	}
+	if err := checkUnfinishedExtraction(p); err != nil {
 		return err
 	}
 
@@ -207,6 +212,28 @@ func checkReparse(p string) error {
 	}
 	if through {
 		return fmt.Errorf("%w: %s", ErrReparsePoint, p)
+	}
+	return nil
+}
+
+// ErrUnfinishedExtraction refuses an archive whose extraction in place is
+// unfinished (its journal is beside it), and hatchzip's own side files.
+// Deleting either loses the files not extracted yet: in place, the archive
+// holds only what is left, and only hatchzip can read it with its journal.
+var ErrUnfinishedExtraction = errors.New("clean: refusing an archive with an unfinished extraction; resume or restore it in Clean › Extract first")
+
+// checkUnfinishedExtraction is rule 90. It only Lstats the journal's name; it
+// never opens anything.
+func checkUnfinishedExtraction(p string) error {
+	name := filepath.Base(p)
+	if archive.IsSideFile(name) {
+		return fmt.Errorf("%w: %s", ErrUnfinishedExtraction, p)
+	}
+	if !archive.IsSupported(name) {
+		return nil
+	}
+	if _, err := os.Lstat(archive.JournalPath(archive.FirstVolume(p))); err == nil {
+		return fmt.Errorf("%w: %s", ErrUnfinishedExtraction, p)
 	}
 	return nil
 }

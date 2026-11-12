@@ -785,6 +785,10 @@ func (m *Model) finishJob(i int, o outcome) {
 		r.State = activity.Failed
 		r.Detail = v.Text
 		r.Next = v.Next
+		if o.SkipReason != "" {
+			// A step before the install failed; its own sentence says which.
+			r.Detail = o.SkipReason
+		}
 		if v.Kind == managers.VerdictNeedsAdmin {
 			// The Update screen retries these as administrator; here the
 			// install is left for the user to run from an admin terminal.
@@ -978,11 +982,24 @@ func runInstallSteps(ctx context.Context, runStepFn RunStepFunc, launchElevatedF
 			break
 		}
 		id := managerAppID(app, manager.Name())
-		argv := manager.InstallCmd(id)
 		retry := managers.RetryFor(manager, id, true, false).String()
+		steps, planErr := managers.InstallPlan(manager, app)
+		if planErr != nil {
+			// A bucket Devpit does not know is refused before anything runs.
+			sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{
+				Name:       app.Name,
+				SkipReason: "its Scoop bucket is not one Devpit knows, so nothing was run",
+				LastLines:  []string{planErr.Error()},
+				Retry:      retry,
+			}})
+			continue
+		}
+		if len(steps) > 1 {
+			retry = stepsCommand(steps)
+		}
 		jobCtx, cancelJob := context.WithCancel(ctx)
 		handle.beginJob(i, cancelJob)
-		res := runStepFn(jobCtx, argv, tools.DefaultStepTimeout, func(line string) {
+		res, failedStep := runAppSteps(jobCtx, runStepFn, steps, func(line string) {
 			sendEvent(ctx, events, runEvent{line: line})
 		})
 		skipped := handle.endJob()
@@ -1000,15 +1017,55 @@ func runInstallSteps(ctx context.Context, runStepFn RunStepFunc, launchElevatedF
 			sendEvent(ctx, events, runEvent{stepDone: true, outcome: skippedOutcome(app.Name, retry)})
 			continue
 		}
-		sendEvent(ctx, events, runEvent{stepDone: true, outcome: outcome{
+		o := outcome{
 			Name:      app.Name,
 			OK:        res.OK,
 			ExitCode:  res.ExitCode,
 			LastLines: res.LastLines,
 			Retry:     retry,
-		}})
+		}
+		if failedStep >= 0 && failedStep < len(steps)-1 {
+			// A step before the install failed (the bucket add): this app
+			// stops here, and the row says which step failed and shows its last line.
+			o.SkipReason = steps[failedStep].Label + " failed"
+		}
+		sendEvent(ctx, events, runEvent{stepDone: true, outcome: o})
 	}
 	sendEvent(ctx, events, runEvent{allDone: true})
+}
+
+// runAppSteps runs one app's install steps in order and stops at the first
+// that fails; later steps are not run. It returns the last step's result (the
+// failing step's when one failed, so its output is what the card shows) and
+// that step's index, or -1 when every step worked. A step that did not exit 0
+// still counts as worked when its [managers.Step.OKIfLine] says so, as for a
+// Scoop bucket that is already added; a step that was stopped never does.
+func runAppSteps(ctx context.Context, runStepFn RunStepFunc, steps []managers.Step, onLine func(string)) (tools.StepResult, int) {
+	var res tools.StepResult
+	for i, step := range steps {
+		if ctx.Err() != nil {
+			return tools.StepResult{ExitCode: -1}, i
+		}
+		res = runStepFn(ctx, step.Argv, tools.DefaultStepTimeout, onLine)
+		if res.OK {
+			continue
+		}
+		if step.OKIfLine != nil && ctx.Err() == nil && res.ExitCode >= 0 && step.OKIfLine(res.ExitCode, res.LastLines) {
+			res.OK = true
+			continue
+		}
+		return res, i
+	}
+	return res, -1
+}
+
+// stepsCommand is the steps as one line to type by hand, joined with "&&".
+func stepsCommand(steps []managers.Step) string {
+	lines := make([]string, len(steps))
+	for i, s := range steps {
+		lines[i] = strings.Join(s.Argv, " ")
+	}
+	return strings.Join(lines, " && ")
 }
 
 // runElevatedInstalls installs every app through one elevated worker, so the

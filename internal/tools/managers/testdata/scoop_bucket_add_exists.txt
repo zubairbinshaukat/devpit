@@ -1,0 +1,1 @@
+WARN  The 'xevrion' bucket already exists. To add this bucket again, first remove it by running 'scoop bucket rm xevrion'.

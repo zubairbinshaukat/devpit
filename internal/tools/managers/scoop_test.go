@@ -145,3 +145,16 @@ func TestScoopParseOutdatedReport(t *testing.T) {
 		t.Errorf("unrecognised output Parsed = true, want false")
 	}
 }
+
+func TestScoopUpgradeCmdForHatchzip(t *testing.T) {
+	got := managers.Scoop{}.UpgradeCmd("hatchzip")
+	want := []string{"scoop", "update", "hatchzip"}
+	if len(got) != len(want) {
+		t.Fatalf("UpgradeCmd(hatchzip) = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("UpgradeCmd(hatchzip) = %v, want %v", got, want)
+		}
+	}
+}

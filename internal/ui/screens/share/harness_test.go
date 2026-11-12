@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	"github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/share/host"
 	"github.com/zubairbinshaukat/devpit/internal/share/job"
 	"github.com/zubairbinshaukat/devpit/internal/share/netstat"
@@ -316,6 +317,19 @@ type fakeReceiver struct {
 	checkCalls int
 
 	hs hotspotFake // the hotspot side, off unless a test turns it on
+
+	// The archive search after a copy: what it finds (nothing, unless a test
+	// says so) and the folders it was asked about. No test searches a disk.
+	archives []extract.Found
+	findDirs []string
+}
+
+// FindArchives implements ArchiveFinder with the scripted answer.
+func (f *fakeReceiver) FindArchives(_ context.Context, dir string) []extract.Found {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.findDirs = append(f.findDirs, dir)
+	return f.archives
 }
 
 func (f *fakeReceiver) note(s string) {

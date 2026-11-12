@@ -12,6 +12,7 @@ import (
 	"github.com/zubairbinshaukat/devpit/internal/config"
 
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/scan/rules"
 	cleanui "github.com/zubairbinshaukat/devpit/internal/ui/screens/clean"
@@ -271,6 +272,9 @@ func cleanScreen(found []scan.Item, holdScan int, del cleanui.CleanFunc) func() 
 			Verify:    func(scan.Item) error { return nil },
 			Report:    func(context.Context, config.Config, cleanengine.Report, map[string]string) error { return nil },
 			Getenv:    func(string) string { return "1" },
+			// Never this PC's own record of unfinished extractions: a docs
+			// screenshot must not depend on the machine that renders it.
+			Unfinished: func(context.Context) []extractengine.Unfinished { return nil },
 		})
 	}
 }

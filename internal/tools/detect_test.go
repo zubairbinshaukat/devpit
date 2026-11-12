@@ -198,7 +198,7 @@ func TestParseVersionLenient(t *testing.T) {
 func TestNamesIsStable(t *testing.T) {
 	want := []string{
 		"winget", "scoop", "choco", "docker", "node", "npm", "pnpm", "yarn",
-		"pip", "python", "cargo", "go", "git", "code", "wt",
+		"pip", "python", "cargo", "go", "git", "code", "wt", "hatchzip",
 	}
 	got := tools.Names()
 	if len(got) != len(want) {
@@ -208,6 +208,41 @@ func TestNamesIsStable(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("Names()[%d] = %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+func TestNamesIncludeHatchzipLast(t *testing.T) {
+	got := tools.Names()
+	if len(got) == 0 || got[len(got)-1] != "hatchzip" {
+		t.Fatalf("Names() = %v, want it to end with hatchzip", got)
+	}
+}
+
+func TestHatchzipIsDetectedWithItsVersion(t *testing.T) {
+	var gotPath string
+	var gotArgs []string
+	d := tools.New(
+		tools.WithLookPath(fakeLookPath(map[string]string{"hatchzip": `C:\scoop\shims\hatchzip.exe`})),
+		tools.WithRun(func(_ context.Context, path string, args ...string) (string, error) {
+			gotPath, gotArgs = path, args
+			return "hatchzip 0.1.10\n", nil
+		}),
+	)
+
+	got := d.Get(context.Background(), "hatchzip")
+	if !got.Found || got.Path != `C:\scoop\shims\hatchzip.exe` {
+		t.Fatalf("Get(hatchzip) = %+v, want found at the shim path", got)
+	}
+	if got.Version != "0.1.10" {
+		t.Errorf("Version = %q, want 0.1.10", got.Version)
+	}
+	if gotPath != got.Path || len(gotArgs) != 1 || gotArgs[0] != "--version" {
+		t.Errorf("probe ran %q %v, want the resolved path with --version", gotPath, gotArgs)
+	}
+
+	missing := tools.New(tools.WithLookPath(fakeLookPath(nil)))
+	if m := missing.Get(context.Background(), "hatchzip"); m.Found {
+		t.Errorf("hatchzip found with an empty PATH: %+v", m)
 	}
 }
 

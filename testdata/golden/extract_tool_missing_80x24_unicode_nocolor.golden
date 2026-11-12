@@ -1,0 +1,14 @@
+Extracting in place uses hatchzip, a free open-source tool (MIT/Apache 2.0) by
+xevrion. It is not installed yet.
+
+▌ ▸ Install hatchzip with Scoop
+▌   Adds the xevrion bucket, then installs hatchzip. No admin needed.
+
+    Not now
+    Go back
+
+Devpit will run exactly:
+  scoop bucket add xevrion https://github.com/xevrion/scoop-bucket
+  scoop install xevrion/hatchzip
+
+[keys] ↑↓ move  ·  enter select  ·  r check again  ·  esc back

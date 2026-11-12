@@ -1,0 +1,9 @@
+Type the path of the archive, then press Enter.
+
+› C:\Windows\Temp\big.zip
+
+Works with .zip, .7z, .rar and split parts (.001, .part1.rar, .r00).
+
+X Devpit does not extract archives in that place (system or sign-in files).
+
+[keys] enter choose  ·  esc back

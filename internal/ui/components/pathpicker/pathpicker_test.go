@@ -235,6 +235,20 @@ func TestBrowseErrorClearsBusyAndIsShown(t *testing.T) {
 	}
 }
 
+// TestBrowseOpensOnTheStartFolder checks a caller that knows where the user
+// is working can open the browser there.
+func TestBrowseOpensOnTheStartFolder(t *testing.T) {
+	var got string
+	m := pathpicker.New(cfgWith("")).
+		WithStart(`D:\Downloads`).
+		WithBrowse(func(start string) (string, error) { got = start; return "", nil })
+	_, cmd := activateBrowseRow(t, m)
+	cmd()
+	if got != `D:\Downloads` {
+		t.Errorf("the browser opened on %q, want the start folder", got)
+	}
+}
+
 // TestBrowseSuccessEmitsChosen is the happy path all the way through: a
 // picked path clears busy and produces a ChosenMsg, the same as typing it.
 func TestBrowseSuccessEmitsChosen(t *testing.T) {
@@ -293,5 +307,35 @@ func TestRecentFoldersAreListedWithoutDuplicates(t *testing.T) {
 	}
 	if !strings.Contains(out, `D:\side`) {
 		t.Errorf("a recent folder is missing:\n%s", out)
+	}
+}
+
+// TestWithFirstLeadsTheListAndIsNotRepeated: a caller's own folder is the
+// first row, highlighted, under its own description, and a row the list
+// already had for that folder is gone.
+func TestWithFirstLeadsTheListAndIsNotRepeated(t *testing.T) {
+	dirs := map[string]bool{`e:\`: true, `d:\`: true}
+	m := picker(dirs, cfgWith(`D:\`)).WithFirst(`E:\`, "Beside the archive")
+	view := ansi.Strip(m.View(testContext()))
+	first, def := strings.Index(view, "Beside the archive"), strings.Index(view, "Your default projects folder")
+	if first < 0 || def < 0 || first > def {
+		t.Fatalf("the first folder does not lead the list:\n%s", view)
+	}
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("enter on the first row produced no command")
+	}
+	if msg, ok := cmd().(pathpicker.ChosenMsg); !ok || msg.Path != `E:\` {
+		t.Fatalf("enter on the first row produced %#v, want E:\\ chosen", cmd())
+	}
+
+	same := ansi.Strip(picker(dirs, cfgWith(`d:`)).WithFirst(`D:\`, "Beside the archive").View(testContext()))
+	if strings.Contains(same, "Your default projects folder") || strings.Count(same, "Beside the archive") != 1 {
+		t.Errorf("one folder is listed twice:\n%s", same)
+	}
+
+	plain := picker(dirs, cfgWith(`D:\`))
+	if got, want := ansi.Strip(plain.WithFirst("", "Beside the archive").View(testContext())), ansi.Strip(plain.View(testContext())); got != want {
+		t.Errorf("an empty first folder changed the list:\n%s", got)
 	}
 }

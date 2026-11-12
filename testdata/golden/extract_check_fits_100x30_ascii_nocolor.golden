@@ -1,0 +1,16 @@
+Extract Game-Backup.zip
++-------------------------------------------------------------------------+
+| Game-Backup.zip  ·  zip  ·  about 84.2 GB  ·  12,408 items              |
+| Unpacks to about 96.0 GB in D:\Downloads\Game-Backup                    |
+|                                                                         |
+| Free on D:               about 31.5 GB                                  |
+| A normal extract needs   about 96.0 GB                                  |
+| In place needs           about 13.8 GB  (+ about 2.0 GB kept free)      |
+| Free afterwards          about 15.7 GB                                  |
+|                                                                         |
+| + Fits in place. The archive is removed piece by piece as its files are |
+|   written.                                                              |
++-------------------------------------------------------------------------+
+ hatchzip: the archive and the folder are on the same drive
+
+[keys] enter continue  ·  k keep archive  ·  o change folder  ·  esc back

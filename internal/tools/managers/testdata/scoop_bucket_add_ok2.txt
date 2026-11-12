@@ -1,0 +1,2 @@
+Checking repo... OK
+The xevrion bucket was added successfully.

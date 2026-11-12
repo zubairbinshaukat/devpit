@@ -1,0 +1,19 @@
+Extract Game-Backup.zip
+╭─────────────────────────────────────────────────────────────────────────╮
+│ Game-Backup.zip  ·  zip  ·  about 84.2 GB  ·  12,408 items              │
+│ Unpacks to about 96.0 GB in E:\Games\Game-Backup                        │
+│                                                                         │
+│ Free on E:               about 212.4 GB                                 │
+│ A normal extract needs   about 96.0 GB                                  │
+│ In place needs           about 96.0 GB  (+ about 2.0 GB kept free)      │
+│ Free afterwards          about 116.4 GB                                 │
+│                                                                         │
+│ ✓ Fits in place. The archive is removed piece by piece as its files are │
+│   written.                                                              │
+│ ! That folder is on another drive. In place still removes the archive,  │
+│   but the extracted files need their full size free on E:.              │
+╰─────────────────────────────────────────────────────────────────────────╯
+ hatchzip: the destination is on another drive, so removing the archive does no…
+ hatchzip: there is also enough space to keep the archive (--keep-archive)
+
+[keys] enter continue  ·  k keep archive  ·  o change folder  ·  esc back

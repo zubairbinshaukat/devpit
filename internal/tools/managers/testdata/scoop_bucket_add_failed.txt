@@ -1,0 +1,1 @@
+Checking repo... Error: 'https://github.com/xevrion/scoop-bucket' doesn't look like a valid git repository

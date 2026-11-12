@@ -1,0 +1,13 @@
+╭──────────────────────────────────────────────────────────────────────────╮
+│ Resume extracting Game-Backup.zip in place and remove the archive?       │
+│ hatchzip carries on where it stopped, into D:\Downloads\Game-Backup, and │
+│ goes on cutting the archive down as each part is written. When it        │
+│ finishes, Game-Backup.zip is gone.                                       │
+│                                                                          │
+│ Keep another copy if this archive is the only one. Esc pauses safely at  │
+│ any time.                                                                │
+│                                                                          │
+│ [ No ]   [ Yes ]                                                         │
+╰──────────────────────────────────────────────────────────────────────────╯
+
+[keys] y/n yes/no  ·  enter confirm

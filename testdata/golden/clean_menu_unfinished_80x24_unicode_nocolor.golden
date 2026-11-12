@@ -1,0 +1,20 @@
+Pick what to look through. Nothing is deleted without a preview.
+
+▌ ▸ Project Junk
+▌   Scan your projects folder for node_modules, dist, build and target
+
+    Full Scan
+    Project junk plus package caches, Windows temp and editor caches
+
+    Choose folder
+    Pick another folder to scan, then see what it holds
+
+    Resume interrupted deletes
+    Finish deleting what a stopped clean-up left half done
+
+    Extract big archive in place
+    Unpack a big .zip, .7z or .rar even when the disk is nearly full
+
+! 1 unfinished extraction: Game-Backup.zip. Open Extract to resume it.
+
+[keys] ↑↓ move  ·  enter select  ·  esc back

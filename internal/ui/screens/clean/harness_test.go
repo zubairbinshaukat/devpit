@@ -2,13 +2,20 @@ package clean_test
 
 import (
 	"context"
+	"flag"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
 	"github.com/zubairbinshaukat/devpit/internal/config"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
+	"github.com/zubairbinshaukat/devpit/internal/extract/archive"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/confirm"
 	"github.com/zubairbinshaukat/devpit/internal/ui/icons"
@@ -275,5 +282,79 @@ func baseEngines(items ...scan.Item) clean.Engines {
 		Clean: func(context.Context, []cleanengine.Item, cleanengine.Options, func(cleanengine.Progress)) cleanengine.Report {
 			return cleanengine.Report{}
 		},
+		// No test reads Devpit's real record of unfinished extractions.
+		Unfinished: unfinishedList(),
+	}
+}
+
+// unfinishedList is a fake record of unfinished extractions holding the
+// archives with these paths.
+func unfinishedList(paths ...string) func(context.Context) []extractengine.Unfinished {
+	return func(context.Context) []extractengine.Unfinished {
+		out := make([]extractengine.Unfinished, 0, len(paths))
+		for _, p := range paths {
+			out = append(out, extractengine.Unfinished{
+				Set:    archive.Set{Picked: p, First: p, Parts: []string{p}, Format: archive.FormatZip, Bytes: 34_000_000_000},
+				OutDir: strings.TrimSuffix(p, ".zip"),
+				Mode:   extractengine.ModeInPlace,
+			})
+		}
+		return out
+	}
+}
+
+// update rewrites the golden files: go test ./internal/ui/screens/clean -update
+var update = flag.Bool("update", false, "rewrite the golden frames")
+
+// goldenDir is the repository's shared golden directory.
+const goldenDir = "../../../../testdata/golden"
+
+// requireGolden compares a frame with testdata/golden/<name>.golden, or
+// writes it with -update. Trailing spaces are ignored, as in the app's own
+// goldens.
+func requireGolden(t *testing.T, name, got string) {
+	t.Helper()
+	got = trimLines(got)
+	path := filepath.Join(goldenDir, name+".golden")
+	if *update {
+		if err := os.WriteFile(path, []byte(got), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("no golden %s: %v\nRun go test ./internal/ui/screens/clean -update", path, err)
+	}
+	if trimLines(string(want)) != got {
+		t.Errorf("frame does not match %s\n--- want ---\n%s\n--- got ---\n%s", path, want, got)
+	}
+}
+
+// trimLines trims trailing blanks from every line.
+func trimLines(s string) string {
+	lines := strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.Join(lines, "\n")
+}
+
+// frameWithKeys is the body of a screen followed by its footer key hints.
+func frameWithKeys(s uictx.Screen, ctx uictx.Context) string {
+	var hints []string
+	for _, b := range s.ShortHelp() {
+		h := b.Help()
+		hints = append(hints, h.Key+" "+h.Desc)
+	}
+	return ansi.Strip(s.View(ctx)) + "\n\n[keys] " + strings.Join(hints, "  ·  ") + "\n"
+}
+
+// sizedContext is the render context the app hands a screen at a size and
+// tier: four rows of header above the body and two of footer under it.
+func sizedContext(cfg config.Config, w, h int, tier icons.Tier) uictx.Context {
+	return uictx.Context{
+		Theme: theme.For(true), Icons: icons.For(tier), Config: cfg,
+		Width: w, Height: h, BodyHeight: h - 6, BodyTop: 4,
 	}
 }

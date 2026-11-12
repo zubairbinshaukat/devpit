@@ -232,6 +232,16 @@ detect = ["lazygit.exe"]
 description = "Terminal UI for git commands."
 
 [[app]]
+name = "hatchzip"
+category = "CLI Tools"
+scoop = "xevrion/hatchzip"
+bucket = "xevrion https://github.com/xevrion/scoop-bucket"
+winget = ""
+choco = ""
+detect = ["hatchzip.exe"]
+description = "Extracts big archives in place when the disk is nearly full."
+
+[[app]]
 name = "Cascadia Code"
 category = "Fonts"
 scoop = "cascadia-code"

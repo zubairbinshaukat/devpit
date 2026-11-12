@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/zubairbinshaukat/devpit/internal/extract/archive"
 	"github.com/zubairbinshaukat/devpit/internal/scan"
 )
 
@@ -31,6 +32,11 @@ var installerExtensions = map[string]struct{}{
 	".7z":   {},
 }
 
+// notSideFile keeps hatchzip's side files (the journal beside an archive and
+// the .hatchzip-part files in its output) out of Full Scan: deleting one breaks
+// an unfinished extraction (safety rule 90).
+func notSideFile(lowerName string) bool { return !archive.IsSideFile(lowerName) }
+
 // LargeFiles returns the two large-file rules.
 //
 // Both are Careful. A large file is the one category where Devpit genuinely
@@ -48,6 +54,7 @@ func LargeFiles() []scan.Rule {
 			Kind:    scan.KindLargeFile,
 			MinSize: LargeInstallerBytes,
 			Match: func(lowerName string) bool {
+				// No side-file name ends in one of these extensions.
 				_, ok := installerExtensions[strings.ToLower(filepath.Ext(lowerName))]
 				return ok
 			},
@@ -59,6 +66,7 @@ func LargeFiles() []scan.Rule {
 			Name:        "large file",
 			Kind:        scan.KindLargeFile,
 			MinSize:     LargeFileBytes,
+			Match:       notSideFile,
 			Tier:        scan.TierCareful,
 			RestoreHint: "There is no way to restore this except from your own backup. Look at it before you tick it.",
 			Description: "A single file over a gigabyte.",

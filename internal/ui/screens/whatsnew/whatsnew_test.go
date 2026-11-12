@@ -40,6 +40,9 @@ func TestDueDecisionTable(t *testing.T) {
 		{"unreadable last seen counts as older", "0.4.0", "garbage", true, true, "0.4"},
 		{"pre-release of a newer minor", "0.4.0-rc.1", "0.3.2", true, true, "0.4"},
 		{"a minor with no entry shows nothing", "9.9.0", "0.4.0", true, false, ""},
+		{"a patch with its own card: extract in place", "0.5.4", "0.5.3", true, true, "0.5.4"},
+		{"jumping over patches to the extract card", "0.5.4", "0.5.0", true, true, "0.5.4"},
+		{"the extract card is not shown twice", "0.5.4", "0.5.4", true, false, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

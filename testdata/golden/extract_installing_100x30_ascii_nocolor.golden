@@ -1,0 +1,9 @@
+Installing hatchzip with Scoop
+
+ + Adding the xevrion bucket                                                                   2.1s
+ / Installing hatchzip        hatchzip-x86_64-pc-windows-msvc.zip (2.4 MB) [=======>      ]... 6.0s
+
+Devpit carries on to the space check by itself when this is done. Press s twice to skip, Esc to
+stop.
+
+[keys] s skip  ·  esc stop

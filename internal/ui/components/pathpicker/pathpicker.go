@@ -111,6 +111,9 @@ type Model struct {
 	// for a caller that is not choosing a folder to scan. Empty keeps the
 	// scan wording.
 	pickPrompt, typePrompt string
+
+	// start is the folder the browser opens on. Empty leaves it to Windows.
+	start string
 }
 
 // New returns a picker over the folders in cfg.
@@ -147,6 +150,37 @@ func (m Model) WithBrowse(fn func(start string) (string, error)) Model {
 func (m Model) WithPrompts(pick, typ string) Model {
 	m.pickPrompt, m.typePrompt = pick, typ
 	return m
+}
+
+// WithStart sets the folder the browser opens on, for a caller that already
+// knows where the user is working. Empty leaves it to Windows.
+func (m Model) WithStart(dir string) Model {
+	m.start = dir
+	return m
+}
+
+// WithFirst puts a folder at the top of the list, highlighted, under its own
+// description, for a caller that knows the likeliest answer. A row the list
+// already has for that folder is dropped, so it is never offered twice. An
+// empty path changes nothing.
+func (m Model) WithFirst(path, desc string) Model {
+	if path == "" {
+		return m
+	}
+	items := []menu.Item{{ID: path, Title: path, Desc: desc}}
+	for _, it := range m.menu.Items() {
+		if !sameFolder(it.ID, path) {
+			items = append(items, it)
+		}
+	}
+	m.menu = m.menu.SetItems(items).SetCursor(0)
+	return m
+}
+
+// sameFolder reports that two paths name one folder, whatever their case and
+// whether or not they end in a separator.
+func sameFolder(a, b string) bool {
+	return strings.EqualFold(strings.TrimRight(a, `\/`), strings.TrimRight(b, `\/`))
 }
 
 // SetItems rebuilds the list from a configuration, so a picker shown again
@@ -271,7 +305,7 @@ func (m Model) activate() (Model, tea.Cmd) {
 // browseCmd opens the platform folder browser off the update loop.
 func (m Model) browseCmd() tea.Cmd {
 	fn := m.browseFn
-	start := ""
+	start := m.start
 	if it, ok := m.menu.Selected(); ok && it.ID != rowBrowse {
 		start = it.ID
 	}

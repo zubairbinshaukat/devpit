@@ -16,8 +16,8 @@ Pick what to look through. Nothing is deleted without a preview.
     Resume interrupted deletes
     Finish deleting what a stopped clean-up left half done
 
-
-
+    Extract big archive in place
+    Unpack a big .zip, .7z or .rar even when the disk is nearly full
 
 
 

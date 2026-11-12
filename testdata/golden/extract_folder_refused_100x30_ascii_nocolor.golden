@@ -1,0 +1,17 @@
+Where should Game-Backup.zip be extracted? Devpit makes a new folder for it inside the one you pick.
+
+    D:\Downloads
+    Beside the archive
+
+    D:\work
+    Your default projects folder
+
+| > Type a path…
+|   Enter a folder by hand
+
+    Browse…
+    Open the Windows folder browser
+
+X Devpit does not extract into that place (system or sign-in files).
+
+[keys] enter choose  ·  esc back

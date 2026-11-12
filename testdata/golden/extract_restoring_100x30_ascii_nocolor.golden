@@ -1,0 +1,8 @@
+Restoring Game-Backup.zip
+
+ | Restoring  hatchzip is rebuilding the archive                                                12s
+
+hatchzip puts the files it has not extracted yet back into a working archive. The files already
+extracted stay where they are.
+
+[keys] esc stop

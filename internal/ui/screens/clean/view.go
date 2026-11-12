@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	cleanengine "github.com/zubairbinshaukat/devpit/internal/clean"
+	extractengine "github.com/zubairbinshaukat/devpit/internal/extract"
 	"github.com/zubairbinshaukat/devpit/internal/ui/components/header"
 	"github.com/zubairbinshaukat/devpit/internal/ui/uictx"
 )
@@ -50,11 +51,38 @@ func (m Model) menuView(ctx uictx.Context) string {
 	b.WriteString(m.menuLead(ctx))
 	b.WriteString("\n\n")
 	b.WriteString(m.menu.View(ctx))
-	if lifetime := ctx.Config.LifetimeFreedBytes; lifetime > 0 {
+	// One line fits under the menu on the smallest window. An unfinished
+	// extraction is something to act on, so it wins over the lifetime total.
+	if hint := unfinishedHint(m.unfinished); hint != "" {
+		b.WriteString("\n\n")
+		b.WriteString(ctx.Theme.Warning.Render(ctx.Truncate(ctx.Icons.Warn + " " + hint)))
+	} else if lifetime := ctx.Config.LifetimeFreedBytes; lifetime > 0 {
 		b.WriteString("\n\n")
 		b.WriteString(ctx.Theme.Muted.Render("Devpit has freed " + header.FormatBytes(lifetime) + " on this machine so far."))
 	}
 	return b.String()
+}
+
+// unfinishedHint is the reminder under the menu, or "" when no extraction is
+// unfinished. It says "unfinished" in words; the warning colour and the mark
+// in front only repeat it.
+func unfinishedHint(list []extractengine.Unfinished) string {
+	switch len(list) {
+	case 0:
+		return ""
+	case 1:
+		return "1 unfinished extraction: " + baseName(list[0].Set.First) + ". Open Extract to resume it."
+	default:
+		return fmt.Sprintf("%d unfinished extractions. Open Extract to resume them.", len(list))
+	}
+}
+
+// baseName is the file name of a Windows or a slash path.
+func baseName(p string) string {
+	if i := strings.LastIndexAny(p, `\/`); i >= 0 {
+		return p[i+1:]
+	}
+	return p
 }
 
 // scanningView draws the progress bar, the live counters and whatever rows

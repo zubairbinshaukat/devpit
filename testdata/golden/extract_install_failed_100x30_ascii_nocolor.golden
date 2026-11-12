@@ -1,0 +1,9 @@
+X hatchzip was not installed
+
+ X Adding the xevrion bucket  fatal: unable to access the repository: Could not resolve hos... 3.4s
+ . Installing hatchzip        not run
+
+"Adding the xevrion bucket" failed, so nothing after it was run.
+Press r to go back and try again, or l to read what Scoop said.
+
+[keys] r try again  ·  l details  ·  esc back

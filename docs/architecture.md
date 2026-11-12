@@ -46,6 +46,10 @@ internal/sysinfo/      the read-only PC specs engine: SMBIOS, EDID, battery,
                       displays, CPU topology, one PowerShell batch, the
                       Buyer's check (Assess) and the Markdown report;
                       sysinfofake holds made-up PCs for tests and screenshots
+internal/extract/      runs the external tool hatchzip to extract a big
+                      archive in place: check, extract, restore, progress,
+                      pause; archive/ holds the naming rules, extracttest/
+                      the fakes
 ```
 
 `internal/` because none of it is meant to be imported by anyone else. No
@@ -55,7 +59,7 @@ internal/sysinfo/      the read-only PC specs engine: SMBIOS, EDID, battery,
 
 Every package above `internal/ui` and `internal/app` — `scan`, `clean`,
 `ports`, `tools`, `fonts`, `wt`, `network`, `gitssh`, `elevate`, `share/...`,
-`sysinfo` — is an
+`sysinfo`, `extract` — is an
 **engine package**: it does not import `github.com/charmbracelet/bubbletea`,
 does not know what a screen is, and can be unit-tested with nothing but the
 filesystem and (on Windows) real Win32 calls. `internal/elevate` is the
@@ -179,6 +183,8 @@ doing the stubs are the list of what has to be written.
 | `share/robocopy` | Command lines, log tailing, language-independent parsing, exit-code bits | `CopyArgs`, `DryRunArgs`, `ParseLine`, `ParseSummary`, `DecodeExit`, `Tool.Copy` | `exec_windows.go` (no console window) |
 | `share/netstat` | Address check, `net view` parsing, sign-in, adapter byte counters, reachability probe | `ParseHost`, `ParseNetView`, `SignIn`, `Meter` (`NewMeter` reads in, `NewSendMeter` reads out, `NewByteMeter` any counter), `WaitReachable` | `oem_windows.go` (OEM code page) |
 | `sysinfo` | Read what the PC is made of, one section at a time, each bounded; judge it for a buyer; write the report | `NewLive` (a `Source`), `Bounded`, `Assess`, `Glance`, `Markdown`, `SaveNew`, `ReadReliability` (elevated worker only) | `live_windows.go`, `smbios_windows.go`, `battery_windows.go`, `display_windows.go`, `gpu_windows.go`, `volumes_windows.go`, `windows_windows.go`, `psbatch_windows.go`, `desktop_windows.go` |
+| `extract` | Run hatchzip's `check`, `extract` and `restore` through a fakeable `Runner`; parse the check's plan text for display; follow progress with `Lstat` only; map exit codes to outcomes; pause with Ctrl+Break; find unfinished extractions; write a run log per run | `Engine.Check`, `Engine.Start`, `Engine.Restore`, `Engine.Pending`, `ParsePlan`, `Identify`, `OutDirIn`, `FindArchives` | `runner_windows.go`, `fs_windows_test.go`, `runner_windows_test.go`, `real_windows_test.go` |
+| `extract/archive` | Naming rules only, standard library only: supported extensions, split volumes, first volume, hatchzip's side-file names | `Classify`, `FirstVolume`, `Stem`, `IsSideFile`, `JournalPath` | none |
 | `share/errmap` | One table of known sharing errors, in plain words, keyed by Win32 number | `Lookup`, `Explain`, `Entries` | none |
 | `share/job`, `share/store` | The resume record and atomic JSON files | `job.Save`, `job.Load`, `store.WriteJSON` | none |
 
@@ -313,6 +319,48 @@ record (`share/job`) is written before the copy starts and on every step.
 
 Every error that reaches the user goes through `share/errmap`, one table keyed
 by Win32 number. `errmap.Entries` is what the docs page is generated from.
+
+## Extract in place
+
+`internal/extract` never reads or writes an archive. It runs
+[hatchzip](https://github.com/xevrion/hatchzip) (by xevrion, MIT or Apache 2.0)
+and describes what hatchzip does. The shape, with no Bubble Tea import:
+
+- **Check, then ticket.** `Engine.Check` runs `hatchzip check` and, only on exit
+  0, returns a single-use `Ticket`. `Engine.Start` takes nothing else (safety.md
+  rule 76). The check's text is parsed for display; the exit code is the
+  verdict (rule 84).
+- **One runner.** `Runner` starts hatchzip from the absolute path the detector
+  found, with stdin on `NUL`, both outputs on pipes and its own process group
+  on Devpit's console. A password goes only into the child's environment
+  (`HATCHZIP_PASSWORD`). The Windows runner puts the process in a kill-on-close
+  Job Object.
+- **Lstat-only poller.** While hatchzip runs, `poll.go` takes progress from
+  `Lstat` of the files and from folder names, never opening a file (rule 78).
+  The bar is capped below 100% until hatchzip exits 0.
+- **Pause, then stop.** Cancelling sends Ctrl+Break, a second one after 5 s and
+  ends the Job only after 3 s more, which fits inside the app's Ctrl+C grace
+  (rule 80). hatchzip saves its progress, so a pause or a stop can be resumed.
+- **Devpit's record.** `extract-jobs.json` in the cache folder says which
+  extractions were started, so Clean can offer to resume them. It never holds a
+  password. hatchzip's own side files are only ever `Lstat`ed (rule 81).
+- **Where it goes.** The output is always a new folder named after the archive:
+  `DefaultOutDir` puts it beside the archive, `OutDirIn` inside a parent the
+  person chose (another drive is fine; network paths, links, protected places
+  are refused, rule 82). `SameDrive` tells the screen when the two differ.
+- **Run log.** Every check, extract (with its automatic resume) and restore
+  writes one plain-text, timestamped log to `<cache>\logs\extract-<time>-<stem>.log`
+  (`log.go`, files in `logfile.go`): versions, the request, free space, the
+  argv, every output line, the plan, each pause step, the bug #79 decision,
+  a progress sample every 10 s and the outcome. Lines go straight to the file
+  so a crash leaves them; the outcome is fsynced. The password is never in it,
+  the newest 30 are kept, and a log failure never fails a run (rule 91).
+  `Outcome.LogPath`, `CheckResult.LogPath` and `Job.LogPath` say where it is.
+- **Fakes.** `internal/extract/extracttest` is a fake runner, file system and
+  clock, so every ending is tested without hatchzip.
+
+The screen is `internal/ui/screens/extract`, pushed from the Clean menu and from
+Share Files' done card. `internal/ui/components/filepicker` picks the archive.
 
 ## The delete flow: tombstone, sweep, Recycle Bin
 

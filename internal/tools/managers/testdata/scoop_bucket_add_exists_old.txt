@@ -1,0 +1,1 @@
+The 'xevrion' bucket already exists. Use 'scoop bucket rm xevrion' to remove it.
