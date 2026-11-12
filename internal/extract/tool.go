@@ -20,7 +20,7 @@ var versionPattern = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)`)
 // checked it is fine to run as is: Ctrl+Break reaches hatchzip through it,
 // exit codes pass through, and killing the shim kills hatchzip.
 func UseTool(t tools.Tool) (Tool, error) {
-	if !t.Found || t.Path == "" || !filepath.IsAbs(t.Path) {
+	if !t.Found || t.Path == "" || !toolPathIsAbs(t.Path) {
 		return Tool{}, ErrToolMissing
 	}
 	if !versionAtLeast(t.Version, MinVersion) {
@@ -28,6 +28,11 @@ func UseTool(t tools.Tool) (Tool, error) {
 	}
 	return Tool{Path: t.Path, Version: t.Version}, nil
 }
+
+// toolPathIsAbs reports whether p is absolute on this OS or is a Windows
+// drive path (X:\…). The second form keeps the fakes' Windows paths usable
+// when the tests run on Linux; a bare name is never absolute either way.
+func toolPathIsAbs(p string) bool { return filepath.IsAbs(p) || isAbsPath(p) }
 
 // versionAtLeast compares the leading x.y.z of v with least numerically. An
 // unparseable v is never at least anything.

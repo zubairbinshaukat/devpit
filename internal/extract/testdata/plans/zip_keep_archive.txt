@@ -1,0 +1,5 @@
+archive.zip  3.0 MB zip, 3.0 MB uncompressed in 7 entries
+  available                    112.5 GB
+  required                     3.0 MB (+2.0 GB reserved)
+  note: the archive is kept, so space is required for all extracted files
+  available after              112.5 GB

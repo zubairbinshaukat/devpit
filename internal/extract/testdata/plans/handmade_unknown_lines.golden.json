@@ -1,0 +1,23 @@
+{
+  "Name": "archive.zip",
+  "MoreParts": 0,
+  "Format": "zip",
+  "ArchiveBytes": 84200000000,
+  "TotalBytes": 96000000000,
+  "Entries": 12408,
+  "Resuming": false,
+  "LeftBytes": 0,
+  "Available": 31500000000,
+  "StandardNeeds": 96000000000,
+  "Required": 13800000000,
+  "Reserved": 2000000000,
+  "AvailableAfter": 15700000000,
+  "ShortBy": 0,
+  "AllDone": false,
+  "KeepArchiveFits": false,
+  "Notes": null,
+  "Unknown": [
+    "  checksum mode                fast",
+    "something a later hatchzip prints"
+  ]
+}

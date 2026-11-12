@@ -1,0 +1,6 @@
+archive.zip  2.0 GB zip, 2.0 GB uncompressed in 2029 entries
+  resuming: 808.0 MB of 2.0 GB remaining
+  available                    108.5 GB
+  standard extraction needs    810.8 MB
+  required                     3.1 MB (+2.0 GB reserved)
+  available after              108.5 GB

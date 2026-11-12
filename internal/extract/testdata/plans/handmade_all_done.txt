@@ -1,0 +1,3 @@
+archive.zip  4.0 KB zip, 96.0 GB uncompressed in 12408 entries
+  resuming: 0 B of 96.0 GB remaining
+All entries are already extracted. Run extract to complete the cleanup.

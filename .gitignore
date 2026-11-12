@@ -1,4 +1,5 @@
-plans/
+# Local planning notes. Anchored to the repo root so testdata/plans/ is kept.
+/plans/
 
 # Build output. Anchored to the repo root so cmd/devpit/ is not swept up.
 /devpit

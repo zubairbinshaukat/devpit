@@ -1,0 +1,20 @@
+{
+  "Name": "archive.zip",
+  "MoreParts": 0,
+  "Format": "zip",
+  "ArchiveBytes": 4000,
+  "TotalBytes": 96000000000,
+  "Entries": 12408,
+  "Resuming": true,
+  "LeftBytes": 0,
+  "Available": 0,
+  "StandardNeeds": 0,
+  "Required": 0,
+  "Reserved": 0,
+  "AvailableAfter": 0,
+  "ShortBy": 0,
+  "AllDone": true,
+  "KeepArchiveFits": false,
+  "Notes": null,
+  "Unknown": null
+}

@@ -1,0 +1,4 @@
+archive.zip  84.2 GB zip, 96.0 GB uncompressed in 12,408 entries
+  free now                     31.5 GB
+  space needed                 13.8 GB, with 2.0 GB kept free
+  left afterwards              15.7 GB

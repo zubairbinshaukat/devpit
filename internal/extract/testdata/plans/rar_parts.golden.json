@@ -1,0 +1,22 @@
+{
+  "Name": "archive.part1.rar",
+  "MoreParts": 2,
+  "Format": "rar",
+  "ArchiveBytes": 3000000,
+  "TotalBytes": 3000000,
+  "Entries": 5,
+  "Resuming": false,
+  "LeftBytes": 0,
+  "Available": 110500000000,
+  "StandardNeeds": 3000000,
+  "Required": 1000000,
+  "Reserved": 2000000000,
+  "AvailableAfter": 110500000000,
+  "ShortBy": 0,
+  "AllDone": false,
+  "KeepArchiveFits": true,
+  "Notes": [
+    "there is also enough space to keep the archive (--keep-archive)"
+  ],
+  "Unknown": null
+}

@@ -1,0 +1,6 @@
+archive.7z.001 (+2 more parts)  3.0 MB 7z, 3.0 MB uncompressed in 7 entries
+  available                    110.5 GB
+  standard extraction needs    3.0 MB
+  required                     1.0 MB (+2.0 GB reserved)
+  available after              110.5 GB
+  note: there is also enough space to keep the archive (--keep-archive)

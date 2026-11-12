@@ -1,0 +1,7 @@
+archive.zip  3.0 MB zip, 3.0 MB uncompressed in 7 entries
+  available                    112.5 GB
+  standard extraction needs    3.0 MB
+  required                     1.0 MB (+2.0 GB reserved)
+  available after              112.5 GB
+  note: there is also enough space to keep the archive (--keep-archive)
+  note: 6 files already exist in the destination; extract with --replace to replace existing files

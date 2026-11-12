@@ -1,0 +1,24 @@
+{
+  "Name": "archive.zip",
+  "MoreParts": 0,
+  "Format": "zip",
+  "ArchiveBytes": 84200000000,
+  "TotalBytes": 96000000000,
+  "Entries": 12408,
+  "Resuming": false,
+  "LeftBytes": 0,
+  "Available": 0,
+  "StandardNeeds": 0,
+  "Required": 0,
+  "Reserved": 0,
+  "AvailableAfter": 0,
+  "ShortBy": 0,
+  "AllDone": false,
+  "KeepArchiveFits": false,
+  "Notes": null,
+  "Unknown": [
+    "  free now                     31.5 GB",
+    "  space needed                 13.8 GB, with 2.0 GB kept free",
+    "  left afterwards              15.7 GB"
+  ]
+}
