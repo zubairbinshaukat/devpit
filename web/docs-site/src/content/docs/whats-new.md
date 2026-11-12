@@ -14,6 +14,42 @@ Every release is listed here, newest first. The same notes are on the [GitHub re
 
 To upgrade, see [Getting started](/docs/getting-started#update-devpit).
 
+## v0.5.4
+
+Released 12 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.5.4)
+
+### Features
+- Extract a big archive in place with hatchzip
+### Fixes
+- Commit the extract plan fixtures and accept the fakes' Windows tool path on Linux
+
+## v0.5.3
+
+Released 11 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.5.3)
+
+### Fixes
+- Count only this share's bytes in copy progress
+- Mark the Windows-only adapter GUID field for the Linux linter
+
+## v0.5.2
+
+Released 10 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.5.2)
+
+### Fixes
+- Catch a receiver that holds the hotspot's address itself
+- Check the connection after joining a hotspot, and keep network sharing first
+
+## v0.5.1
+
+Released 10 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.5.1)
+
+### Features
+- Direct hotspot in the Share Files screens
+- Hotspot mode and link speed in the sharing engine
+- Hotspot step in the elevated share worker
+- Receiver joins the sharing PC's hotspot
+- Show the Wi-Fi standard in PC specs
+
 ## v0.5.0
 
 Released 9 November 2026. [Release page](https://github.com/zubairbinshaukat/devpit/releases/tag/v0.5.0)
