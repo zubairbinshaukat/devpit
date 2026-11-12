@@ -1,0 +1,189 @@
+---
+title: Extract a big archive in place when the disk is full
+description: Unpack a big .zip, .7z or .rar on Windows even when the disk has less free space than the files need. Devpit runs hatchzip and removes the archive as it goes.
+sidebar:
+  label: Extract in place
+  order: 6
+published: 2026-11-12
+related:
+  - features/free-up-disk-space
+  - features/share-files
+  - features/install-developer-apps
+  - safety-and-privacy
+  - whats-new
+faq:
+  - question: "What does extracting in place mean?"
+    answer: "Normally you need room for the archive and for all the files it holds, side by side. In place, the archive is cut down as each part is written, so the disk only has to hold the files plus a small working margin. When the extraction ends, the archive is gone."
+  - question: "Does Devpit extract the archive itself?"
+    answer: "No. Devpit never reads or writes the archive's bytes. It runs hatchzip, a free open-source tool by xevrion (MIT or Apache 2.0), and plans, asks, watches and explains. hatchzip does the extracting."
+  - question: "Is it safe to stop in the middle?"
+    answer: "hatchzip saves its progress as it goes, so pressing Esc pauses it and Resume carries on later, even after you close Devpit. It was checked on one Windows 11 PC with an NTFS disk: pauses and a hard kill were both resumable. A power cut was not tested, and this is not a promise for every disk. Keep another copy of an archive you cannot get again."
+  - question: "Can I keep the archive?"
+    answer: "Yes. Press k on the space plan to extract and keep the archive. Nothing is removed, but you need room for all the extracted files. When the disk has room for both, Devpit selects this mode for you."
+  - question: "Which archives does it not handle?"
+    answer: "Split ZIP sets (.z01, .z02), RAR archives that are solid when you extract in place (you can still keep the archive), archives on a network path or mapped drive, and tar files. Tar is not offered yet."
+  - question: "Do I need admin rights?"
+    answer: "No. Installing hatchzip with Scoop needs none, and extracting writes only into a new folder beside the archive or in a folder you choose."
+  - question: "Where can I see what happened when an extraction fails?"
+    answer: "Every check, extraction and restore writes a plain-text log to %LOCALAPPDATA%\\devpit\\logs. It holds what Devpit asked, everything hatchzip printed, each pause step and how the run ended. It never holds your password. Devpit keeps the newest 30."
+---
+
+You downloaded a big archive and the disk does not have room for it and everything inside it.
+Extract in place unpacks it anyway, by removing the archive as the files are written.
+
+Devpit does not extract anything itself.
+It runs [hatchzip](https://github.com/xevrion/hatchzip), a free, open-source tool by xevrion (MIT or Apache 2.0, at [github.com/xevrion/hatchzip](https://github.com/xevrion/hatchzip)).
+Devpit checks the space with hatchzip, asks you, draws the progress and explains what happened.
+Every byte of the archive is read and written by hatchzip.
+
+Open it from **Free Up Disk Space** (<kbd>2</kbd>), the last row: **Extract big archive in place**.
+It also appears on Share Files, see [After a Share Files copy](#after-a-share-files-copy).
+
+## What it works with
+
+- `.zip`, `.7z` and `.rar`.
+- Split sets: `.7z.001`, `.zip.001`, `.part1.rar` and `.rar` with `.r00`. Pick any part and Devpit uses the whole set.
+- A local file on this PC. Devpit does not extract from a network path or a mapped network drive: copy the archive to this PC first.
+
+## Extract an archive
+
+1. Open **Free Up Disk Space** and choose **Extract big archive in place**.
+2. Pick the archive. The list shows archives of 1 GB or more in Downloads and your recent folders, unfinished ones first. You can also type a path or use **Browse**.
+3. Devpit runs `hatchzip check` and shows the **space plan**: the archive, how much it unpacks to, how much is free, how much a normal extract needs and how much in place needs. Every size says "about", because hatchzip prints rounded sizes.
+4. Press <kbd>Enter</kbd> to continue. Devpit asks one question that says the archive is removed as it goes. The default answer is **No**.
+5. Answer yes. Devpit shows a progress bar, the speed it measures, the time left, how many items are done, the file being written, how big the archive is now and how much is free.
+6. When it ends you see how much was extracted, where the files are and whether the archive was removed.
+
+The files go into a new folder beside the archive, named after it: `Game-Backup.zip` becomes `Game-Backup`, and `x.7z.001` becomes `x`.
+If that folder already exists and holds files, Devpit uses `Game-Backup (2)`, then `(3)`.
+
+## Choose where to extract
+
+The files can also go somewhere else: choose a parent folder, and Devpit makes the same new folder inside it, for example `E:\Games\Game-Backup`.
+It never writes into a folder that already holds files: it uses `Game-Backup (2)`, then `(3)`, as beside the archive.
+
+Devpit refuses a parent folder that:
+
+- does not exist, or is a file,
+- is a network path or a mapped network drive,
+- is a link or a junction, or is reached through one,
+- is under the Windows folder, Program Files or ProgramData, or inside a login or account folder.
+
+A folder on another drive is allowed, and the space plan says so.
+Then the files need room on that drive, and the archive's drive gains space as the archive is removed.
+The check measures both, so the plan is what hatchzip found, not a guess.
+
+A resume always uses the folder the extraction was started in.
+
+### The space plan
+
+If the plan says it fits, the card says so and <kbd>Enter</kbd> goes on.
+If it does not fit even in place, the card says how much more space is needed and nothing was changed.
+Free some space first: [Full Scan](/docs/features/free-up-disk-space) can find it.
+
+The check decides, not the wording on the card.
+Devpit uses hatchzip's exit code to know whether it fits, and the text only describes it.
+
+| Key | What it does |
+| --- | --- |
+| <kbd>Enter</kbd> | Continue to the question |
+| <kbd>k</kbd> | Keep the archive instead: nothing is removed, but you need room for all the files |
+| <kbd>i</kbd> | Go back to extracting in place |
+| <kbd>l</kbd> | Show every line hatchzip printed |
+| <kbd>r</kbd> | Check again (when it did not fit) |
+| <kbd>Esc</kbd> | Go back |
+
+When there is enough space to keep the archive as well, Devpit selects **keep the archive** for you, because it removes nothing.
+Press <kbd>i</kbd> if you want it removed.
+
+## The archive is removed as it goes
+
+This is how it fits on a full disk, and it is worth knowing before you say yes.
+
+- In place, hatchzip cuts the archive down as each part is written. When it finishes, the archive is **gone**.
+- If it stops half way, the files already written stay, and what is left of the archive stays too. It holds only what is not extracted yet.
+- **Keep another copy** of an archive you cannot download or make again.
+
+## Pause and resume
+
+Press <kbd>Esc</kbd> while it runs. Devpit asks hatchzip to pause, which usually takes a moment.
+Ctrl+C and closing the screen pause it too. If hatchzip does not pause in time, Devpit stops it, and the card says so.
+Progress is saved either way.
+
+The next time you open **Free Up Disk Space**, a line says there is an unfinished extraction.
+Open **Extract big archive in place** and pick it:
+
+| Choice | What it does |
+| --- | --- |
+| **Resume** | Checks the space again, then carries on where it stopped |
+| **Restore the archive** | Asks hatchzip to rebuild a working archive from what is not extracted yet. Files already extracted stay in their folder |
+| **Leave it for now** | Changes nothing. The menu keeps reminding you |
+
+An archive that is protected with a password asks for the password each time.
+Devpit passes it to hatchzip for that run only, in memory, and never saves it.
+
+hatchzip keeps its progress in small files beside the archive, ending in `.hatchzip`, `.hatchzip-tail` and `.hatchzip-folders`, and in `.hatchzip-part` files in the output folder.
+Devpit never deletes, moves or edits them.
+Do not remove them by hand while an extraction is unfinished.
+Full Scan never lists them, and Devpit refuses to delete an archive that has an unfinished extraction.
+
+When free space is tight, hatchzip can stop and report the disk full too early, a known issue in hatchzip: Windows gives back the space of the part already extracted only when hatchzip closes the archive.
+Devpit then starts hatchzip again by itself after two seconds, and the screen says how many times it has done so.
+It keeps doing this only while each run extracts something more, and at most 20 times for one extraction.
+When a run gets no further, the disk really is full: Devpit stops, keeps the progress, and you can free some space and resume.
+It never resumes by itself after you paused, or after any other error.
+
+## Logs
+
+Every check, extraction and restore writes a plain-text log, so you can see what happened if something goes wrong.
+The logs are in `%LOCALAPPDATA%\devpit\logs`, named `extract-<date>-<time>-<archive name>.log`.
+
+A log holds, each line with its time:
+
+- the Devpit and hatchzip versions, the archive and its parts with their sizes, the output folder, the mode and the free space on both drives,
+- the exact command Devpit ran, and every line hatchzip printed,
+- the space plan, each pause step, whether Devpit resumed by itself after a false "disk full", and a progress line every 10 seconds,
+- the exit code, how the run ended, and how long it took.
+
+The password is never written. The log only says whether one was given: `HATCHZIP_PASSWORD=<set>` or `<not set>`.
+Logs are never written into the output folder.
+Devpit keeps the newest 30 logs and deletes older ones; it deletes nothing else in that folder.
+If a log cannot be written, the extraction runs anyway.
+
+## Install hatchzip
+
+If hatchzip is not on the PC, Devpit offers to install it with [Scoop](https://scoop.sh). It shows exactly what it will run, and the default answer is **No**:
+
+```powershell
+scoop bucket add xevrion https://github.com/xevrion/scoop-bucket
+scoop install xevrion/hatchzip
+```
+
+No admin rights are needed. A bucket that is already added counts as done.
+Devpit needs hatchzip 0.1.10 or newer and offers `scoop update hatchzip` when yours is older.
+If Scoop is not installed either, the screen says where to get Scoop or hatchzip, and checks again when you press <kbd>r</kbd>.
+hatchzip is also in the [Install developer apps](/docs/features/install-developer-apps) list, under CLI Tools.
+
+## After a Share Files copy
+
+When a [Share Files](/docs/features/share-files) copy finishes and the folder you received holds a supported archive of 1 GB or more, the done card offers it:
+press <kbd>x</kbd> to extract it.
+This only opens the space plan. Nothing starts until you have seen the plan and answered yes, as always.
+
+## What it does not do
+
+- **Split ZIP** (`.z01`, `.z02`, then `.zip`). hatchzip does not support it. Join the parts with 7-Zip first.
+- **A solid RAR in place.** hatchzip refuses it at the check, and Devpit shows why. Extract and keep the archive instead, which needs room for all the files.
+- **Network paths** and mapped drives.
+- **Archives under the Windows folder, Program Files or ProgramData,** and login or account folders. Devpit does not extract there.
+- **tar** files, and self-extracting `.exe` archives. hatchzip can read some of them, but Devpit does not offer them yet.
+- **Making the archive smaller or checking it.** Devpit does not touch the archive's bytes.
+
+## Good to know
+
+- Extract in place was added in Devpit v0.5.4. It was tested with hatchzip 0.1.10 on Windows 11.
+- The sizes on the plan are hatchzip's rounded figures, so Devpit says "about". The bar never reaches 100% until hatchzip has finished.
+- Devpit keeps the PC awake while it runs.
+- Devpit draws its own progress from the sizes of the files as they grow. It never opens a file that hatchzip is writing.
+- If hatchzip reports damage, the card says so and nothing was removed. Some broken archives are reported by hatchzip as an error with its own message instead; the card shows hatchzip's line.
+- The full list of protections is on [Safety and privacy](/docs/safety-and-privacy#extract-archive-in-place).

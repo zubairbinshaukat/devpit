@@ -139,6 +139,23 @@ On the other PC, Devpit deletes only the Wi-Fi entry it added and puts the PC ba
 Anyone who joins the hotspot also gets internet through the sharing PC while it is on.
 Devpit stops the hotspot it started, also after a crash, with one stated limit that the Share Files page explains.
 
+## Extract archive in place
+
+[Extract a big archive in place](/docs/features/extract-archives-in-place) runs the free tool [hatchzip](https://github.com/xevrion/hatchzip) (by xevrion, MIT or Apache 2.0), which removes the archive as it writes the files.
+Devpit never touches the archive's bytes itself.
+These rules apply to it.
+
+- **A check first, then a yes.** hatchzip checks the space, and an extraction starts only after that check passed for exactly that archive and you answered yes. The answer is **No** by default, and the question says the archive is removed as it goes. If the check says no space, damaged or anything else, nothing is run and nothing changes.
+- **Devpit only looks at file sizes.** While hatchzip works, Devpit never opens the archive or a file being written. It reads sizes and folder names, which is how it draws the progress.
+- **Only a local file.** Network paths and mapped drives, links and junctions, the Windows folder, Program Files, ProgramData and login or account folders are refused. The output is a new folder beside the archive, never a drive root and never someone else's non-empty folder.
+- **The passwords you type stay private.** An archive password goes to hatchzip only through its own environment, for that one run. It is never on a command line, on screen, in a log, in Devpit's own settings or saved anywhere, and Resume asks again.
+- **hatchzip's own files are left alone.** Devpit never deletes, moves or edits the small files hatchzip keeps beside the archive to resume. Full Scan never lists them, and deleting an archive with an unfinished extraction is refused with a plain reason.
+- **Pause before stop.** Esc, Ctrl+C and quitting ask hatchzip to pause first, then ask again, and end it only after that. A stop Devpit caused is shown as stopped and resumable, not as a failure.
+- **Automatic resumes, and it says so.** If hatchzip reports the disk full too early, a known hatchzip issue, Devpit resumes it by itself while each try makes progress, up to 20 times, and shows how many times it did. It never does after its own pause or stop.
+- **The exit code decides.** hatchzip's text only describes. An unknown line never changes a verdict, sizes say "about", and the bar never reaches 100% before hatchzip has finished.
+- **Installing hatchzip asks first.** It is installed with Scoop only after a yes (default No) on a screen that shows the exact commands. The Scoop bucket comes only from Devpit's built-in list.
+- **Safe to stop, with a limit.** hatchzip saves its progress, and pauses and a hard kill were both resumed on the one Windows 11 PC this was tested on. That is not a promise for every disk, and a power cut was not tested.
+
 ## What Devpit sends
 
 Short version: **usage stats are off until you turn them on.**
@@ -152,7 +169,7 @@ Devpit reads and writes these places, and nothing in them is uploaded:
 | Account rules and the undo history | `%APPDATA%\devpit\accounts.toml`, `%APPDATA%\devpit\accounts-journal.jsonl` |
 | Account folders Devpit made | `%USERPROFILE%\.devpit\accounts\` |
 | Git rule files | `%USERPROFILE%\.devpit\git\` |
-| Caches and logs | `%LOCALAPPDATA%\devpit\` |
+| Caches and logs, and the list of unfinished extractions (`extract-jobs.json`, no passwords) | `%LOCALAPPDATA%\devpit\` |
 
 ### Usage stats (off by default)
 
@@ -217,7 +234,7 @@ These are not usage stats. Each one happens only for the reason given.
 | You open **My IP addresses** | `api.ipify.org`, then `ifconfig.me` | To show your public IP address |
 | You install the icon font | `github.com` (a fixed Nerd Fonts release) | To download the icon font. The file is checked against a fixed SHA256 before it is used |
 | You run the installer or update | `github.com` | To download the release and its checksums |
-| You use Install or Update | The sources of Scoop, winget, Chocolatey or npm | These tools contact their own servers. Devpit only runs their commands |
+| You use Install or Update, or install hatchzip for Extract in place | The sources of Scoop, winget, Chocolatey or npm | These tools contact their own servers. Devpit only runs their commands |
 | You ping a host | The host you typed | That is what ping does |
 | You add, check or use an account | That tool's own servers | The tool's own sign-in and "who am I" check, run by the tool itself (for example `gh api user` or `vercel whoami`) |
 

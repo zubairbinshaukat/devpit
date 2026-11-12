@@ -1,0 +1,116 @@
+---
+title: "Extract stopped: disk full, crash or power cut"
+description: "An in-place extract stopped with not enough disk space, or the PC crashed. Why a false disk full happens, how to resume or restore, and what to report."
+sidebar:
+  label: "Extract stopped or crashed"
+published: 2026-11-13
+related:
+  - features/extract-archives-in-place
+  - blog/not-enough-disk-space-to-extract-windows
+  - blog/extract-124gb-zip-with-25gb-free
+  - features/free-up-disk-space
+faq:
+  - question: "Why does hatchzip say not enough disk space when there is space?"
+    answer: "In hatchzip 0.1.10 on Windows, the space of the archive part already extracted is given back only when hatchzip closes the archive. During the run the free space looks lower than it is, so hatchzip can stop early. This is hatchzip issue 79. Running it again carries on, and Devpit does that by itself while each run makes progress."
+  - question: "Can I delete the .hatchzip files beside the archive?"
+    answer: "Not while the extraction is unfinished. They hold hatchzip's progress. Without them hatchzip cannot resume or restore the archive. Devpit never deletes, moves or edits them."
+  - question: "My PC crashed during an extract in place. Are my files lost?"
+    answer: "hatchzip is built so a crash leaves each file either written or still inside the archive, never neither. Reopen Devpit, open Free Up Disk Space, and choose Resume or Restore the archive. A hard kill was tested on one Windows 11 PC and resumed cleanly. A power cut was not tested."
+  - question: "Where are Devpit's extract logs?"
+    answer: "In %LOCALAPPDATA%\\devpit\\logs, one file per check, extraction or restore. Devpit keeps the newest 30. The password is never written, only whether one was given."
+---
+
+**An in-place extract that stops is not lost.** hatchzip saves its progress as it goes. Reopen Devpit, open **Free Up Disk Space**, pick the unfinished extraction and choose **Resume**. Do not delete the files ending in `.hatchzip` beside the archive.
+
+This page is about [Extract big archive in place](/docs/features/extract-archives-in-place), which runs [hatchzip](https://github.com/xevrion/hatchzip).
+
+## "Not enough disk space", but there is space
+
+**What you see:** the extract stops part way with hatchzip saying there is not enough disk space. Free space looks almost gone, then comes back after it stops.
+
+**Why:** in place, hatchzip cuts the archive shorter after each part is written, so the space can be reused.
+On NTFS, with hatchzip 0.1.10, Windows gives that space back only when hatchzip closes the archive.
+During the run the free space looks lower than it really is, and hatchzip stops early.
+This is [hatchzip issue #79](https://github.com/xevrion/hatchzip/issues/79). It was closed with a fix on 12 November 2026; check [hatchzip's releases](https://github.com/xevrion/hatchzip/releases) for a version newer than 0.1.10.
+
+In one test on Windows 11, a 76.7 GB zip with 10.0 GB free stopped this way at 19.7%, while free space fell from 10 GB to under 1 GB.
+
+**What Devpit does:** it starts hatchzip again by itself after two seconds, and the screen says how many times.
+It keeps doing this only while each run extracts something more, and at most 20 times for one extraction.
+When a run gets no further, the disk really is full: Devpit stops and keeps the progress.
+It never resumes by itself after you paused, or after any other error.
+This automatic resume was added after the test above and has not yet been re-run on a real archive.
+
+**What you do:** if Devpit stops, free a few gigabytes (for example with [Full Scan](/docs/features/free-up-disk-space)) and choose **Resume**, or simply try again. In the test above, each try carried on further until the extraction finished.
+
+## After a crash, a hard kill or a power cut
+
+hatchzip is built so that a crash leaves each file either written or still inside the archive, never neither.
+If Devpit is ended, hatchzip is ended with it.
+
+1. Open Devpit again and choose **Free Up Disk Space**. A line says there is an unfinished extraction.
+2. Open **Extract big archive in place** and pick it. Unfinished ones are listed first.
+3. Choose one:
+
+| Choice | What it does |
+| --- | --- |
+| **Resume** | Checks the space again, then carries on where it stopped |
+| **Restore the archive** | hatchzip rebuilds a working archive from what is not extracted yet. Files already extracted stay in their folder |
+| **Leave it for now** | Changes nothing. The menu keeps reminding you |
+
+A resume always uses the folder the extraction was started in.
+
+What was tested: on one Windows 11 PC with an NTFS disk, Devpit was hard-killed at 26% of a 76.7 GB zip. After a restart, Resume finished it, and every one of the 1,944 entries was present with the size the zip lists.
+A power cut was **not** tested. Keep another copy of an archive you cannot get again.
+
+## Never delete the side files
+
+While an extraction is unfinished, hatchzip keeps its progress in:
+
+- files beside the archive ending in `.hatchzip`, `.hatchzip-tail` and `.hatchzip-folders`,
+- `.hatchzip-part` files in the output folder.
+
+Without them hatchzip cannot resume or restore. Devpit never deletes, moves or edits them, Full Scan never lists them, and Devpit refuses to delete an archive that has an unfinished extraction.
+When the extraction finishes, hatchzip removes them.
+
+## It refused to start
+
+These are refused on purpose, before anything is changed:
+
+- **Solid RAR in place.** A solid RAR needs room for a whole solid block, so hatchzip refuses it at the check and Devpit shows why. Press <kbd>k</kbd> on the space plan to extract and keep the archive instead, which needs room for all the files.
+- **Split ZIP** (`.z01`, `.z02`, then `.zip`). hatchzip does not support it. Join the parts with 7-Zip first. Split 7z, zip and RAR sets such as `.7z.001` or `.part1.rar` do work.
+- **A network path or a mapped drive.** Copy the archive to this PC first.
+- **Not enough space even in place.** The plan says how much more is needed. Nothing was changed.
+
+## Password-protected archives
+
+Devpit asks for the password every time you start or resume.
+It passes it to hatchzip for that run only, in memory, and never saves it, so a resume after a crash asks again.
+
+## The logs, and what to send in a bug report
+
+Every check, extraction and restore writes a plain-text log to:
+
+```text
+%LOCALAPPDATA%\devpit\logs
+```
+
+Each is named `extract-<date>-<time>-<archive name>.log`. Devpit keeps the newest 30 and deletes older ones.
+A log holds the Devpit and hatchzip versions, the archive parts and their sizes, the output folder, the free space, the exact command, every line hatchzip printed, each pause step, each automatic resume, and how the run ended.
+The password is never written: the log only says `HATCHZIP_PASSWORD=<set>` or `<not set>`.
+
+When you [open an issue](https://github.com/zubairbinshaukat/devpit/issues), include:
+
+1. The log of the run that failed (and of the run before it, if you resumed).
+2. What you saw on the screen, in your own words or a screenshot.
+3. Your Windows version and the disk's file system (NTFS, exFAT).
+
+Read the log before you send it: it contains the archive's name and folder paths.
+If the problem is in hatchzip itself, it can also go to [hatchzip's issues](https://github.com/xevrion/hatchzip/issues).
+
+## Sources
+
+- [hatchzip issue #79: false full disk during extraction](https://github.com/xevrion/hatchzip/issues/79)
+- [hatchzip on GitHub](https://github.com/xevrion/hatchzip)
+- [Devpit: Extract a big archive in place](/docs/features/extract-archives-in-place)
+- [Devpit: Safety and privacy, extract archive in place](/docs/safety-and-privacy#extract-archive-in-place)

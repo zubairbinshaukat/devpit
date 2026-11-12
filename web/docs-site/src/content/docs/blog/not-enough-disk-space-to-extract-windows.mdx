@@ -1,0 +1,151 @@
+---
+title: "Not enough space to unzip? 5 fixes that work on Windows"
+description: "Windows says there is not enough space to extract a big zip, 7z or rar. Five honest fixes, from another drive to extracting in place, and when each one works."
+date: 2026-11-13
+authors: [zubair]
+tags: [disk space, zip, archives, windows, troubleshooting]
+excerpt: "Why a big archive needs about twice its size to unpack, and five fixes in the order worth trying, including extracting in place when the disk is nearly full."
+related:
+  - features/extract-archives-in-place
+  - troubleshooting/extract-stopped-disk-full-or-crashed
+  - blog/why-unzipping-needs-double-disk-space
+  - blog/extract-124gb-zip-with-25gb-free
+  - features/free-up-disk-space
+faq:
+  - question: "Why does unzipping need so much free space?"
+    answer: "A normal extract writes the files next to the archive and keeps the archive until the end. For a while the disk holds both, so you need room for the archive and for everything it unpacks to at the same time."
+  - question: "Can I unzip a file to a different drive?"
+    answer: "Yes. In Windows Explorer, Extract All lets you browse to any folder, and 7-Zip and WinRAR let you type or pick the destination. Then the files need room on that drive only, and the archive stays where it is."
+  - question: "Can I extract only some files from a big zip?"
+    answer: "Yes. Open the archive in Explorer, 7-Zip or WinRAR and drag out only the files or folders you need, or name them on the 7-Zip command line. A solid 7z or RAR archive may still have to read through the files before the one you want, so it can be slow."
+  - question: "Can I unzip a file that is bigger than my free space?"
+    answer: "Sometimes. Extracting in place removes the archive as the files are written, so it needs only about the growth (unpacked size minus packed size), plus the biggest single file, plus a 2 GB reserve. hatchzip does this, and Devpit runs it with a space check first. It removes the archive, so keep another copy if you cannot get it again."
+  - question: "Is it safe to delete the zip after extracting?"
+    answer: "Only after the extract has finished without errors and you have checked the files open. If you can download or copy the archive again, deleting it is low risk. If you cannot, keep it on another drive."
+---
+
+You download a big archive, right-click it, choose extract, and Windows says there is not enough space.
+Or the extract runs for twenty minutes and then stops half way.
+
+The reason is simple, and so are most of the fixes.
+This post goes through five of them, in the order worth trying.
+
+## Why it needs so much space
+
+A normal extract writes every file next to the archive, and the archive stays until the end.
+Windows Explorer, 7-Zip, WinRAR and `tar` all work this way.
+For a while the disk holds the archive **and** everything it unpacks to.
+
+So a 100 GB zip that unpacks to 105 GB needs about 105 GB free on top of the 100 GB it already takes.
+That is why it feels like you need "double the space".
+There is a longer explanation in [Why unzipping needs double the disk space](/docs/blog/why-unzipping-needs-double-disk-space).
+
+## Fix 1: extract to another drive
+
+If another drive has room, this is the easiest fix. The archive stays where it is, and only the destination needs space.
+
+- **Windows Explorer:** right-click the `.zip`, choose **Extract All...**, then **Browse** to a folder on the other drive.
+- **7-Zip:** right-click the archive, open the 7-Zip menu and choose **Extract files...**. Change the **Extract to** path to the other drive.
+- **WinRAR:** right-click and choose **Extract files...**, then pick the destination folder.
+- **7-Zip on the command line:** `-o` sets the output folder:
+
+```powershell
+7z x "D:\Downloads\big.zip" -o"E:\Unpacked\big"
+```
+
+An external USB drive works too. It is slower, but it costs nothing on the full disk.
+
+One trap: in 7-Zip, **dragging** files out of the archive window extracts them to the temp folder first, and then Windows copies them to where you dropped them.
+The 7-Zip FAQ says so, and suggests the **Extract** command to avoid the temp files.
+The temp folder is usually on `C:`, so a drag can fill `C:` even when you drop the files on another drive.
+
+## Fix 2: free some space first
+
+Sometimes you only miss a few gigabytes.
+Old `node_modules` folders, build output and package caches are often the quickest to find on a developer PC.
+
+Devpit's [Free Up Disk Space](/docs/features/free-up-disk-space) scans for them, shows what each one costs, and deletes only what you tick.
+Windows' own **Storage** settings and **Disk Cleanup** can help with system files.
+
+Free the space, then extract as normal.
+
+## Fix 3: extract only what you need
+
+You may not need the whole archive.
+Open it in Explorer, 7-Zip or WinRAR, and drag out only the folders you want (with the 7-Zip temp note from Fix 1 in mind).
+On the command line, name the files after the archive:
+
+```powershell
+7z x "D:\Downloads\big.zip" -o"E:\Unpacked" *.cpp -r
+```
+
+That example from the 7-Zip documentation extracts only the `.cpp` files.
+
+## Fix 4: check whether the archive is solid
+
+A **solid** archive packs all its files as one long stream. 7z and RAR can be solid. Zip cannot.
+Getting one file out of a solid archive means processing all the files before it.
+So Fix 3 can be slow with a solid archive, and some tools need room for a whole solid block at once.
+
+To see it with 7-Zip, list the archive with technical details and look for the `Solid` line:
+
+```powershell
+7z l -slt "D:\Downloads\big.7z"
+```
+
+This matters for Fix 5 too: a solid RAR cannot be extracted in place.
+
+## Fix 5: extract in place
+
+When there is no other drive and nothing left to free, there is one more way: remove the archive **as** the files are written.
+
+[hatchzip](https://github.com/xevrion/hatchzip), a free, open-source tool by xevrion, does exactly that.
+It reads the archive's index, extracts from the end of the archive, writes and flushes each file, saves its progress, and then cuts the archive shorter so the freed space is reused.
+When it finishes, the files are there and the archive is gone.
+
+The extra space it needs is about:
+
+**growth (unpacked size minus packed size) + the biggest single file + a 2 GB reserve**
+
+For an archive that unpacks to nearly the same size, that is far less than a normal extract.
+On one Windows 11 PC, a 123.9 GB zip that unpacks to 128.6 GB had only 25.0 GB free.
+hatchzip's plan said a normal extract needed 128.6 GB, and in place needed 13.2 GB plus the 2.0 GB reserve. It finished in 6 minutes 55 seconds with all 299 entries.
+The full run is in [How I extracted a 124 GB zip with 25 GB free](/docs/blog/extract-124gb-zip-with-25gb-free).
+
+Devpit wraps hatchzip in [Extract big archive in place](/docs/features/extract-archives-in-place), under Free Up Disk Space.
+It shows hatchzip's space plan before anything runs, asks once with **No** as the default, draws the progress, lets you pause with <kbd>Esc</kbd> and resume later, and writes a log of every run.
+Devpit does not touch the archive's bytes itself. hatchzip does all the extracting.
+
+### When it works
+
+- `.zip` (including ZIP64), `.7z` and `.rar`, and split sets such as `.7z.001`, `.part1.rar` or `.rar` with `.r00`.
+- A local disk. It was tested on Windows 11 with NTFS.
+- When the growth, the biggest file and the reserve fit in the free space.
+
+### When it does not
+
+- **Solid RAR.** hatchzip refuses it in place. You can still extract and keep the archive, which needs the full space.
+- **Split ZIP** (`.z01`, `.z02`, then `.zip`). Join the parts with 7-Zip first.
+- **Network paths** and mapped drives. Copy the archive to the PC first.
+- **An archive you cannot get again.** In place removes it. If the run stops half way, what is left of the archive holds only what is not extracted yet. Keep another copy if it matters.
+
+When free space is very tight, hatchzip 0.1.10 can stop with a false "not enough disk space". That, and what to do after a crash, is on [Extraction stopped: disk full, crash or power cut](/docs/troubleshooting/extract-stopped-disk-full-or-crashed).
+
+## Quick decision guide
+
+| Your situation | Try |
+| --- | --- |
+| Another drive has room | Fix 1: extract there |
+| A few GB short | Fix 2: free space, then extract |
+| You need only part of it | Fix 3: extract only those files |
+| No room anywhere, zip or non-solid 7z/RAR | Fix 5: extract in place |
+| Solid RAR and no room | Fix 1 or Fix 2. In place refuses it |
+
+## Sources
+
+- [Microsoft: Zip and unzip files (Extract All, dragging files out)](https://support.microsoft.com/en-us/windows/zip-and-unzip-files-8d28fa72-f2f9-712f-67df-f80cf89fd4e5)
+- [7-Zip FAQ: drag and drop uses a temp folder](https://www.7-zip.org/faq.html)
+- [7-Zip help, x command: `-o` and the `*.cpp` example (copy of the help file that ships with 7-Zip)](https://7-zip.opensource.jp/chm/cmdline/commands/extract_full.htm)
+- [Wikipedia: Solid compression](https://en.wikipedia.org/wiki/Solid_compression)
+- [hatchzip on GitHub](https://github.com/xevrion/hatchzip)
+- [Devpit: Extract a big archive in place](/docs/features/extract-archives-in-place)

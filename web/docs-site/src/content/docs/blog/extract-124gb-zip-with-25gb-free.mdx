@@ -1,0 +1,190 @@
+---
+title: "I unzipped a 124 GB archive with only 25 GB free"
+description: "A real test on one Windows 11 PC: a 123.9 GB zip unpacked to 128.6 GB on a disk with 25 GB free, plus a 77 GB zip that survived a hard kill and resumed."
+date: 2026-11-13
+authors: [zubair]
+tags: [disk space, archives, windows]
+excerpt: "Two real runs of in-place extraction with hatchzip and Devpit: the numbers, the shrinking archive, a false disk-full and a crash that resumed."
+related:
+  - features/extract-archives-in-place
+  - blog/why-unzipping-needs-double-disk-space
+  - features/free-up-disk-space
+  - blog/move-100gb-between-computers
+  - blog/resume-interrupted-file-copy-windows
+faq:
+  - question: "Can you unzip a file that is bigger than your free disk space?"
+    answer: "Yes, if the archive is removed as the files come out. hatchzip does this: it extracts from the end of the archive and cuts the archive shorter after each file. In our test a 123.9 GB zip unpacked to 128.6 GB on a disk with 25.0 GB free. You still need some free space: roughly how much bigger the files are than the archive, plus the biggest single file, plus a 2 GB reserve."
+  - question: "Does extracting in place delete the archive?"
+    answer: "Yes. When it finishes, the archive is gone. If it stops half way, the files already written stay, and what is left of the archive holds only what is not extracted yet. Keep another copy of an archive you cannot download or make again."
+  - question: "What happens if the PC or the app crashes during the extraction?"
+    answer: "hatchzip keeps a progress journal beside the archive. In our test Devpit was hard-killed at 26 percent. After a restart, Devpit offered Resume, and the extraction finished with every file present and the right size. A power cut was not tested."
+  - question: "Why does hatchzip say not enough disk space when the disk has space?"
+    answer: "It is a known hatchzip issue (#79) on NTFS: Windows gives back the space of the truncated part only when hatchzip closes the archive. During a long run, free space can drop low enough to stop it. Running it again carries on. Devpit now does this by itself while each run makes progress."
+  - question: "Is hatchzip free?"
+    answer: "Yes. hatchzip is open source, by xevrion, under the MIT or Apache 2.0 license. Devpit runs it and does not extract anything itself."
+---
+
+I had a 123.9 GB zip on a disk with 25 GB free. It unpacks to 128.6 GB.
+
+Every normal extractor would refuse. 7-Zip, WinRAR, File Explorer and `tar` all need room for the archive **and** the files at the same time. That is 128.6 GB of new files, on a disk with 25 GB to spare.
+
+It finished in 6 minutes 55 seconds. All 299 entries came out. The zip was gone at the end.
+
+This post is the honest log of that test, and of a second one where I killed the app in the middle on purpose. All numbers are from one Windows 11 PC. They are not a benchmark.
+
+## The tool that does the work: hatchzip
+
+The real work here is done by [hatchzip](https://github.com/xevrion/hatchzip), a free, open-source tool by **xevrion**, licensed **MIT or Apache 2.0**. It is the clever part. Go and star it.
+
+hatchzip extracts from the **end** of the archive. After each file is safely on disk, it cuts that part off the archive. The archive shrinks while the folder grows, so the disk never has to hold both. [Why unzipping needs double the disk space](/docs/blog/why-unzipping-needs-double-disk-space) explains the method step by step.
+
+Devpit does not read or write a single byte of the archive. Its [Extract big archive in place](/docs/features/extract-archives-in-place) screen runs hatchzip, shows the space plan, asks before anything starts, draws the progress, keeps a log, and offers resume after a stop.
+
+## The setup
+
+- Windows 11, an internal 512 GB NTFS drive.
+- hatchzip 0.1.10, installed with Scoop.
+- Devpit v0.5.4, a build that was not released yet.
+
+The drive had 182.7 GB free. That is too much for a fair test: with that much room, hatchzip does not need to cut the archive as it goes. So I made a big filler file that left exactly **25.0 GB free**.
+
+## Test 1: 124 GB zip, 25 GB free
+
+The archive: a 123.9 GB game archive, `.zip`, 299 entries (261 files and 38 folders), 128.6 GB unpacked.
+
+### The space plan
+
+Devpit runs `hatchzip check` first and shows the result on a card. Nothing is changed at this point. hatchzip's plan said, in short:
+
+```text
+standard extraction needs 128.6 GB
+required 13.2 GB (+2.0 GB reserved)
+```
+
+So a normal extract needs 128.6 GB, and in place needs about 13.2 GB plus a 2 GB safety reserve. The disk had 25.0 GB. It fits.
+
+### Going through the screens
+
+I drove it through Devpit's own screens, the way a user would:
+
+1. **Clean**, then **Extract big archive in place**.
+2. Pick the zip. The space plan card appears.
+3. <kbd>Enter</kbd>. Devpit asks one question that says the archive is removed as it goes. The default answer is **No**.
+4. Yes.
+
+### Watching the archive shrink
+
+The progress screen shows the bar, the speed, the time left, the items done, the current file, the archive's size and the free space. The speed it showed moved between about 140 and 490 MB/s.
+
+The archive size is the fun part. It went down like this:
+
+```text
+123.9 GB → 120.8 → 101.7 → 86.8 → 66.1 → 48.5 → 31.4 → 14.4 GB → removed
+```
+
+The lowest free space during the whole run was about **13.7 GB**. It never came close to zero.
+
+### The result
+
+- All 299 entries, 128.6 GB.
+- No leftovers: no `.hatchzip` side files, no `.hatchzip-part` files.
+- The archive removed.
+- Devpit's log for the run: 69 lines, 0 error lines.
+- Time: 6 minutes 55 seconds.
+
+The net cost on the drive was about **4.7 GB**: 128.6 GB of files minus the 123.9 GB zip that is no longer there.
+
+Compare that with a normal extract on the same drive without the filler. It starts at 182.7 GB free, needs 128.6 GB on top of the zip, and ends with about 54 GB free and the zip still there. In place ends with about 178 GB free.
+
+### One nuance: lots of free space changes the order
+
+When I ran the same zip **without** the filler, with 182.7 GB free, hatchzip did not cut the archive as it went. It wrote all the files first, then removed the archive at the end. It only cuts progressively when space is tight.
+
+The end result is the same: the files, and no archive. Only the peak use is different. So if you watch the archive size and it does not move, that is why.
+
+## Test 2: 77 GB zip, 10 GB free, and a real crash
+
+The first test went smoothly. The second one was meant to go wrong.
+
+The archive: a 76.7 GB game archive, `.zip`, 1,944 entries (1,928 files and 16 folders), 78.3 GB unpacked. hatchzip's plan said in place needs about 2.4 GB plus the 2 GB reserve. The filler left **10.0 GB free**.
+
+### A false "not enough disk space"
+
+The first run stopped at 19.7% with "not enough disk space". The disk was not really full.
+
+This is a known hatchzip issue, [#79](https://github.com/xevrion/hatchzip/issues/79). On NTFS, the space of the part hatchzip cut off the archive comes back only when hatchzip closes the archive. During a long run, free space fell from 10 GB to under 1 GB, and hatchzip stopped.
+
+The Devpit build at the time started hatchzip again once by itself. It stopped again the same way. Progress was saved both times.
+
+### The crash
+
+I resumed, and at 26% I hard-killed Devpit, the same as **End task** in Task Manager. No pause, no cleanup.
+
+Devpit starts hatchzip inside a Windows Job Object, so hatchzip was ended with it. No orphan process kept writing.
+
+What was left on disk:
+
+- 2 `.hatchzip-part` files (files that were being written),
+- hatchzip's progress journal beside the archive,
+- what was left of the archive.
+
+### The restart
+
+I opened Devpit again. The Clean menu showed a line like this:
+
+```text
+1 unfinished extraction: … Open Extract to resume it.
+```
+
+Extract offered three choices:
+
+```text
+Resume
+Restore the archive
+Leave it for now
+```
+
+I chose **Resume**. It hit the false disk-full again, four more times. Each time I pressed "try again" by hand, and each time it got further. The archive went:
+
+```text
+58 GB → 29.9 → 16.7 → 4 GB → removed
+```
+
+### Checking the result
+
+I did not trust "Done". I checked:
+
+- All 1,944 entries were there.
+- Every file's size matched the zip's own listing.
+- 3 files were zero bytes, and they are zero bytes in the zip too.
+- No leftovers.
+- Without the filler, free space went from 306.7 GB to 305.1 GB. That is exactly what hatchzip's plan predicted as "available after".
+
+A hard kill in the middle, several restarts, and nothing was lost or duplicated.
+
+## What I changed after test 2
+
+Pressing "try again" four times is not a good experience. So Devpit now keeps starting hatchzip again by itself after a false disk-full, **as long as each run extracts something more**, up to 20 times for one extraction.
+
+If a run makes no progress at all, the disk really is full. Devpit stops, keeps the progress, and you can free some space and resume. It never resumes by itself after you paused it.
+
+To be clear: this new retry has passed its tests, but **I have not re-run it on a real big archive yet.** Test 2 above used the older build that retried once.
+
+## What this does not prove
+
+- It was **one PC**, one NTFS drive, two archives. Your disk may behave differently.
+- A **power cut** was not tested. A hard kill of the app is not the same thing.
+- In place **removes the archive**. If you cannot download or make it again, keep another copy somewhere.
+- Some archives cannot be extracted in place at all, such as a solid RAR or a split ZIP set. The [feature page](/docs/features/extract-archives-in-place#what-it-does-not-do) lists them.
+
+## Try it
+
+Install hatchzip on its own from [its GitHub page](https://github.com/xevrion/hatchzip), or let Devpit install it with Scoop. Then open **Free Up Disk Space**, choose **Extract big archive in place**, and read the space plan before you say yes.
+
+The full walk-through, keys and limits are on [Extract a big archive in place](/docs/features/extract-archives-in-place). If you want to know why a normal extractor needs so much room in the first place, read [why unzipping needs double the disk space](/docs/blog/why-unzipping-needs-double-disk-space).
+
+## Sources
+
+- [hatchzip on GitHub (MIT or Apache 2.0, by xevrion)](https://github.com/xevrion/hatchzip)
+- [hatchzip issue #79: false "not enough disk space" on NTFS](https://github.com/xevrion/hatchzip/issues/79)
+- [Devpit: Extract a big archive in place](/docs/features/extract-archives-in-place)

@@ -1,0 +1,153 @@
+---
+title: "Why unzipping 100 GB needs 200 GB, and how to avoid it"
+description: "Normal extractors need room for the archive and its files at once. How in-place extraction works, the exact space formula, and what it cannot do."
+date: 2026-11-13
+authors: [zubair]
+tags: [disk space, archives, windows]
+excerpt: "Why 7-Zip, WinRAR, Explorer and tar need double the space, how extracting from the end of an archive avoids it, and how much free space you really need."
+related:
+  - features/extract-archives-in-place
+  - blog/extract-124gb-zip-with-25gb-free
+  - features/free-up-disk-space
+  - blog/reclaim-space-from-node-modules-on-windows
+  - blog/move-100gb-between-computers
+faq:
+  - question: "Why does unzipping need so much free space?"
+    answer: "A normal extractor reads the archive while it writes the files, so both have to be on the disk at the same time. A 100 GB archive that unpacks to 100 GB needs 200 GB in total: the 100 GB already there plus 100 GB free. Compressed archives unpack bigger, so they need even more."
+  - question: "How much free space do I need to extract an archive?"
+    answer: "For a normal extract, at least the full unpacked size, on top of the archive. For an in-place extract with hatchzip, roughly the growth (unpacked size minus archive size), plus the biggest single file, plus a 2 GB reserve. hatchzip check prints the exact plan for your archive."
+  - question: "Can 7-Zip or WinRAR delete the archive while extracting?"
+    answer: "Not as it goes. They read from the archive while they write the files, so the archive has to stay until the end. Deleting it afterwards does not lower the peak. Removing the archive bit by bit during the extraction is what hatchzip does."
+  - question: "Is it safe to extract in place if the PC crashes?"
+    answer: "hatchzip records each finished file in a journal before it cuts the archive, so a crash leaves each file either written or still inside the archive. Running it again resumes, and hatchzip restore turns the rest back into a normal archive. A power cut was not tested by us."
+  - question: "Why can't a solid RAR or 7z be extracted in place?"
+    answer: "In a solid archive, many files are compressed as one block. The block can only be cut after all of it is unpacked, so you need room for the whole block. hatchzip refuses a solid RAR in place. You can still extract it and keep the archive."
+---
+
+You have a 100 GB archive that unpacks to 110 GB, and 120 GB free. Plenty of room, you think. Then the extractor stops near the end: not enough disk space.
+
+This post explains why, and how a different method needs only a small fraction of the space. The method is not mine. It is how [hatchzip](https://github.com/xevrion/hatchzip), a free, open-source tool by xevrion (MIT or Apache 2.0), works, and Devpit's [Extract big archive in place](/docs/features/extract-archives-in-place) screen runs it.
+
+## The normal way: both at once
+
+Every normal extractor works the same way. 7-Zip, WinRAR, File Explorer's **Extract All**, and `tar` all:
+
+1. open the archive,
+2. read a file's bytes out of it,
+3. write that file to the disk,
+4. move on to the next file.
+
+The archive is not touched. It stays complete until the very end, because the extractor is still reading from it.
+
+So at the last moment, the disk holds **the whole archive and all the files**:
+
+```text
+disk at the end of a normal extract
+
+[ archive: 100 GB ][ extracted files: 100 GB ][ free ]
+\_______________ 200 GB in use ______________/
+```
+
+If the archive is compressed, the files are bigger than the archive, and the total is bigger than double. Deleting the archive afterwards gives the space back, but too late. The peak is what has to fit.
+
+That is why "100 GB needs 200 GB". It is the **least** it needs, for an archive that barely compresses, such as one full of video or game files that are already compressed.
+
+## The in-place way: extract from the end
+
+A file on disk can be made shorter cheaply. Windows (and every common file system) lets a program set a new, smaller end for a file. The bytes past the new end are given back as free space. That is called **truncating**.
+
+But you can only cut from the end. You cannot cut a hole out of the middle and keep the rest.
+
+So hatchzip turns the order around. It reads the archive's index first, so it knows where every file sits. Then it extracts the **last** file in the archive first, then the one before it, and so on, toward the start.
+
+For each file it does this:
+
+1. **Write** the file into the output folder, under a temporary `.hatchzip-part` name.
+2. **Flush** it, so the bytes are really on the disk and not only in memory.
+3. **Rename** it to its real name.
+4. **Journal** it: record in a small progress file beside the archive (ending in `.hatchzip`) that this file is done.
+5. **Truncate** the archive, cutting off the bytes of the file that was just written.
+
+```text
+start      [ archive ████████████████████ ]                     [ free ]
+step 1     [ archive ████████████████     ][ last file  ]       [ free ]
+step 2     [ archive ████████████         ][ files ████ ]       [ free ]
+...
+end                                        [ files ████████████ ][ free ]
+```
+
+The archive shrinks while the folder grows. The disk never holds both in full. When the first file is out, the archive is gone.
+
+### A catch on NTFS
+
+On Windows NTFS, the space from a truncation does not always come back at once. hatchzip's issue [#79](https://github.com/xevrion/hatchzip/issues/79) describes it: the freed space is returned only when hatchzip closes the archive. On a tight disk, free space can sink during a long run, and hatchzip stops with a false "not enough disk space".
+
+Running it again carries on from the journal. Devpit now does that by itself, as long as each run gets further, up to 20 times for one extraction. That automatic retry has passed its tests but was not yet re-run on a real big archive. The [test post](/docs/blog/extract-124gb-zip-with-25gb-free) shows what this looked like on a real archive.
+
+## How much free space in place needs
+
+The rough formula, from hatchzip's own plan:
+
+```text
+extra space ≈ growth + biggest single file + reserve
+
+growth   = unpacked size − archive size
+biggest  = the biggest file inside, because it must be fully written
+           before its bytes can be cut from the archive
+reserve  = 2 GB kept free by default (hatchzip --keep-free)
+```
+
+Growth is there because the files end up bigger than the archive they came from. The biggest file is there because, for a moment, it exists twice: once in the archive and once on the disk.
+
+### A worked example
+
+From [my test](/docs/blog/extract-124gb-zip-with-25gb-free) on one Windows 11 PC:
+
+- Archive: 123.9 GB `.zip`.
+- Unpacked: 128.6 GB.
+- Growth: 128.6 − 123.9 = **4.7 GB**.
+
+hatchzip's plan said:
+
+```text
+standard extraction needs 128.6 GB
+required 13.2 GB (+2.0 GB reserved)
+```
+
+So in place needed about 13.2 GB plus the 2 GB reserve, about 15.2 GB, instead of 128.6 GB. That is the 4.7 GB growth plus room to write the biggest file and some working margin. The disk had 25.0 GB free, and the run finished. The lowest free space during the run was about 13.7 GB.
+
+The same archive with a normal extractor would have needed 128.6 GB free.
+
+Do not do the formula by hand for a real archive. Run `hatchzip check`, or open the archive in Devpit, which shows hatchzip's plan on a card before anything changes.
+
+## What cannot be done in place
+
+The trick depends on cutting the archive one file at a time. Some cases break that.
+
+- **Solid 7z and RAR blocks.** In a solid archive, many files are compressed together as one stream. None of them can be cut until the whole block is unpacked, so you need room for the whole block. hatchzip refuses a solid RAR in place. Extracting and keeping the archive still works, if you have the room.
+- **One huge file.** If the archive holds one 100 GB file, the "biggest file" in the formula is 100 GB. In place saves almost nothing, because that file must be fully written before any of the archive can go.
+- **Another drive.** Cutting the archive frees space on the archive's drive, not on the drive the files go to. Devpit allows a different drive, but then the files need full room there. The space plan says so.
+- **Network paths.** Devpit does not extract from a network path or a mapped drive. Copy the archive to the PC first.
+- **Split ZIP sets** (`.z01`, `.z02`). hatchzip does not support them. Join them with 7-Zip first. Split `.7z.001`, `.zip.001` and multi-volume `.part1.rar` sets work.
+
+## Is it safe if it crashes?
+
+The order of the five steps is what makes it safe. A file is recorded in the journal only after it is flushed and renamed, and the archive is cut only after that.
+
+So after a crash, each file is in one of two places: **on the disk, or still in the archive**. Never neither. Running hatchzip again reads the journal and carries on. If you change your mind, `hatchzip restore` turns what is left into a normal archive again.
+
+In my test, a hard kill of Devpit at 26% left two `.hatchzip-part` files and the journal. Resume finished the job: all 1,944 entries were there, and every file had the right size. That was one PC and one NTFS disk. A power cut was not tested.
+
+One thing to remember: in place **removes the archive**. When it finishes, the archive is gone. Keep another copy of anything you cannot download or make again.
+
+## Try it
+
+- On its own: [hatchzip on GitHub](https://github.com/xevrion/hatchzip). Run `hatchzip check` on your archive to see the plan.
+- With Devpit: open **Free Up Disk Space**, choose **Extract big archive in place**. Devpit can install hatchzip with Scoop, shows the plan, asks first (the default answer is **No**), and lets you pause with <kbd>Esc</kbd> and resume later. Details on [Extract a big archive in place](/docs/features/extract-archives-in-place).
+
+## Sources
+
+- [hatchzip on GitHub (MIT or Apache 2.0, by xevrion)](https://github.com/xevrion/hatchzip)
+- [hatchzip issue #79: false "not enough disk space" on NTFS](https://github.com/xevrion/hatchzip/issues/79)
+- [Devpit: Extract a big archive in place](/docs/features/extract-archives-in-place)
+- [Devpit: I unzipped a 124 GB archive with only 25 GB free](/docs/blog/extract-124gb-zip-with-25gb-free)

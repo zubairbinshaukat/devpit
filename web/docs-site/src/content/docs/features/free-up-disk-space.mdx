@@ -33,7 +33,7 @@ Open it from the main menu with <kbd>2</kbd>, or choose **Free Up Disk Space**.
 
 ## What you can scan
 
-The section opens a small menu with four rows.
+The section opens a small menu with five rows.
 
 | Row | What it does |
 | --- | --- |
@@ -41,6 +41,7 @@ The section opens a small menu with four rows.
 | **Full Scan** | Everything in Project Junk, plus package manager caches (npm, yarn, pnpm, pip, NuGet, Gradle, Maven, Cargo, Go and more), Windows temporary files, editor caches, old Scoop versions, Docker leftovers and large files. |
 | **Choose folder** | Scans a folder you pick instead of your default one. |
 | **Resume interrupted deletes** | Finishes anything a stopped clean left behind. |
+| **Extract big archive in place** | Unpacks a big `.zip`, `.7z` or `.rar` when the disk has less free space than the files need. It is not a scan. See [Extract a big archive in place](/docs/features/extract-archives-in-place). |
 
 <Shot name="clean-menu" />
 
@@ -85,6 +86,13 @@ Devpit never pre-ticks:
 - a folder it could not fully verify,
 - a file that only exists in the cloud (a OneDrive or Dropbox placeholder),
 - any Careful item.
+
+## Extract a big archive in place
+
+When a downloaded archive is too big to unpack because the disk is nearly full, choose **Extract big archive in place**.
+Devpit runs the free tool [hatchzip](https://github.com/xevrion/hatchzip) to unpack it while removing the archive as it goes, after you have seen the space plan and answered yes.
+If an extraction was paused, the menu shows an unfinished line and Full Scan never lists the files it needs.
+The whole flow is on [Extract a big archive in place](/docs/features/extract-archives-in-place).
 
 ## Keys
 
