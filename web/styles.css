@@ -181,16 +181,45 @@ main, .nav, .maker, .foot { position: relative; z-index: 1; }
 .install__ps { font: 500 13px/1 var(--f-mono); color: var(--flare-2); flex: none; }
 .install__cmd { min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 14px; color: var(--ink); scrollbar-width: none; }
 .install__cmd::-webkit-scrollbar { display: none; }
+/* Copy button: a 38px circle that grows into a pill ("Copied" / "Press Ctrl+C").
+   The label's max-width drives the width change, so no fixed widths are needed. */
 .copy {
-  flex: none; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
-  border: 0; border-radius: 50%; background: var(--ink); color: #0A0A0D; transition: transform .2s, background .2s;
+  position: relative; flex: none; height: 38px; min-width: 38px; padding: 0 10.5px;
+  display: grid; grid-auto-flow: column; align-items: center; justify-content: center;
+  cursor: pointer; border: 0; border-radius: 999px; background: var(--ink); color: #0A0A0D;
+  font: 600 12.5px/1 var(--f-mono); letter-spacing: .01em; white-space: nowrap;
+  transition: transform .25s cubic-bezier(.2,.9,.3,1.3), background .25s, box-shadow .25s;
 }
-.copy:hover { transform: scale(1.06); }
-.copy .ico { width: 17px; height: 17px; grid-area: 1 / 1; transition: opacity .2s, transform .2s; }
-.copy .ico--ok { opacity: 0; transform: scale(.6); }
+.copy:hover { transform: scale(1.06); box-shadow: 0 6px 22px -6px rgba(255,255,255,.35); }
+.copy:active { transform: scale(.94); }
+.copy:focus-visible { outline-offset: 3px; border-radius: 999px; }
+.copy .ico { width: 17px; height: 17px; grid-area: 1 / 1; transition: opacity .2s, transform .35s cubic-bezier(.2,.9,.3,1.4); }
+.copy .ico--ok { opacity: 0; transform: scale(.4) rotate(-25deg); }
+.copy__label {
+  grid-area: 1 / 2; max-width: 0; opacity: 0; overflow: hidden; margin-left: 0;
+  transition: max-width .35s cubic-bezier(.2,.9,.3,1), opacity .2s .05s, margin-left .35s;
+}
+.copy.is-done, .copy.is-manual { padding-right: 14px; }
+.copy.is-done .copy__label, .copy.is-manual .copy__label { max-width: 110px; opacity: 1; margin-left: 7px; }
 .copy.is-done { background: var(--ok); }
-.copy.is-done .ico--copy { opacity: 0; transform: scale(.6); }
+.copy.is-done .ico--copy { opacity: 0; transform: scale(.4) rotate(25deg); }
 .copy.is-done .ico--ok { opacity: 1; transform: none; }
+.copy.is-manual { background: var(--flare-2); }
+/* a ring that ripples out once on success */
+.copy::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+}
+.copy.is-done::after { animation: copy-ring .7s ease-out; }
+@keyframes copy-ring {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); }
+  to   { box-shadow: 0 0 0 14px color-mix(in srgb, var(--ok) 0%, transparent); }
+}
+/* clicking the command selects all of it, so a manual copy is one Ctrl+C */
+.install__cmd { user-select: all; -webkit-user-select: all; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .install__alt { margin: 14px 0 0; font-size: 13.5px; color: var(--ink-3); }
 .install__alt code { color: var(--ink-2); background: none; border: 0; padding: 0; }
 .hero__docs {

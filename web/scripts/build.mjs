@@ -1,6 +1,6 @@
 // Builds the whole site into web/dist: the static landing page exactly as it
-// is in web/ (web/home.html, served at /home by cleanUrls; there is no
-// index.html, vercel.json redirects / to /home), plus the Astro docs under /docs.
+// is in web/ (web/index.html, served at /; vercel.json redirects the old /home
+// URL to /), plus the Astro docs under /docs.
 //
 //   node scripts/build.mjs           (Vercel: buildCommand, root directory web)
 //
@@ -59,10 +59,10 @@ for (const entry of fs.readdirSync(WEB, { withFileTypes: true })) {
   fs.cpSync(path.join(WEB, entry.name), path.join(DIST, entry.name), { recursive: true });
 }
 
-// The landing page lives at /home only. A dist/index.html would be a second copy
-// of it at / that the redirect in vercel.json hides but crawlers could still meet.
-if (fs.existsSync(path.join(DIST, 'index.html')) || !fs.existsSync(path.join(DIST, 'home.html'))) {
-  console.error('build: the landing page must be web/home.html (served at /home), with no web/index.html');
+// The landing page lives at / only. A dist/home.html would be a second copy of
+// it at /home that the redirect in vercel.json hides but crawlers could still meet.
+if (fs.existsSync(path.join(DIST, 'home.html')) || !fs.existsSync(path.join(DIST, 'index.html'))) {
+  console.error('build: the landing page must be web/index.html (served at /), with no web/home.html');
   process.exit(1);
 }
 
@@ -76,7 +76,7 @@ fs.copyFileSync(path.join(DIST, 'docs', '404.html'), path.join(DIST, '404.html')
 
 // 4. One sitemap for the site. The docs' own sitemap files are removed so
 // crawlers see a single source, the one robots.txt names. Every landing URL in
-// web/sitemap.xml (/home) is copied as written.
+// web/sitemap.xml (/) is copied as written.
 const landing = fs.readFileSync(path.join(WEB, 'sitemap.xml'), 'utf8');
 const docsSitemap = fs.readFileSync(path.join(DIST, 'docs', 'sitemap-0.xml'), 'utf8');
 fs.writeFileSync(path.join(DIST, 'sitemap.xml'), mergeSitemap(landing, docsSitemap));

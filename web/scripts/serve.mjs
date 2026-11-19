@@ -1,7 +1,7 @@
 // A tiny static server that behaves like Vercel for this site, so the built
 // output can be checked locally (and by Lighthouse) without the Vercel CLI:
 // cleanUrls, trailingSlash false redirects, the exact-path redirects (such as
-// / to /home), the /install rewrite and the headers from web/vercel.json.
+// /home to /), the /install rewrite and the headers from web/vercel.json.
 //
 //   node scripts/serve.mjs [port]      serves web/dist (default port 4400)
 import fs from 'node:fs';

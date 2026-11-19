@@ -26,9 +26,9 @@ type HeadEntry = { tag: string; attrs?: Record<string, string | boolean | undefi
 type Json = Record<string, unknown>;
 
 const PERSON_ID = 'https://zubyr.dev/#person';
-/** The landing page lives at /home (vercel.json redirects / to it). */
-const HOME = `${SITE}/home`;
-const APP_ID = `${HOME}#app`;
+/** The landing page lives at / (vercel.json redirects the old /home to it). */
+const HOME = `${SITE}/`;
+const APP_ID = `${SITE}/#app`;
 const DEFAULT_OG = `${SITE}/og-image.png`;
 /** Pages starlight-blog injects; they are not content entries, so they get the default social image. */
 const BLOG_VIRTUAL = /^blog(\/(\d+|tags\/.+|authors\/.+))?$/;

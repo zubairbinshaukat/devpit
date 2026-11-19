@@ -1218,21 +1218,46 @@ self.onmessage = (e) => {
     });
     let saved = null;
     try { saved = localStorage.getItem(KEY); } catch (_) {}
-    if (saved === "scoop") select("scoop", false);
+    if (saved === "scoop" || saved === "winget") select(saved, false);
   })();
 
   /* =========================================================
      4. COPY BUTTONS
      ========================================================= */
+  // One polite live region announces the result to screen readers.
+  const announcer = document.createElement("span");
+  announcer.className = "sr-only";
+  announcer.setAttribute("aria-live", "polite");
+  document.body.appendChild(announcer);
+  const say = (msg) => { announcer.textContent = ""; setTimeout(() => { announcer.textContent = msg; }, 30); };
+
   $$("[data-copy]").forEach((btn) => {
+    // The label the button grows into: "Copied", or "Press Ctrl+C" when the
+    // clipboard API is blocked and the command is selected for the visitor.
+    const label = document.createElement("span");
+    label.className = "copy__label";
+    label.setAttribute("aria-hidden", "true");
+    btn.appendChild(label);
+    let timer = 0;
+    const show = (state, text) => {
+      clearTimeout(timer);
+      btn.classList.remove("is-done", "is-manual");
+      void btn.offsetWidth; // restart the ring animation on a quick second click
+      label.textContent = text;
+      btn.classList.add(state);
+      timer = setTimeout(() => btn.classList.remove(state), state === "is-done" ? 1800 : 3200);
+    };
     btn.addEventListener("click", () => {
-      const ok = () => { btn.classList.add("is-done"); setTimeout(() => btn.classList.remove("is-done"), 1800); };
+      const ok = () => { show("is-done", "Copied"); say("Copied to clipboard"); };
       const fallback = () => {
-        const code = btn.parentElement.querySelector("code");
-        if (!code) return;
+        const code = btn.closest(".install")?.querySelectorAll("code");
+        if (!code?.length) return;
         const range = document.createRange();
-        range.selectNodeContents(code);
+        range.setStartBefore(code[0]);
+        range.setEndAfter(code[code.length - 1]);
         const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        show("is-manual", "Press Ctrl+C");
+        say("Command selected. Press Ctrl+C to copy.");
       };
       try { navigator.clipboard.writeText(btn.dataset.copy).then(ok, fallback); } catch (_) { fallback(); }
       // a little tribute to the hole

@@ -13,14 +13,14 @@
   <meta name="author" content="Zubair bin Shaukat">
   <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="theme-color" content="#030305">
-  <link rel="canonical" href="https://devpit.zubyr.dev/home">
+  <link rel="canonical" href="https://devpit.zubyr.dev/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Devpit">
   <meta property="og:title" content="Devpit — Developer Toolkit for Windows">
   <meta property="og:description" content="The right account in every folder for Claude Code, Git, GitHub and more, plus disk space, stuck ports, updates and PC-to-PC transfers. Free and open source.">
-  <meta property="og:url" content="https://devpit.zubyr.dev/home">
+  <meta property="og:url" content="https://devpit.zubyr.dev/">
   <meta property="og:image" content="https://devpit.zubyr.dev/og-image.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
@@ -76,8 +76,8 @@
       },
       {
         "@type": "WebSite",
-        "@id": "https://devpit.zubyr.dev/home#website",
-        "url": "https://devpit.zubyr.dev/home",
+        "@id": "https://devpit.zubyr.dev/#website",
+        "url": "https://devpit.zubyr.dev/",
         "name": "Devpit",
         "alternateName": ["Devpit CLI", "Devpit by Zubair bin Shaukat", "Devpit by zubyr"],
         "publisher": { "@id": "https://zubyr.dev/#person" },
@@ -85,10 +85,10 @@
       },
       {
         "@type": "SoftwareApplication",
-        "@id": "https://devpit.zubyr.dev/home#app",
+        "@id": "https://devpit.zubyr.dev/#app",
         "name": "Devpit",
         "alternateName": "Devpit CLI",
-        "url": "https://devpit.zubyr.dev/home",
+        "url": "https://devpit.zubyr.dev/",
         "description": "Free, open-source toolkit (CLI) for developers on Windows: the right account in every folder for Claude Code, Git, GitHub and more, plus disk space cleanup, stuck ports, installs and updates, and big-folder transfers between PCs, from one terminal menu.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Developer tools",
@@ -119,7 +119,7 @@
       },
       {
         "@type": "FAQPage",
-        "@id": "https://devpit.zubyr.dev/home#faq",
+        "@id": "https://devpit.zubyr.dev/#faq",
         "mainEntity": [
           { "@type": "Question", "name": "What is Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Devpit (also searched as Devpit CLI) is a free, open-source toolkit for developers on Windows. One terminal menu puts the right account in every folder, frees disk space, fixes stuck ports, installs and updates your tools and moves big folders between PCs." } },
           { "@type": "Question", "name": "Can I use two Claude Code accounts on one PC?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Add both in Accounts, then choose which one each folder uses. Devpit gives every extra account its own Claude Code config folder (CLAUDE_CONFIG_DIR, the multi-account method Claude Code documents) and sets it only for the claude process started in that folder. Your skills can be shared with the other account and your settings copied over; plugins are installed per account from the same list." } },
@@ -131,7 +131,7 @@
           { "@type": "Question", "name": "Is it safe to delete node_modules?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. node_modules comes back when you run npm install (or pnpm or yarn install). Devpit labels it Safe, shows the size first and never deletes anything until you confirm." } },
           { "@type": "Question", "name": "How do I fix \"port 3000 is already in use\" on Windows?", "acceptedAnswer": { "@type": "Answer", "text": "Open Devpit, choose Ports & Network, then Fix stuck ports & apps, and type 3000. Devpit shows which app is holding the port and stops it after you confirm." } },
           { "@type": "Question", "name": "How do I copy a big folder between two PCs on the same Wi-Fi?", "acceptedAnswer": { "@type": "Answer", "text": "On the PC that has the files, open Devpit, choose Share Files, then Share a folder, and approve one admin prompt. Devpit shows the IP address, a temporary user name and a password. On the other PC, choose Copy from a shared folder, or type the two lines from the card (net use, then robocopy) if that PC does not have Devpit. You see live progress, and the copy resumes if the network drops. Comparing tools? Read every way to move files between two PCs." } },
-          { "@type": "Question", "name": "How do I install Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Two ways, both in PowerShell. The one-liner irm devpit.zubyr.dev/install | iex downloads the latest release, checks its SHA256 and adds it to your PATH. Scoop users add the zubyr bucket and run scoop install devpit, and scoop update keeps it current." } },
+          { "@type": "Question", "name": "How do I install Devpit?", "acceptedAnswer": { "@type": "Answer", "text": "Three ways, all in PowerShell. The one-liner irm devpit.zubyr.dev/install | iex downloads the latest release, checks its SHA256 and adds it to your PATH. With winget, run winget install Zubyr.Devpit. Scoop users add the zubyr bucket and run scoop install devpit, and scoop update keeps it current." } },
           { "@type": "Question", "name": "Is Devpit free and safe to install?", "acceptedAnswer": { "@type": "Answer", "text": "Free and open source under the MIT license. Releases are built on GitHub Actions with SHA256 checksums, and the install script is short enough to read in a minute." } },
           { "@type": "Question", "name": "Does Devpit collect my data?", "acceptedAnswer": { "@type": "Answer", "text": "Not unless you opt in. Usage stats are off by default and only send totals such as space freed; file names, paths and usernames are never sent. Set DEVPIT_NO_TELEMETRY=1 and nothing is ever sent. Accounts talks to no server of its own: the only network traffic is each tool's own sign-in and who-am-I check." } },
           { "@type": "Question", "name": "Does it work on Mac or Linux?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 and 11 (x64 and ARM64) today. Linux and macOS are planned." } }
@@ -183,12 +183,21 @@
         <div class="install-group" data-install-group>
           <div class="install__tabs" role="tablist" aria-label="Install method">
             <button class="install__tab is-active" type="button" role="tab" id="tab-ps-1" aria-selected="true" aria-controls="panel-ps-1" data-method="ps">PowerShell</button>
+            <button class="install__tab" type="button" role="tab" id="tab-winget-1" aria-selected="false" aria-controls="panel-winget-1" data-method="winget" tabindex="-1">winget</button>
             <button class="install__tab" type="button" role="tab" id="tab-scoop-1" aria-selected="false" aria-controls="panel-scoop-1" data-method="scoop" tabindex="-1">Scoop</button>
           </div>
           <div class="install" id="panel-ps-1" role="tabpanel" aria-labelledby="tab-ps-1" data-panel="ps">
             <span class="install__ps" aria-hidden="true">PS&gt;</span>
             <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
             <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
+              <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="install" id="panel-winget-1" role="tabpanel" aria-labelledby="tab-winget-1" data-panel="winget" hidden>
+            <span class="install__ps" aria-hidden="true">PS&gt;</span>
+            <code class="install__cmd">winget install Zubyr.Devpit</code>
+            <button class="copy" type="button" data-copy="winget install Zubyr.Devpit" aria-label="Copy winget install command">
               <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -496,7 +505,7 @@
           </details>
           <details>
             <summary>How do I install Devpit?</summary>
-            <p>Two ways, both in PowerShell. <a href="/docs/getting-started">The one-liner</a> <code>irm devpit.zubyr.dev/install | iex</code> downloads the latest release, checks its SHA256 and adds it to your PATH. Scoop users add the <code>zubyr</code> bucket and run <code>scoop install devpit</code>, and <code>scoop update</code> keeps it current.</p>
+            <p>Three ways, all in PowerShell. <a href="/docs/getting-started">The one-liner</a> <code>irm devpit.zubyr.dev/install | iex</code> downloads the latest release, checks its SHA256 and adds it to your PATH. With winget, run <code>winget install Zubyr.Devpit</code>. Scoop users add the <code>zubyr</code> bucket and run <code>scoop install devpit</code>, and <code>scoop update</code> keeps it current.</p>
           </details>
           <details>
             <summary>Is Devpit free and safe to install?</summary>
@@ -522,12 +531,21 @@
         <div class="install-group" data-install-group>
           <div class="install__tabs" role="tablist" aria-label="Install method">
             <button class="install__tab is-active" type="button" role="tab" id="tab-ps-2" aria-selected="true" aria-controls="panel-ps-2" data-method="ps">PowerShell</button>
+            <button class="install__tab" type="button" role="tab" id="tab-winget-2" aria-selected="false" aria-controls="panel-winget-2" data-method="winget" tabindex="-1">winget</button>
             <button class="install__tab" type="button" role="tab" id="tab-scoop-2" aria-selected="false" aria-controls="panel-scoop-2" data-method="scoop" tabindex="-1">Scoop</button>
           </div>
           <div class="install" id="panel-ps-2" role="tabpanel" aria-labelledby="tab-ps-2" data-panel="ps">
             <span class="install__ps" aria-hidden="true">PS&gt;</span>
             <code class="install__cmd">irm devpit.zubyr.dev/install | iex</code>
             <button class="copy" type="button" data-copy="irm https://devpit.zubyr.dev/install | iex" aria-label="Copy install command">
+              <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="install" id="panel-winget-2" role="tabpanel" aria-labelledby="tab-winget-2" data-panel="winget" hidden>
+            <span class="install__ps" aria-hidden="true">PS&gt;</span>
+            <code class="install__cmd">winget install Zubyr.Devpit</code>
+            <button class="copy" type="button" data-copy="winget install Zubyr.Devpit" aria-label="Copy winget install command">
               <svg class="ico ico--copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 15V6.5a2 2 0 0 1 2-2H15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <svg class="ico ico--ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>

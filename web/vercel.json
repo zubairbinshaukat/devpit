@@ -7,13 +7,8 @@
   "trailingSlash": false,
   "redirects": [
     {
-      "source": "/",
-      "destination": "/home",
-      "permanent": true
-    },
-    {
-      "source": "/index.html",
-      "destination": "/home",
+      "source": "/home",
+      "destination": "/",
       "permanent": true
     },
     {
@@ -30,7 +25,7 @@
   ],
   "headers": [
     {
-      "source": "/install.ps1",
+      "source": "/install(.ps1)?",
       "headers": [
         {
           "key": "Content-Type",
@@ -39,6 +34,10 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=300"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
         }
       ]
     },
